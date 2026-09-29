@@ -832,12 +832,12 @@ function otsDe(os){const out=[];
   for(const o of os)o.lineas.forEach((l,li)=>{const n=l.ops.length;l.ops.forEach((w,wi)=>{
     const p=S.prog.get(woKey(o.id,l.pieza,w.seq));out.push({o,l,w,li,num:`${o.numero}-${li+1}.${w.seq}`,de:n,prev:l.ops[wi-1]||null,next:l.ops[wi+1]||null,hecho:p?p.qty:0})})});
   return out}
-function dibujarOT(d,x,ox,oy,i,tot){
+function dibujarOT(d,x,ox,oy,i,tot,ren){
   const k=148.5/210,W=210,H=148.5,M=9;const X=v=>ox+v*k,Y=v=>oy+v*k,F=v=>Math.max(6.2,v*k*1.12);const {o,l,w}=x;
   d.setTextColor(0);d.setFont('helvetica','bold');d.setFontSize(F(15));d.text('Orden de trabajo  '+x.num,X(M),Y(11.5));d.setDrawColor(0);d.setLineWidth(0.4);d.line(X(M),Y(15.5),X(W-M),Y(15.5));d.setLineWidth(0.2);
   d.setTextColor(60);d.setFontSize(F(8.5));d.setFont('helvetica','normal');d.text(`OP ${o.numero}  Req. ${o.fecha_req?o.fecha_req.split('-').reverse().join('/'):'-'}${o.prioridad==='urgente'?'  URGENTE':''}`,X(W-M),Y(11),{align:'right'});
   d.setTextColor(0);let y=26;
-  const QS=34;qrPDF(d,otURL(o,x.li,w.seq),X(W-M-QS),Y(19.5),QS*k);const WR=W-M-QS-3;
+  const QS=ren?34:40;qrPDF(d,otURL(o,x.li,w.seq),X(W-M-QS),Y(19.5),QS*k);const WR=W-M-QS-3;
   d.setFontSize(F(19));d.setFont('helvetica','bold');d.text(tipoNombre(w.tipo),X(M),Y(y));d.setFontSize(F(11));d.text(`Op. ${w.op}  (paso ${w.seq} de ${x.de})`,X(WR),Y(y),{align:'right'});y+=8.5;
   d.setFontSize(F(11));d.text(d.splitTextToSize(`${o.articulo}   ${l.pieza}${l.codigo?'  ('+l.codigo+')':''}`,(WR-M)*k)[0],X(M),Y(y));y+=4;
   d.setFont('helvetica','normal');
@@ -845,21 +845,25 @@ function dibujarOT(d,x,ox,oy,i,tot){
   const bw=(WR-M)/boxes.length;boxes.forEach(([kk,v],j)=>{const bx=M+j*bw;d.setDrawColor(20);d.rect(X(bx),Y(y),bw*k,15*k);d.setFontSize(F(7.5));d.setTextColor(95);d.text(kk,X(bx+2),Y(y+5));d.setTextColor(0);d.setFont('helvetica','bold');d.setFontSize(F(11));d.text(String(v),X(bx+2),Y(y+12));d.setFont('helvetica','normal')});y+=18;
   if(o.notas){d.setFontSize(F(7));const t=d.splitTextToSize(o.notas,(WR-M)*k);d.text(t[0]+(t.length>1?'…':''),X(M),Y(y+2.5));y+=6}
   y=Math.max(y,19.5+QS+2);d.setFontSize(F(6.5));d.setTextColor(90);d.text('Escaneá para cargar',X(W-M-QS/2),Y(19.5+QS+1.5),{align:'center'});d.setTextColor(0);y+=2;
+  if(!ren){y+=4;d.setDrawColor(0);d.setLineWidth(0.35);const bh=H-M-12-y;d.roundedRect(X(M),Y(y),(W-2*M)*k,bh*k,2,2);d.setLineWidth(0.2);
+    d.setFont('helvetica','bold');d.setFontSize(F(10.5));d.text('Cómo cargar tu producción',X(M+5),Y(y+8));d.setFont('helvetica','normal');d.setFontSize(F(9.5));
+    ['1. Escaneá el QR con la cámara de tu celular.','2. Elegí tu máquina y tocá EMPECÉ al arrancar.','3. Al terminar tocá TERMINÉ y cargá la cantidad buena y el scrap.','4. Si parás o cambiás matriz, tocá PARADA O CAMBIO DE MATRIZ.'].forEach((t,j)=>d.text(t,X(M+5),Y(y+16+j*7.5)));
+    d.setFontSize(F(6));d.setTextColor(120);d.text(`Spotsline Fabricación. Emitida ${new Date().toLocaleDateString('es-AR')}. OT ${i+1} de ${tot}.`,X(M),Y(H-4));d.setTextColor(0);return}
   const cols=[['Fecha',20],['Operario',40],['Máq.',18],['Inicio',16],['Fin',16],['Cant. OK',22],['Scrap',16],['Firma',44]];const tw=cols.reduce((a,c)=>a+c[1],0),sc=(W-2*M)/tw;
   d.setDrawColor(0);d.setLineWidth(0.35);d.rect(X(M),Y(y),(W-2*M)*k,7*k);d.setLineWidth(0.2);d.setFont('helvetica','bold');d.setFontSize(F(7.5));let cx=M;cols.forEach(([n,cw])=>{d.text(n,X(cx+1.5),Y(y+5));cx+=cw*sc});y+=7;d.setFont('helvetica','normal');
   const rows=Math.max(3,Math.floor((H-M-16-y)/9));for(let r=0;r<rows;r++){cx=M;cols.forEach(([,cw])=>{d.setDrawColor(160);d.rect(X(cx),Y(y),cw*sc*k,9*k);cx+=cw*sc});y+=9}
   y+=5;d.setFontSize(F(8));d.text('Total: ________   Entregado a '+(x.next?x.next.op:'pintura')+': ________   Controló: ______________',X(M),Y(y+2));
   d.setFontSize(F(6));d.setTextColor(120);d.text(`Spotsline Fabricación. Emitida ${new Date().toLocaleDateString('es-AR')}. OT ${i+1} de ${tot}.`,X(M),Y(H-4));d.setTextColor(0)}
-function descargarOTs(L,fmt){fmt=fmt||lsGet('otfmt')||'a6';
+function descargarOTs(L,fmt,ren){fmt=fmt||lsGet('otfmt')||'a6';ren=ren??(lsGet('otren')==='1');
   if(!window.jspdf){toast('No se pudo cargar el generador de PDF. Recargá la página.');return}
   if(!L.length){toast('Marcá al menos una orden de trabajo');return}
   const {jsPDF}=window.jspdf;
-  if(fmt==='a6'){const d=new jsPDF({orientation:'landscape',unit:'mm',format:[148.5,105]});L.forEach((x,i)=>{if(i)d.addPage([148.5,105],'landscape');dibujarOT(d,x,0,0,i,L.length)});
+  if(fmt==='a6'){const d=new jsPDF({orientation:'landscape',unit:'mm',format:[148.5,105]});L.forEach((x,i)=>{if(i)d.addPage([148.5,105],'landscape');dibujarOT(d,x,0,0,i,L.length,ren)});
     const ops=[...new Set(L.map(x=>x.o.numero))];guardarArchivo((ops.length===1?`Ordenes de trabajo OP ${ops[0]}`:'Ordenes de trabajo')+` A6 (${L.length}).pdf`,d.output('blob'));return}
   const d=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   L.forEach((x,i)=>{const q=i%4;if(i&&!q)d.addPage();
     if(!q){d.setDrawColor(150);d.setLineDashPattern([1.5,1.5],0);d.line(148.5,0,148.5,210);d.line(0,105,297,105);d.setLineDashPattern([],0)}
-    dibujarOT(d,x,(q%2)*148.5,Math.floor(q/2)*105,i,L.length)});
+    dibujarOT(d,x,(q%2)*148.5,Math.floor(q/2)*105,i,L.length,ren)});
   const ops=[...new Set(L.map(x=>x.o.numero))];
   guardarArchivo(ops.length===1?`Ordenes de trabajo OP ${ops[0]} (${L.length}).pdf`:`Ordenes de trabajo (${L.length}).pdf`,d.output('blob'))}
 /* selector de órdenes de trabajo */
@@ -873,7 +877,7 @@ function elegirOTs(os,tipo){
    <span class="row" style="gap:6px"><button class="btn sec sm" data-m="todas">Marcar visibles</button><button class="btn sec sm" data-m="pend">Solo pendientes</button><button class="btn sec sm" data-m="nada">Desmarcar todo</button></span></div>
    <p class="note" style="margin:0 0 8px">Cada orden lleva un QR que abre la pantalla del operario en: <b>${esc(appURL())}</b>${/^https?:/.test(location.protocol)&&!/claude\.ai|claudeusercontent/.test(location.host)?'':' <span class="poor">Imprimilas desde la versión publicada en GitHub para que el QR abra la dirección correcta.</span>'}</p>
    <div class="dlgb" id="oList"></div>
-   <div class="pzh" style="align-items:center;margin-top:12px"><span class="note" id="oCnt"></span><span class="row" style="gap:8px;align-items:center"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Tamaño<select id="oFmt" style="width:auto"><option value="a6">Una por hoja A6</option><option value="a4">4 por hoja A4</option></select></label><button class="btn" id="oGo">Imprimir</button></span></div></div>`;
+   <div class="pzh" style="align-items:center;margin-top:12px"><span class="note" id="oCnt"></span><span class="row" style="gap:8px;align-items:center"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Tamaño<select id="oFmt" style="width:auto"><option value="a6">Una por hoja A6</option><option value="a4">4 por hoja A4</option></select></label><label style="display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap"><input type="checkbox" id="oRen" style="width:auto"> Renglones para anotar a mano</label><button class="btn" id="oGo">Imprimir</button></span></div></div>`;
   document.body.appendChild(m);const close=()=>{m.remove();document.removeEventListener('keydown',esc_)};const esc_=e=>{if(e.key==='Escape')close()};document.addEventListener('keydown',esc_);
   m.onclick=e=>{if(e.target===m||e.target.hasAttribute('data-x'))close()};
   const vis=()=>L.filter(x=>!filtro||x.w.tipo===filtro);
@@ -886,8 +890,9 @@ function elegirOTs(os,tipo){
   const cnt=()=>{const n=sel.size;const a6=($('#oFmt')?.value||'a6')==='a6';const h=a6?n:Math.ceil(n/4);$('#oCnt').textContent=n?`${n} ${n===1?'orden':'órdenes'} de trabajo, ${h} ${h===1?'hoja':'hojas'} ${a6?'A6':'A4'}`:'Ninguna marcada';$('#oGo').textContent=n?`Imprimir ${n}`:'Imprimir'};
   $('#oFil').value=filtro;$('#oFil').onchange=()=>{filtro=$('#oFil').value;draw()};
   m.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const a=b.dataset.m;if(a==='nada')sel.clear();else vis().forEach(x=>{if(a==='todas'||x.hecho<x.l.cant)sel.add(x.num);else sel.delete(x.num)});draw()});
+  {const rc=$('#oRen');rc.checked=lsGet('otren')==='1';rc.onchange=()=>lsSet('otren',rc.checked?'1':'0')}
   {const f=$('#oFmt');f.value=lsGet('otfmt')||'a6';f.onchange=()=>{lsSet('otfmt',f.value);cnt()}}
-  $('#oGo').onclick=()=>{const out=L.filter(x=>sel.has(x.num));if(!out.length){toast('Marcá al menos una orden de trabajo');return}descargarOTs(out,$('#oFmt').value)};
+  $('#oGo').onclick=()=>{const out=L.filter(x=>sel.has(x.num));if(!out.length){toast('Marcá al menos una orden de trabajo');return}descargarOTs(out,$('#oFmt').value,$('#oRen').checked)};
   draw();$('#oGo').focus()}
 
 function descargarXLS(os){
