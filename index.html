@@ -151,6 +151,8 @@ tr.click:hover td{background:var(--panel2)}
 .eb{height:140px;width:100%;display:flex;flex-direction:column-reverse;background:var(--panel2);border-radius:3px;overflow:hidden}
 .eb i{display:block;width:100%;background:var(--ink);opacity:.8}.eb i.np{background:var(--bad);opacity:.7}
 @media (max-width:900px){.kp6{grid-template-columns:repeat(2,minmax(0,1fr))}.filt{position:static}}
+table[data-sortable] tr:first-child th{cursor:pointer;user-select:none}table[data-sortable] tr:first-child th:hover{color:var(--ink);background:var(--lampbg)}
+th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';font-size:9px}th.s-asc,th.s-desc{color:var(--ink)}
 .toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 @media (max-width:900px){
@@ -489,7 +491,10 @@ function lunes(d){const x=new Date(d+'T12:00:00');const w=(x.getDay()+6)%7;x.set
 function finMes(m){const [y,mm]=m.split('-').map(Number);const d=new Date(y,mm,0);return m+'-'+String(d.getDate()).padStart(2,'0')}
 V.indicadores={F:null,
 defaults(){return {per:'mes',mes:today().slice(0,7),d0:addDays(today(),-29),d1:today(),tipo:'',maq:'',op:'',art:'',ot:'',origen:'',agr:'auto'}},
-rango(){const F=this.F,t=today();if(F.per==='hoy')return [t,t];if(F.per==='semana')return [lunes(t),t];if(F.per==='mes')return [F.mes+'-01',finMes(F.mes)];if(F.per==='30')return [addDays(t,-29),t];return [F.d0||t,F.d1||t]},
+rango(){const F=this.F,t=today();const mesAtras=n=>{const d=new Date(t+'T12:00:00');d.setDate(1);d.setMonth(d.getMonth()-n);return d.toISOString().slice(0,10)};
+  if(F.per==='anio')return [t.slice(0,4)+'-01-01',t];if(F.per==='3m')return [mesAtras(2),t];if(F.per==='6m')return [mesAtras(5),t];if(F.per==='12m')return [mesAtras(11),t];
+  if(F.per==='todo'){const fs=entries().map(e=>e.fecha).filter(Boolean).sort();return [fs[0]||t,t]}
+  if(F.per==='hoy')return [t,t];if(F.per==='semana')return [lunes(t),t];if(F.per==='mes')return [F.mes+'-01',finMes(F.mes)];if(F.per==='30')return [addDays(t,-29),t];return [F.d0||t,F.d1||t]},
 mount(){try{this.F={...this.defaults(),...JSON.parse(lsGet('indF')||'{}')}}catch(e){this.F=this.defaults()}
   $('#main').innerHTML=header('Indicadores','Seguimiento de eficiencia, producción, scrap y paradas. Filtrá por período, máquina, persona, artículo u orden; tocá cualquier fila de las tablas para filtrar por ella.')+
   `<section class="panel filt" id="iF"></section><div id="iB"></div>`;this.update()},
@@ -502,7 +507,7 @@ filtros(){const F=this.F;const E=entries();const T=S.M.centros?.tipos||{};const 
   const sel=(id,lab,opts,val,w)=>`<label class="f" style="flex:1 1 ${w||150}px">${lab}<select data-f="${id}">${opts.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(val)?'selected':''}>${esc(t)}</option>`).join('')}</select></label>`;
   const act=['tipo','maq','op','art','ot','origen'].filter(k=>F[k]).length;
   $('#iF').innerHTML=`<div class="row">
-   ${sel('per','Período',[['hoy','Hoy'],['semana','Esta semana'],['mes','Mes'],['30','Últimos 30 días'],['custom','Entre fechas']],F.per,140)}
+   ${sel('per','Período',[['hoy','Hoy'],['semana','Esta semana'],['mes','Un mes'],['30','Últimos 30 días'],['3m','Últimos 3 meses'],['6m','Últimos 6 meses'],['12m','Últimos 12 meses'],['anio','Este año'],['todo','Todo el historial'],['custom','Entre fechas']],F.per,160)}
    ${F.per==='mes'?sel('mes','Mes',meses.map(m=>[m,mesTxt(m)]),F.mes,150):''}
    ${F.per==='custom'?`<label class="f" style="flex:0 1 150px">Desde<input type="date" data-f="d0" value="${esc(F.d0)}"></label><label class="f" style="flex:0 1 150px">Hasta<input type="date" data-f="d1" value="${esc(F.d1)}"></label>`:''}
    ${sel('agr','Agrupar',[['auto','Automático'],['dia','Por día'],['semana','Por semana'],['mes','Por mes']],F.agr,130)}</div>
@@ -525,7 +530,7 @@ agg(E,key){const m={};for(const e of E){const k=key(e);if(k==null||k==='')contin
   if(e.tipo==='prod'){x.real+=+e.min||0;if(e.std_min!=null){x.std+=+e.std_min;x.realStd+=+e.min||0}x.qty+=+e.qty||0;x.scrap+=+e.scrap||0;x.n++;if(e.fuera_plan)x.fp++}
   else if(motivo(e.motivo)?.categoria!=='pausa')x.par+=+e.min||0}
   for(const x of Object.values(m)){x.ef=x.realStd?x.std/x.realStd:null;x.sc=x.qty+x.scrap?x.scrap/(x.qty+x.scrap):null;x.np=x.real+x.par?x.par/(x.real+x.par):null}return m},
-bucket(){const F=this.F;const [d0,d1]=this.rango();const dias=(new Date(d1)-new Date(d0))/864e5+1;const a=F.agr==='auto'?(dias<=45?'dia':dias<=120?'semana':'mes'):F.agr;
+bucket(){const F=this.F;const [d0,d1]=this.rango();const dias=(new Date(d1)-new Date(d0))/864e5+1;const a=F.agr==='auto'?(['3m','6m','12m','anio','todo'].includes(F.per)?'mes':dias<=45?'dia':dias<=120?'semana':'mes'):F.agr;
   const fn=a==='dia'?(f=>f):a==='semana'?(f=>lunes(f)):(f=>f.slice(0,7));const lab=a==='dia'?(k=>fmtD(k)):a==='semana'?(k=>'sem '+fmtD(k)):(k=>mesTxt(k).slice(0,3)+' '+k.slice(2,4));
   const keys=[];if(a==='mes'){for(let m=d0.slice(0,7);m<=d1.slice(0,7);){keys.push(m);const [y,mm]=m.split('-').map(Number);m=mm===12?(y+1)+'-01':y+'-'+String(mm+1).padStart(2,'0')}}
   else{for(let d=a==='semana'?lunes(d0):d0;d<=d1&&keys.length<400;d=addDays(d,a==='semana'?7:1))keys.push(d)}
@@ -558,7 +563,7 @@ update(){if(!$('#iF'))return;if(document.activeElement&&$('#iF').contains(docume
    ${o.lineas.flatMap(l=>l.ops.map(w=>{const p=S.prog.get(woKey(o.id,l.pieza,w.seq))||{qty:0,scrap:0,min:0,std:0};const dt=p.min&&p.std?(p.min-p.std)/p.std:null;
     return `<tr><td>${esc(l.pieza)}</td><td>${w.seq} ${esc(w.op)}</td><td class="n">${nf(l.cant)}</td><td class="n">${nf(p.qty)}</td><td class="n">${p.qty>=l.cant?'<span class="good">0</span>':nf(l.cant-p.qty)}</td><td class="n">${nf(p.scrap)}</td><td class="n">${w.seg?nf(p.std/60,1):'s/std'}</td><td class="n">${nf(p.min/60,1)}</td><td class="n">${dt==null?'–':`<span class="${dt>.25?'poor':dt<=0?'good':''}">${dt>0?'+':''}${Math.round(dt*100)}%</span>`}</td></tr>`})).join('')}</table></div></div>`).join('')}
    <p class="note">Plan contra hecho usa todo lo registrado en cada orden, no solo el período.</p></section>`:''}
-  <p class="note">Eficiencia: minutos estándar producidos sobre minutos reales, solo en pasos con tiempo estándar. Las pausas (refrigerio) no cuentan como tiempo no productivo.</p>`;
+  <p class="note">Tocá el título de cualquier columna para ordenar; tocá de nuevo para invertir. Eficiencia: minutos estándar producidos sobre minutos reales, solo en pasos con tiempo estándar. Las pausas (refrigerio) no cuentan como tiempo no productivo.</p>`;
   box.querySelectorAll('[data-set]').forEach(r=>r.onclick=()=>{const [k,...v]=r.dataset.set.split(':');const val=v.join(':');F[k]=F[k]===val?'':val;if(k==='tipo')F.maq='';this.save();this.update();try{$('#iF').scrollIntoView({block:'start',behavior:'smooth'})}catch(e){}})},
 excel(){if(typeof XLSX==='undefined'){toast('No se pudo cargar el generador de Excel. Recargá la página.');return}const E=this.datos();if(!E.length){toast('No hay registros con estos filtros');return}
   const wb=XLSX.utils.book_new();const [d0,d1]=this.rango();
@@ -1540,6 +1545,25 @@ hoy(){const yo=this.yo();const es=entries().filter(e=>e.fecha===today()&&e.opera
 update(){if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)&&$('#main').contains(document.activeElement))return;if(!document.querySelector('.modal'))this.render()}};
 function qrPDF(d,text,x,y,size){if(typeof qrcode==='undefined')return;const q=qrcode(0,'M');q.addData(text);q.make();const n=q.getModuleCount();const c=size/(n+4);
   d.setFillColor(255,255,255);d.rect(x,y,size,size,'F');d.setFillColor(0,0,0);for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))d.rect(x+(k+2)*c,y+(r+2)*c,c*1.02,c*1.02,'F')}
+
+/* ---------- ordenar cualquier tabla tocando el encabezado ---------- */
+const SORT={};
+function tsig(t){const h=t.querySelector('tr');return h?[...h.children].map(c=>c.textContent.trim()).join('|'):''}
+function cval(td){if(!td)return {v:null};const t=td.querySelector('input,select');const s=(t?t.value:td.textContent).trim();
+  if(!s||s==='–'||s==='-')return {v:null};let m=s.match(/^(\d{2})\/(\d{2})(?:\/(\d{4}))?/);if(m)return {n:+((m[3]||'2000')+m[2]+m[1]),v:s};
+  m=s.match(/^([+-]?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?/);if(m)return {n:parseFloat(m[1]+m[2].replace(/\./g,'')+(m[3]?'.'+m[3]:'')),v:s};
+  m=s.match(/^(\d{1,2}):(\d{2})/);if(m)return {n:+m[1]*60+ +m[2],v:s};return {v:s}}
+function ordenarTabla(t,ci,dir){const rows=[...t.rows];const head=rows[0];const nh=[...head.children].reduce((a,c)=>a+(c.colSpan||1),0);
+  const groups=[];for(const r of rows.slice(1)){const n=[...r.children].reduce((a,c)=>a+(c.colSpan||1),0);const det=r.children.length<[...head.children].length&&groups.length;if(det)groups[groups.length-1].push(r);else groups.push([r])}
+  const vals=groups.map(g=>cval(g[0].children[ci]));const num=vals.filter(x=>x.v!=null).every(x=>x.n!=null)&&vals.some(x=>x.n!=null);
+  const idx=groups.map((g,i)=>i).sort((a,b)=>{const A=vals[a],B=vals[b];if(A.v==null&&B.v==null)return a-b;if(A.v==null)return 1;if(B.v==null)return -1;
+    const c=num?(A.n-B.n):String(A.v).localeCompare(String(B.v),'es',{numeric:true,sensitivity:'base'});return (c||a-b)*dir});
+  const par=groups[0]?.[0]?.parentNode;if(!par)return;for(const i of idx)for(const r of groups[i])par.appendChild(r);
+  [...head.children].forEach((c,j)=>{c.classList.toggle('s-asc',j===ci&&dir>0);c.classList.toggle('s-desc',j===ci&&dir<0)});t.dataset.sorted='1'}
+function sortable(t){return !t.closest('.bt,.fx')&&!t.classList.contains('bt')&&!t.classList.contains('fx')&&t.rows.length>2&&t.rows[0].querySelector('th')}
+document.addEventListener('click',e=>{const th=e.target.closest('th');if(!th||e.target.closest('input,select,button,a'))return;const t=th.closest('table');if(!t||!sortable(t)||th.parentNode!==t.rows[0])return;
+  const ci=[...th.parentNode.children].indexOf(th);const k=tsig(t);const cur=SORT[k];const dir=cur&&cur.ci===ci?-cur.dir:(cval(t.rows[1]?.children[ci]).n!=null?-1:1);SORT[k]={ci,dir};ordenarTabla(t,ci,dir)});
+new MutationObserver(()=>{document.querySelectorAll('table').forEach(t=>{if(t.dataset.sorted||!sortable(t))return;t.dataset.sortable='1';const s=SORT[tsig(t)];if(s)ordenarTabla(t,s.ci,s.dir)})}).observe(document.body,{childList:true,subtree:true});
 
 /* ---------- router ---------- */
 function route(){const h=(location.hash||'#general').slice(1);let [v,sel,...rest]=h.split('/');if(v==='desvios'){v='indicadores'}else if(v==='fabrica'){v='plan'}else if(v==='planificacion'){v='plan';V.plan.tab='curso'}else if(v==='plan'&&!sel){}const name=V[v]&&!['fabrica','planificacion'].includes(v)?v:'general';
