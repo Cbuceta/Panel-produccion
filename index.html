@@ -143,6 +143,14 @@ tr.click:hover td{background:var(--panel2)}
 .opbig.sec{background:var(--panel);color:var(--ink);border-color:var(--ink);font-size:16px;padding:13px;margin-top:0}.opbig:active{transform:translateY(1px)}
 .opgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.opin{font-size:18px;padding:12px}
 .oprow{display:block;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:15px;cursor:pointer;color:var(--ink)}.oprow span{color:var(--muted);font-size:13.5px}
+.filt{position:sticky;top:calc(0px + env(safe-area-inset-top,0px));z-index:4;box-shadow:0 6px 12px -10px rgba(0,0,0,.35)}
+.kp6{grid-template-columns:repeat(6,minmax(0,1fr))}
+.evo{display:flex;gap:3px;align-items:flex-end;overflow-x:auto;padding-bottom:4px;min-height:190px}
+.ec{flex:1 0 26px;max-width:60px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px}
+.ec span{font-weight:700;font-stretch:80%;min-height:14px}.ec small{color:var(--muted);font-size:10.5px;white-space:nowrap;font-stretch:80%}
+.eb{height:140px;width:100%;display:flex;flex-direction:column-reverse;background:var(--panel2);border-radius:3px;overflow:hidden}
+.eb i{display:block;width:100%;background:var(--ink);opacity:.8}.eb i.np{background:var(--bad);opacity:.7}
+@media (max-width:900px){.kp6{grid-template-columns:repeat(2,minmax(0,1fr))}.filt{position:static}}
 .toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 @media (max-width:900px){
@@ -170,7 +178,7 @@ tr.click:hover td{background:var(--panel2)}
     <a class="off" href="#" data-pronto="Pintura">Pintura <small>pronto</small></a>
     <a class="off" href="#" data-pronto="Armado">Armado <small>pronto</small></a>
     <div class="grp">Análisis</div>
-    <a href="#desvios" data-v="desvios">Desvíos</a>
+    <a href="#indicadores" data-v="indicadores">Indicadores</a>
     <a href="#maestro" data-v="maestro">Maestro</a>
     <a href="#instructivo" data-v="instructivo">Instructivo</a>
   </nav>
@@ -186,6 +194,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nf=(n,d=0)=>(n==null||isNaN(n))?'–':Number(n).toLocaleString('es-AR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct1=x=>(x==null||!isFinite(x))?'–':(Math.round(x*1000)/10).toLocaleString('es-AR')+'%';
 const pct=x=>(x==null||!isFinite(x))?'–':Math.round(x*100)+'%';
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const addDays=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
@@ -275,7 +284,7 @@ function writeParte(fecha,mutate){
 
 /* ---------- vistas ---------- */
 const V={};
-const AYSEC={general:'desvios',plan:'importar',taller:'taller',desvios:'desvios',maestro:'ldm'};
+const AYSEC={general:'indicadores',plan:'importar',taller:'taller',indicadores:'indicadores',maestro:'ldm'};
 function header(t,lead){return `<h1>${t}</h1><p class="lead">${lead} <a class="help" href="#instructivo/${AYSEC[S.view]||''}">Ver instructivo</a></p>`+(S.supaErr?`<div class="banner" style="border-color:var(--bad);background:var(--badbg)"><b>No se pudo conectar con la base compartida de Supabase</b> ${S.supaErr==='tabla'?'porque la tabla <b>'+SUPA.tabla+'</b> todavía no existe. Hay que crearla una vez en Supabase (SQL Editor) con el script que acompaña este archivo.':S.supaErr==='columna'?'porque la tabla <b>'+SUPA.tabla+'</b> existe pero le falta la columna <b>updated_at</b>. Volvé a correr el script SQL completo.':'. Revisá la conexión a internet y recargá.'}<br><span class="note">Detalle de Supabase: ${esc(S.supaDet||'')}</span> Mientras tanto estás en modo local: lo que cargues queda solo en esta computadora.</div>`:'')+(S.local?`<div class="banner"><b>Modo local.</b> Estás usando una copia fuera de claude.ai: los maestros vienen incluidos en el archivo y lo que cargues se guarda solo en esta computadora y navegador, sin compartirse. <span class="row" style="display:inline-flex;gap:6px;margin-left:6px"><button class="btn sm" onclick="respaldo()">Descargar respaldo</button><button class="btn sec sm" onclick="restaurar()">Restaurar respaldo</button></span></div>`:S.live?'':`<div class="banner">Conectando con los datos…</div>`)+(S.live&&!S.M.productos&&S.loaded.productos?`<div class="banner">El maestro de productos todavía no está cargado.</div>`:'')}
 
 /* GENERAL */
@@ -294,8 +303,8 @@ update(){
   g.innerHTML=`<div class="kpis">
    ${kbtn(abiertas.length,'órdenes abiertas','curso:abiertas')}
    ${kbtn(nf(hsTot),'horas estándar pendientes','carga')}
-   ${kbtn(real?pct(std/real):'–','eficiencia últimos 7 días','desvios',std&&real?(std/real>=.75?'good':std/real<.55?'poor':''):'')}
-   ${kbtn(nf(par/60,1),'horas de parada últimos 7 días','desvios')}</div>
+   ${kbtn(real?pct(std/real):'–','eficiencia últimos 7 días','indicadores',std&&real?(std/real>=.75?'good':std/real<.55?'poor':''):'')}
+   ${kbtn(nf(par/60,1),'horas de parada últimos 7 días','indicadores')}</div>
   <div class="grid2"><section class="panel"><h2>Carga pendiente por tipo de máquina</h2>
    <p class="note" style="margin-top:-6px">Días de trabajo según los puestos activos de cada tipo (se ajustan en Maestro).</p>
    <div class="bars">${rows.length?rows.map(r=>`<div class="b bb" data-go="curso:abiertas:${esc(r.t)}" role="button" tabindex="0" title="Ver órdenes con carga en ${esc(tipoNombre(r.t))}"><span>${esc(tipoNombre(r.t))}</span><div class="t"><i class="${r.dias>10?'hot':''}" style="width:${r.dias/mx*100}%"></i></div><span class="n" style="text-align:right">${nf(r.dias,1)} días${r.sin?` <span class="pill bad" title="Operaciones sin tiempo estándar">${r.sin} s/std</span>`:''}</span></div>`).join(''):'<p class="note">No hay carga pendiente. Las órdenes que lance el planificador aparecen acá.</p>'}</div></section>
@@ -473,38 +482,94 @@ update(){if(!$('#dia'))return;this.fillWO();this.calc();
 }};
 const fechaDoc=f=>f+'_'+uidShort();
 
-/* DESVÍOS */
-V.desvios={mount(){$('#main').innerHTML=header('Desvíos','Lo real contra lo estándar: eficiencia por operario y máquina, avance de cada orden en cantidad y tiempo, y en qué se van las horas no productivas.')+
-  `<div class="panel"><div class="row"><label class="f" style="flex:0 1 180px">Desde<input id="dDesde" type="date" value="${addDays(today(),-6)}"></label><label class="f" style="flex:0 1 180px">Hasta<input id="dHasta" type="date" value="${today()}"></label></div></div><div id="dv"></div>`;
-  ['dDesde','dHasta'].forEach(i=>$('#'+i).onchange=()=>this.update());this.update()},
-update(){const box=$('#dv');if(!box)return;const d0=$('#dDesde').value,d1=$('#dHasta').value;
-  const E=entries().filter(e=>e.fecha>=d0&&e.fecha<=d1);const dias=[];for(let d=d0;d<=d1&&dias.length<31;d=addDays(d,1))dias.push(d);
-  const cls=ef=>ef==null?'':ef>=.75?'background:var(--okbg);color:var(--ok)':ef<.55?'background:var(--badbg);color:var(--bad)':'background:var(--lampbg);color:var(--lamp)';
-  const agg=(key)=>{const m={};for(const e of E){const k=key(e);if(!k)continue;const x=m[k]=m[k]||{real:0,std:0,realStd:0,par:0,qty:0,scrap:0,dia:{}};
-    if(e.tipo==='prod'){x.real+=+e.min||0;if(e.std_min!=null){x.std+=e.std_min;x.realStd+=+e.min||0}x.qty+=+e.qty||0;x.scrap+=+e.scrap||0;const dd=x.dia[e.fecha]=x.dia[e.fecha]||{s:0,r:0};if(e.std_min!=null){dd.s+=e.std_min;dd.r+=+e.min||0}}
-    else if(motivo(e.motivo)?.categoria!=='pausa')x.par+=+e.min||0}return m};
-  const porOp=agg(e=>e.operario),porMaq=agg(e=>e.centro);
-  const opRows=Object.entries(porOp).sort((a,b)=>(b[1].realStd?b[1].std/b[1].realStd:0)-(a[1].realStd?a[1].std/a[1].realStd:0));
-  const maqRows=Object.entries(porMaq).sort((a,b)=>a[0].localeCompare(b[0],'es',{numeric:true}));
-  const mot={};E.filter(e=>e.tipo==='parada').forEach(e=>{const n=motivo(e.motivo)?.nombre||'Otro';mot[n]=(mot[n]||0)+(+e.min||0)});
+/* INDICADORES */
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const mesTxt=m=>{const [y,mm]=m.split('-');return MESES[+mm-1]+' '+y};
+function lunes(d){const x=new Date(d+'T12:00:00');const w=(x.getDay()+6)%7;x.setDate(x.getDate()-w);return x.toISOString().slice(0,10)}
+function finMes(m){const [y,mm]=m.split('-').map(Number);const d=new Date(y,mm,0);return m+'-'+String(d.getDate()).padStart(2,'0')}
+V.indicadores={F:null,
+defaults(){return {per:'mes',mes:today().slice(0,7),d0:addDays(today(),-29),d1:today(),tipo:'',maq:'',op:'',art:'',ot:'',origen:'',agr:'auto'}},
+rango(){const F=this.F,t=today();if(F.per==='hoy')return [t,t];if(F.per==='semana')return [lunes(t),t];if(F.per==='mes')return [F.mes+'-01',finMes(F.mes)];if(F.per==='30')return [addDays(t,-29),t];return [F.d0||t,F.d1||t]},
+mount(){try{this.F={...this.defaults(),...JSON.parse(lsGet('indF')||'{}')}}catch(e){this.F=this.defaults()}
+  $('#main').innerHTML=header('Indicadores','Seguimiento de eficiencia, producción, scrap y paradas. Filtrá por período, máquina, persona, artículo u orden; tocá cualquier fila de las tablas para filtrar por ella.')+
+  `<section class="panel filt" id="iF"></section><div id="iB"></div>`;this.update()},
+save(){lsSet('indF',JSON.stringify(this.F))},
+filtros(){const F=this.F;const E=entries();const T=S.M.centros?.tipos||{};const C=(S.M.centros?.items||[]).filter(c=>!F.tipo||c.tipo===F.tipo);
+  const meses=[...new Set([today().slice(0,7),...E.map(e=>e.fecha?.slice(0,7)).filter(Boolean)])].sort().reverse();
+  const arts=[...new Set(E.filter(e=>e.tipo==='prod').map(e=>e.articulo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true}));
+  const ots=[...new Set(E.filter(e=>e.op_numero).map(e=>e.op_numero))].sort((a,b)=>String(b).localeCompare(String(a),'es',{numeric:true}));
+  const P=(S.M.personal?.items||[]);const [d0,d1]=this.rango();
+  const sel=(id,lab,opts,val,w)=>`<label class="f" style="flex:1 1 ${w||150}px">${lab}<select data-f="${id}">${opts.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(val)?'selected':''}>${esc(t)}</option>`).join('')}</select></label>`;
+  const act=['tipo','maq','op','art','ot','origen'].filter(k=>F[k]).length;
+  $('#iF').innerHTML=`<div class="row">
+   ${sel('per','Período',[['hoy','Hoy'],['semana','Esta semana'],['mes','Mes'],['30','Últimos 30 días'],['custom','Entre fechas']],F.per,140)}
+   ${F.per==='mes'?sel('mes','Mes',meses.map(m=>[m,mesTxt(m)]),F.mes,150):''}
+   ${F.per==='custom'?`<label class="f" style="flex:0 1 150px">Desde<input type="date" data-f="d0" value="${esc(F.d0)}"></label><label class="f" style="flex:0 1 150px">Hasta<input type="date" data-f="d1" value="${esc(F.d1)}"></label>`:''}
+   ${sel('agr','Agrupar',[['auto','Automático'],['dia','Por día'],['semana','Por semana'],['mes','Por mes']],F.agr,130)}</div>
+   <div class="row" style="margin-top:10px">
+   ${sel('tipo','Tipo de máquina',[['','Todos'],...Object.entries(T).map(([k,t])=>[k,t.nombre])],F.tipo)}
+   ${sel('maq','Máquina',[['','Todas'],...C.map(c=>[c.codigo,c.codigo])],F.maq,120)}
+   ${sel('op','Operario',[['','Todos'],...P.map(p=>[p.id,p.nombre+(p.activo===false?' (inactivo)':'')])],F.op,180)}
+   ${sel('art','Artículo',[['','Todos'],...arts.map(a=>[a,a])],F.art)}
+   ${sel('ot','Orden (OP)',[['','Todas'],...ots.map(o=>[o,'OP '+o])],F.ot,120)}
+   ${sel('origen','Origen de la carga',[['','Todos'],['qr','Celular (QR)'],['manual','Carga manual'],['foto','Foto'],['importado','Importado'],['historial','Historial (Excel del taller)']],F.origen,150)}</div>
+   <div class="row" style="margin-top:10px;justify-content:space-between;align-items:center"><span class="note">${fmtD(d0)}/${d0.slice(0,4)} al ${fmtD(d1)}/${d1.slice(0,4)}${act?`, ${act} ${act===1?'filtro activo':'filtros activos'}`:''}</span>
+   <span class="row" style="gap:6px">${act?'<button class="btn sec sm" id="iClr">Quitar filtros</button>':''}<button class="btn sm" id="iXls">Descargar Excel</button></span></div>`;
+  $('#iF').querySelectorAll('[data-f]').forEach(el=>el.onchange=()=>{const k=el.dataset.f;F[k]=el.value;if(k==='tipo')F.maq='';this.save();this.update()});
+  const c=$('#iClr');if(c)c.onclick=()=>{Object.assign(F,{tipo:'',maq:'',op:'',art:'',ot:'',origen:''});this.save();this.update()};
+  $('#iXls').onclick=()=>this.excel()},
+datos(){const F=this.F;const [d0,d1]=this.rango();const artOt=!!(F.art||F.ot);
+  return entries().filter(e=>e.fecha>=d0&&e.fecha<=d1&&(!F.op||e.operario===F.op)&&(!F.maq||e.centro===F.maq)&&(!F.tipo||(e.centro_tipo||centroTipo(e.centro))===F.tipo)
+    &&(!F.origen||(e.origen||'manual')===F.origen)&&(!artOt||e.tipo==='prod')&&(!F.art||e.articulo===F.art)&&(!F.ot||String(e.op_numero)===String(F.ot)))},
+agg(E,key){const m={};for(const e of E){const k=key(e);if(k==null||k==='')continue;const x=m[k]=m[k]||{real:0,std:0,realStd:0,par:0,qty:0,scrap:0,n:0,fp:0};
+  if(e.tipo==='prod'){x.real+=+e.min||0;if(e.std_min!=null){x.std+=+e.std_min;x.realStd+=+e.min||0}x.qty+=+e.qty||0;x.scrap+=+e.scrap||0;x.n++;if(e.fuera_plan)x.fp++}
+  else if(motivo(e.motivo)?.categoria!=='pausa')x.par+=+e.min||0}
+  for(const x of Object.values(m)){x.ef=x.realStd?x.std/x.realStd:null;x.sc=x.qty+x.scrap?x.scrap/(x.qty+x.scrap):null;x.np=x.real+x.par?x.par/(x.real+x.par):null}return m},
+bucket(){const F=this.F;const [d0,d1]=this.rango();const dias=(new Date(d1)-new Date(d0))/864e5+1;const a=F.agr==='auto'?(dias<=45?'dia':dias<=120?'semana':'mes'):F.agr;
+  const fn=a==='dia'?(f=>f):a==='semana'?(f=>lunes(f)):(f=>f.slice(0,7));const lab=a==='dia'?(k=>fmtD(k)):a==='semana'?(k=>'sem '+fmtD(k)):(k=>mesTxt(k).slice(0,3)+' '+k.slice(2,4));
+  const keys=[];if(a==='mes'){for(let m=d0.slice(0,7);m<=d1.slice(0,7);){keys.push(m);const [y,mm]=m.split('-').map(Number);m=mm===12?(y+1)+'-01':y+'-'+String(mm+1).padStart(2,'0')}}
+  else{for(let d=a==='semana'?lunes(d0):d0;d<=d1&&keys.length<400;d=addDays(d,a==='semana'?7:1))keys.push(d)}
+  return {a,fn,lab,keys}},
+update(){if(!$('#iF'))return;if(document.activeElement&&$('#iF').contains(document.activeElement)&&document.activeElement.tagName==='INPUT')return;this.filtros();
+  const F=this.F;const E=this.datos();const box=$('#iB');const tot=this.agg(E,()=>'t').t;
+  if(!E.length){box.innerHTML='<div class="panel"><p class="note">No hay registros con estos filtros. Probá con otro período o quitá algún filtro.</p></div>';return}
+  const cls=ef=>ef==null?'':ef>=.75?'good':ef<.55?'poor':'';const cell=ef=>ef==null?'':ef>=.75?'background:var(--okbg);color:var(--ok)':ef<.55?'background:var(--badbg);color:var(--bad)':'background:var(--lampbg);color:var(--lampink)';
+  const B=this.bucket();const porB=this.agg(E,e=>B.fn(e.fecha));const mxH=Math.max(1,...B.keys.map(k=>(porB[k]?.real||0)+(porB[k]?.par||0)));
+  const dias=new Set(E.map(e=>e.fecha)).size;
+  const tabla=(titulo,key,lab,fk,extra)=>{const m=this.agg(E,key);const rows=Object.entries(m).sort((a,b)=>(b[1].real+b[1].par)-(a[1].real+a[1].par));
+    return `<section class="panel"><h2>${titulo}</h2><div class="tw"><table><tr><th>${extra||''}</th><th class="n">Hs prod.</th><th class="n">Hs std</th><th class="n">Eficiencia</th><th class="n">Hs no prod.</th><th class="n">Piezas</th><th class="n">Scrap</th>${fk==='op'?'<th>Evolución</th>':''}</tr>
+    ${rows.map(([k,x])=>`<tr class="${fk?'click':''}" ${fk?`data-set="${fk}:${esc(k)}"`:''} title="${fk?'Filtrar por '+esc(lab(k)):''}"><td>${esc(lab(k))}${F[fk]===k?' <span class="pill lamp">filtro</span>':''}</td><td class="n">${nf(x.real/60,1)}</td><td class="n">${nf(x.std/60,1)}</td><td class="n"><b class="${cls(x.ef)}">${pct(x.ef)}</b></td><td class="n">${nf(x.par/60,1)}</td><td class="n">${nf(x.qty)}</td><td class="n">${x.sc==null?'–':pct1(x.sc)}</td>
+     ${fk==='op'?`<td><div class="cells">${B.keys.slice(-24).map(bk=>{const v=this.agg(E.filter(e=>e.operario===k&&B.fn(e.fecha)===bk),()=>'t').t;const ef=v?.ef??null;return `<i title="${esc(B.lab(bk))}" style="${cell(ef)}">${ef==null?'':Math.round(ef*100)}</i>`}).join('')}</div></td>`:''}</tr>`).join('')}</table></div></section>`};
+  const mot={},cat={};E.filter(e=>e.tipo==='parada').forEach(e=>{const mo=motivo(e.motivo);const n=mo?.nombre||'Otro';mot[n]=(mot[n]||0)+(+e.min||0);const c=({preparacion:'Preparación',parada:'Parada',auxiliar:'Tarea auxiliar',pausa:'Pausa'})[mo?.categoria]||'Otro';cat[c]=(cat[c]||0)+(+e.min||0)});
   const motR=Object.entries(mot).sort((a,b)=>b[1]-a[1]);const mxm=Math.max(1,...motR.map(x=>x[1]));
-  const fuera=E.filter(e=>e.tipo==='prod'&&e.fuera_plan);
-  const ops=S.ordenes.filter(o=>o.estado!=='cancelada'&&(abierta(o)||E.some(e=>e.op_id===o.id)));
-  box.innerHTML=!E.length&&!ops.length?'<div class="panel"><p class="note">No hay registros en este período. Cuando el taller confirme su día, los desvíos aparecen acá.</p></div>':`
-  <section class="panel"><h2>Por operario</h2><div class="tw"><table><tr><th>Operario</th><th class="n">Hs prod.</th><th class="n">Hs std</th><th class="n">Eficiencia</th><th class="n">Hs no prod.</th><th class="n">Scrap</th><th>Por día</th></tr>
-  ${opRows.map(([k,x])=>{const ef=x.realStd?x.std/x.realStd:null;return `<tr><td>${esc(persona(k))}</td><td class="n">${nf(x.real/60,1)}</td><td class="n">${nf(x.std/60,1)}</td><td class="n"><b style="${cls(ef)};padding:1px 6px;border-radius:3px">${pct(ef)}</b></td><td class="n">${nf(x.par/60,1)}</td><td class="n">${nf(x.scrap)}</td>
-  <td><div class="cells">${dias.map(d=>{const v=x.dia[d];const e2=v&&v.r?v.s/v.r:null;return `<i title="${fmtD(d)}" style="${cls(e2)}">${e2==null?'':Math.round(e2*100)}</i>`}).join('')}</div></td></tr>`}).join('')}</table></div>
-  <p class="note">La eficiencia compara minutos estándar producidos contra minutos reales, solo en pasos con estándar cargado.</p></section>
-  <div class="grid2"><section class="panel"><h2>Por máquina</h2><div class="tw"><table><tr><th>Máquina</th><th class="n">Hs prod.</th><th class="n">Eficiencia</th><th class="n">Hs no prod.</th></tr>
-  ${maqRows.map(([k,x])=>{const ef=x.realStd?x.std/x.realStd:null;return `<tr><td>${esc(k)}</td><td class="n">${nf(x.real/60,1)}</td><td class="n">${pct(ef)}</td><td class="n">${nf(x.par/60,1)}</td></tr>`}).join('')||'<tr><td colspan="4" class="note">Sin datos.</td></tr>'}</table></div></section>
-  <section class="panel"><h2>Horas no productivas por motivo</h2><div class="bars">${motR.length?motR.map(([n,m])=>`<div class="b" style="grid-template-columns:minmax(0,190px) 1fr 70px"><span>${esc(n)}</span><div class="t"><i style="width:${m/mxm*100}%"></i></div><span style="text-align:right">${nf(m/60,1)} h</span></div>`).join(''):'<p class="note">Sin paradas registradas.</p>'}</div>
-  ${fuera.length?`<p class="note" style="margin-top:12px"><span class="pill lamp">${fuera.length}</span> registros de producción fuera de plan en el período.</p>`:''}</section></div>
-  <section class="panel"><h2>Por orden: cantidad y tiempo</h2>${ops.length?ops.map(o=>`<div class="pz"><div class="pzh"><b>OP ${esc(o.numero)} ${esc(o.articulo)}</b><span class="note">requerida ${fmtD(o.fecha_req)}, avance ${pct(opAvance(o))}</span></div>
-  <div class="tw"><table><tr><th>Pieza</th><th>Paso</th><th class="n">Plan</th><th class="n">Hecho</th><th class="n">Falta</th><th class="n">Scrap</th><th class="n">Hs std (hecho)</th><th class="n">Hs reales</th><th class="n">Desvío tiempo</th></tr>
-  ${o.lineas.flatMap(l=>l.ops.map(w=>{const p=S.prog.get(woKey(o.id,l.pieza,w.seq))||{qty:0,scrap:0,min:0,std:0};const dt=p.min&&p.std?(p.min-p.std)/p.std:null;
-    return `<tr><td>${esc(l.pieza)}</td><td>${w.seq} ${esc(w.op)}</td><td class="n">${nf(l.cant)}</td><td class="n">${nf(p.qty)}</td><td class="n">${p.qty>=l.cant?'<span class="good">0</span>':nf(l.cant-p.qty)}</td><td class="n">${nf(p.scrap)}</td><td class="n">${w.seg?nf(p.std/60,1):'s/std'}</td><td class="n">${nf(p.min/60,1)}</td><td class="n">${dt==null?'–':`<span class="${dt>.25?'poor':dt<=0?'good':''}">${dt>0?'+':''}${Math.round(dt*100)}%</span>`}</td></tr>`})).join('')}</table></div></div>`).join(''):'<p class="note">Sin órdenes con actividad.</p>'}
-  <p class="note">El avance por orden se calcula con todo lo registrado, no solo con el período elegido.</p></section>`;
-}};
+  const ops=S.ordenes.filter(o=>o.estado!=='cancelada'&&E.some(e=>e.op_id===o.id));
+  box.innerHTML=`<div class="kpis kp6">
+   <div class="kpi"><b class="${cls(tot.ef)}">${pct(tot.ef)}</b><span>eficiencia</span></div><div class="kpi"><b>${nf(tot.real/60,1)}</b><span>hs productivas</span></div>
+   <div class="kpi"><b>${nf(tot.par/60,1)}</b><span>hs no productivas${tot.np!=null?` (${pct(tot.np)})`:''}</span></div><div class="kpi"><b>${nf(tot.qty)}</b><span>piezas buenas</span></div>
+   <div class="kpi"><b class="${tot.sc>.03?'poor':''}">${tot.sc==null?'–':pct1(tot.sc)}</b><span>scrap</span></div><div class="kpi"><b>${dias}</b><span>días con carga${tot.fp?`, ${tot.fp} reg. fuera de plan`:''}</span></div></div>
+  <section class="panel"><div class="pzh" style="align-items:baseline"><h2>Evolución ${({dia:'diaria',semana:'semanal',mes:'mensual'})[B.a]}</h2><span class="note">barra: horas productivas y no productivas; número: eficiencia</span></div>
+   <div class="evo">${B.keys.map(k=>{const x=porB[k];const r=x?.real||0,p=x?.par||0;return `<div class="ec" title="${esc(B.lab(k))}: ${nf(r/60,1)} hs prod., ${nf(p/60,1)} hs no prod., eficiencia ${pct(x?.ef)}"><span class="${cls(x?.ef)}">${x?.ef!=null?Math.round(x.ef*100):''}</span><div class="eb"><i style="height:${r/mxH*100}%"></i><i class="np" style="height:${p/mxH*100}%"></i></div><small>${esc(B.lab(k))}</small></div>`}).join('')}</div></section>
+  ${tabla('Por operario',e=>e.operario,persona,'op','Operario')}
+  <div class="grid2" style="grid-template-columns:1fr 1fr">${tabla('Por máquina',e=>e.centro,k=>k,'maq','Máquina')}${tabla('Por tipo de máquina',e=>e.centro_tipo||centroTipo(e.centro),tipoNombre,'tipo','Tipo')}</div>
+  <div class="grid2" style="grid-template-columns:1fr 1fr">${tabla('Por artículo',e=>e.tipo==='prod'?e.articulo:null,k=>k,'art','Artículo')}
+   <section class="panel"><h2>Horas no productivas</h2><p class="note" style="margin-top:-6px">${Object.entries(cat).map(([c,m])=>`${c} ${nf(m/60,1)} h`).join(', ')||'Sin paradas.'}</p><div class="bars">${motR.map(([n,m])=>`<div class="b" style="grid-template-columns:minmax(0,190px) 1fr 70px"><span>${esc(n)}</span><div class="t"><i style="width:${m/mxm*100}%"></i></div><span style="text-align:right">${nf(m/60,1)} h</span></div>`).join('')}</div></section></div>
+  ${ops.length?`<section class="panel"><h2>Por orden: plan contra hecho</h2>${ops.map(o=>`<div class="pz"><div class="pzh"><b class="click" data-set="ot:${esc(o.numero)}" style="cursor:pointer">OP ${esc(o.numero)} ${esc(o.articulo)}</b><span class="note">requerida ${fmtD(o.fecha_req)}, avance ${pct(opAvance(o))}</span></div>
+   <div class="tw"><table><tr><th>Pieza</th><th>Paso</th><th class="n">Plan</th><th class="n">Hecho</th><th class="n">Falta</th><th class="n">Scrap</th><th class="n">Hs std</th><th class="n">Hs reales</th><th class="n">Desvío tiempo</th></tr>
+   ${o.lineas.flatMap(l=>l.ops.map(w=>{const p=S.prog.get(woKey(o.id,l.pieza,w.seq))||{qty:0,scrap:0,min:0,std:0};const dt=p.min&&p.std?(p.min-p.std)/p.std:null;
+    return `<tr><td>${esc(l.pieza)}</td><td>${w.seq} ${esc(w.op)}</td><td class="n">${nf(l.cant)}</td><td class="n">${nf(p.qty)}</td><td class="n">${p.qty>=l.cant?'<span class="good">0</span>':nf(l.cant-p.qty)}</td><td class="n">${nf(p.scrap)}</td><td class="n">${w.seg?nf(p.std/60,1):'s/std'}</td><td class="n">${nf(p.min/60,1)}</td><td class="n">${dt==null?'–':`<span class="${dt>.25?'poor':dt<=0?'good':''}">${dt>0?'+':''}${Math.round(dt*100)}%</span>`}</td></tr>`})).join('')}</table></div></div>`).join('')}
+   <p class="note">Plan contra hecho usa todo lo registrado en cada orden, no solo el período.</p></section>`:''}
+  <p class="note">Eficiencia: minutos estándar producidos sobre minutos reales, solo en pasos con tiempo estándar. Las pausas (refrigerio) no cuentan como tiempo no productivo.</p>`;
+  box.querySelectorAll('[data-set]').forEach(r=>r.onclick=()=>{const [k,...v]=r.dataset.set.split(':');const val=v.join(':');F[k]=F[k]===val?'':val;if(k==='tipo')F.maq='';this.save();this.update();try{$('#iF').scrollIntoView({block:'start',behavior:'smooth'})}catch(e){}})},
+excel(){if(typeof XLSX==='undefined'){toast('No se pudo cargar el generador de Excel. Recargá la página.');return}const E=this.datos();if(!E.length){toast('No hay registros con estos filtros');return}
+  const wb=XLSX.utils.book_new();const [d0,d1]=this.rango();
+  const legOf=id=>(S.M.personal?.items||[]).find(p=>p.id===id)?.legajo||'';const R=E.map(e=>({Fecha:e.fecha,Legajo:legOf(e.operario),Operario:persona(e.operario),Tipo:e.tipo==='prod'?'Producción':'Parada',Máquina:e.centro||'','Tipo de máquina':tipoNombre(e.centro_tipo||centroTipo(e.centro)||''),OP:e.op_numero||'',Artículo:e.articulo||'',Pieza:e.pieza||'',Operación:e.paso||'',
+    Inicio:e.ini,Fin:e.fin,Minutos:+e.min||0,'Min. estándar':e.std_min!=null?+(+e.std_min).toFixed(1):'',Eficiencia:e.std_min!=null&&e.min?+(e.std_min/e.min).toFixed(3):'',Cantidad:e.qty??'',Scrap:e.scrap??'',Motivo:e.tipo==='parada'?(motivo(e.motivo)?.nombre||''):'','Fuera de plan':e.fuera_plan?'SI':'',Origen:e.origen||'manual',Observaciones:e.obs||''}));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(R),'Registros');
+  const res=(key,lab,n)=>{const m=this.agg(E,key);XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(Object.entries(m).map(([k,x])=>({[n]:lab(k),'Hs productivas':+(x.real/60).toFixed(2),'Hs estándar':+(x.std/60).toFixed(2),Eficiencia:x.ef!=null?+x.ef.toFixed(3):'','Hs no productivas':+(x.par/60).toFixed(2),Piezas:x.qty,Scrap:x.scrap}))),n.slice(0,31))};
+  res(e=>e.operario,k=>persona(k)+((S.M.personal?.items||[]).find(p=>p.id===k)?.legajo?' ('+(S.M.personal.items.find(p=>p.id===k).legajo)+')':''),'Operario');res(e=>e.centro,k=>k,'Máquina');res(e=>e.tipo==='prod'?e.articulo:null,k=>k,'Artículo');
+  const B=this.bucket();res(e=>B.fn(e.fecha),k=>k,'Período');
+  guardarArchivo(`Indicadores ${d0} a ${d1}.xlsx`,new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})]))}
+};
 
 /* MAESTRO */
 V.maestro={mount(){$('#main').innerHTML=header('Maestro','Listas de materiales, centros de trabajo y personal. Es la base de todo el sistema y sigue la estructura de Odoo Fabricación: producto, lista de materiales, componentes y operaciones.')+
@@ -521,11 +586,14 @@ update(){const box=$('#mm');if(!box)return;
     <td class="n">${S.canPlan?`<input type="number" min="0" step="1" value="${t.puestos}" data-t="${esc(k)}" data-k="puestos" style="width:80px;text-align:right">`:t.puestos}</td><td class="n">${S.canPlan?`<input type="number" min="0" step="0.5" value="${t.horas_dia}" data-t="${esc(k)}" data-k="horas_dia" style="width:80px;text-align:right">`:t.horas_dia}</td></tr>`).join('')}</table></div></section>`;
     box.querySelectorAll('input[data-t]').forEach(i=>i.onchange=async()=>{const v=parseFloat(i.value);if(!(v>=0)){toast('Valor inválido');return}
       const c=JSON.parse(JSON.stringify(S.M.centros));c.tipos[i.dataset.t][i.dataset.k]=v;try{await S.db.doc('maestro/centros').set(c);toast('Capacidad actualizada')}catch(e){toast('No se pudo guardar')}});return}
-  if(this.tab==='per'){const P=S.M.personal?.items||[];
-    box.innerHTML=`<section class="panel"><h2>Personal del taller</h2>${S.canPlan?`<div class="row" style="margin-bottom:12px"><label class="f">Nombre y apellido<input id="pn"></label><button class="btn" id="pAdd">Agregar</button></div><div class="err" id="pnErr"></div>`:''}
-    <div class="tw"><table><tr><th>Nombre</th><th>Estado</th><th></th></tr>${P.map(p=>`<tr><td>${esc(p.nombre)}</td><td>${p.activo===false?'<span class="pill">inactivo</span>':'<span class="pill ok">activo</span>'}</td><td class="n">${S.canPlan?`<button class="btn link" data-tg="${esc(p.id)}">${p.activo===false?'Activar':'Desactivar'}</button>`:''}</td></tr>`).join('')}</table></div></section>`;
+  if(this.tab==='per'){const P=S.M.personal?.items||[];const ed=S.canPlan;
+    box.innerHTML=`<section class="panel"><h2>Personal del taller</h2>${ed?`<div class="row" style="margin-bottom:12px"><label class="f" style="flex:0 1 130px">Legajo<input id="pl" inputmode="numeric"></label><label class="f">Nombre y apellido<input id="pn"></label><button class="btn" id="pAdd">Agregar</button></div><div class="err" id="pnErr"></div>`:''}
+    <div class="tw"><table><tr><th>Legajo</th><th>Nombre</th><th>Estado</th><th></th></tr>${P.slice().sort((a,b)=>String(a.legajo||'zzz').localeCompare(String(b.legajo||'zzz'),'es',{numeric:true})||a.nombre.localeCompare(b.nombre)).map(p=>`<tr><td>${ed?`<input value="${esc(p.legajo||'')}" data-leg="${esc(p.id)}" placeholder="sin legajo" style="width:110px">`:esc(p.legajo||'–')}</td><td>${esc(p.nombre)}</td><td>${p.activo===false?'<span class="pill">inactivo</span>':'<span class="pill ok">activo</span>'}</td><td class="n">${ed?`<button class="btn link" data-tg="${esc(p.id)}">${p.activo===false?'Activar':'Desactivar'}</button>`:''}</td></tr>`).join('')}</table></div>
+    <p class="note">El legajo se muestra en el celular del operario y en las descargas de Indicadores. También se puede cargar desde la planilla de maestros.</p></section>`;
     const save=async P2=>{try{await S.db.doc('maestro/personal').set({...S.M.personal,items:P2});toast('Personal actualizado')}catch(e){toast('No se pudo guardar')}};
-    $('#pAdd')&&($('#pAdd').onclick=()=>{const n=$('#pn').value.trim();if(!n){$('#pnErr').textContent='Escribí el nombre.';return}const mx=P.reduce((a,p)=>Math.max(a,parseInt(p.id.slice(1),10)||0),0);save([...P,{id:'e'+String(mx+1).padStart(2,'0'),nombre:n,activo:true}])});
+    const dupL=(l,id)=>l&&P.some(p=>p.id!==id&&String(p.legajo||'')===l);
+    $('#pAdd')&&($('#pAdd').onclick=()=>{const n=$('#pn').value.trim(),l=$('#pl').value.trim();if(!n){$('#pnErr').textContent='Escribí el nombre.';return}if(dupL(l,null)){$('#pnErr').textContent='Ese legajo ya lo tiene otra persona.';return}const mx=P.reduce((a,p)=>Math.max(a,parseInt(p.id.slice(1),10)||0),0);save([...P,{id:'e'+String(mx+1).padStart(2,'0'),nombre:n,legajo:l||null,activo:true}])});
+    box.querySelectorAll('[data-leg]').forEach(i=>i.onchange=()=>{const l=i.value.trim();if(dupL(l,i.dataset.leg)){toast('Ese legajo ya lo tiene otra persona');i.value=P.find(p=>p.id===i.dataset.leg)?.legajo||'';return}save(P.map(p=>p.id===i.dataset.leg?{...p,legajo:l||null}:p))});
     box.querySelectorAll('[data-tg]').forEach(b=>b.onclick=()=>save(P.map(p=>p.id===b.dataset.tg?{...p,activo:p.activo===false}:p)))}
 }};
 
@@ -755,8 +823,8 @@ function otsDe(os){const out=[];
   return out}
 function dibujarOT(d,x,ox,oy,i,tot){
   const k=148.5/210,W=210,H=148.5,M=9;const X=v=>ox+v*k,Y=v=>oy+v*k,F=v=>Math.max(6.2,v*k*1.12);const {o,l,w}=x;
-  d.setFillColor(20,20,20);d.rect(X(0),Y(0),W*k,17*k,'F');d.setTextColor(245,196,0);d.setFont('helvetica','bold');d.setFontSize(F(15));d.text('Orden de trabajo  '+x.num,X(M),Y(11.5));
-  d.setTextColor(255);d.setFontSize(F(8.5));d.setFont('helvetica','normal');d.text(`OP ${o.numero}  Req. ${o.fecha_req?o.fecha_req.split('-').reverse().join('/'):'-'}${o.prioridad==='urgente'?'  URGENTE':''}`,X(W-M),Y(11),{align:'right'});
+  d.setTextColor(0);d.setFont('helvetica','bold');d.setFontSize(F(15));d.text('Orden de trabajo  '+x.num,X(M),Y(11.5));d.setDrawColor(0);d.setLineWidth(0.4);d.line(X(M),Y(15.5),X(W-M),Y(15.5));d.setLineWidth(0.2);
+  d.setTextColor(60);d.setFontSize(F(8.5));d.setFont('helvetica','normal');d.text(`OP ${o.numero}  Req. ${o.fecha_req?o.fecha_req.split('-').reverse().join('/'):'-'}${o.prioridad==='urgente'?'  URGENTE':''}`,X(W-M),Y(11),{align:'right'});
   d.setTextColor(0);let y=26;
   const QS=34;qrPDF(d,otURL(o,x.li,w.seq),X(W-M-QS),Y(19.5),QS*k);const WR=W-M-QS-3;
   d.setFontSize(F(19));d.setFont('helvetica','bold');d.text(tipoNombre(w.tipo),X(M),Y(y));d.setFontSize(F(11));d.text(`Op. ${w.op}  (paso ${w.seq} de ${x.de})`,X(WR),Y(y),{align:'right'});y+=8.5;
@@ -767,7 +835,7 @@ function dibujarOT(d,x,ox,oy,i,tot){
   if(o.notas){d.setFontSize(F(7));const t=d.splitTextToSize(o.notas,(WR-M)*k);d.text(t[0]+(t.length>1?'…':''),X(M),Y(y+2.5));y+=6}
   y=Math.max(y,19.5+QS+2);d.setFontSize(F(6.5));d.setTextColor(90);d.text('Escaneá para cargar',X(W-M-QS/2),Y(19.5+QS+1.5),{align:'center'});d.setTextColor(0);y+=2;
   const cols=[['Fecha',20],['Operario',40],['Máq.',18],['Inicio',16],['Fin',16],['Cant. OK',22],['Scrap',16],['Firma',44]];const tw=cols.reduce((a,c)=>a+c[1],0),sc=(W-2*M)/tw;
-  d.setFillColor(245,196,0);d.rect(X(M),Y(y),(W-2*M)*k,7*k,'F');d.setFont('helvetica','bold');d.setFontSize(F(7.5));let cx=M;cols.forEach(([n,cw])=>{d.text(n,X(cx+1.5),Y(y+5));cx+=cw*sc});y+=7;d.setFont('helvetica','normal');
+  d.setDrawColor(0);d.setLineWidth(0.35);d.rect(X(M),Y(y),(W-2*M)*k,7*k);d.setLineWidth(0.2);d.setFont('helvetica','bold');d.setFontSize(F(7.5));let cx=M;cols.forEach(([n,cw])=>{d.text(n,X(cx+1.5),Y(y+5));cx+=cw*sc});y+=7;d.setFont('helvetica','normal');
   const rows=Math.max(3,Math.floor((H-M-16-y)/9));for(let r=0;r<rows;r++){cx=M;cols.forEach(([,cw])=>{d.setDrawColor(160);d.rect(X(cx),Y(y),cw*sc*k,9*k);cx+=cw*sc});y+=9}
   y+=5;d.setFontSize(F(8));d.text('Total: ________   Entregado a '+(x.next?x.next.op:'pintura')+': ________   Controló: ______________',X(M),Y(y+2));
   d.setFontSize(F(6));d.setTextColor(120);d.text(`Spotsline Fabricación. Emitida ${new Date().toLocaleDateString('es-AR')}. OT ${i+1} de ${tot}.`,X(M),Y(H-4));d.setTextColor(0)}
@@ -964,7 +1032,7 @@ const AYUDA=[
   <li>Cada OP se abre en <b>órdenes de trabajo</b>, una por proceso (pieza y paso), según la lista de materiales.</li>
   <li>Se <b>imprimen</b> las órdenes de trabajo y se reparten en cada puesto.</li>
   <li>El <b>taller</b> anota en la orden lo que hizo y se carga en la pantalla Taller.</li>
-  <li><b>Desvíos</b> y <b>General</b> muestran avance, eficiencia y paradas en vivo.</li></ol>
+  <li><b>Indicadores</b> y <b>General</b> muestran avance, eficiencia y paradas en vivo.</li></ol>
   <p>Quién hace qué: el planificador necesita permiso de <b>Editor</b> en la página (lanza órdenes, importa, edita el maestro). Quien carga en el taller necesita permiso de <b>Colaborador</b>.</p>`},
  {id:'importar',t:'1. Importar el pendiente de Odoo',h:`<ol><li>En Odoo, exportá el listado de productos con las columnas <b>Referencia interna</b> y <b>Cantidad pronosticada</b> (el mismo export de siempre, "Producto (product_template)").</li>
   <li>En <b>Planificación</b>, tocá el recuadro <b>Importar Pendiente o export de Odoo</b> o arrastrá el archivo encima. Con el <b>Pendiente.xlsx</b> se toma la columna <b>Balance</b> de la hoja Resumen, que ya suma el plan de armado; con el export de Odoo, la Cantidad pronosticada.</li>
@@ -993,7 +1061,7 @@ const AYUDA=[
   <p><b>El jefe con el celular:</b> si trabajan con la versión compartida de GitHub, el jefe abre la página en claude.ai (sin costo extra), lee las fotos de las planillas y en cada una toca <b>Agregar al lote</b>. Al terminar, <b>Descargar lote</b> baja un Excel. En la versión de GitHub, Taller > <b>Importar registros</b>: se revisa, se omiten los ya cargados y cada renglón se vincula con su orden de trabajo.</p>
   <p><b>Desde foto:</b> tocá <b>Cargar desde foto</b>, elegí la foto de la planilla en papel y esperá la lectura. Aparece cada renglón al lado de la foto para revisarlo: lo que está en rojo hay que corregirlo o desmarcarlo. Al guardar, cada renglón se vincula solo a su orden de trabajo si está en curso, o queda como fuera de plan.</p>
   <p>La hora de inicio se encadena con la tarea anterior. A la derecha queda el día del operario, con los <b>huecos sin registrar</b> marcados en rojo.</p>`},
- {id:'desvios',t:'Desvíos y General',h:`<ul><li><b>Eficiencia</b> = minutos estándar producidos / minutos reales, solo en pasos con tiempo cargado.</li><li>Por operario (con un cuadro por día), por máquina, horas no productivas por motivo y, por orden, plan contra hecho en cantidad, scrap y tiempo.</li>
+ {id:'indicadores',t:'Indicadores y General',h:`<ul><li><b>Eficiencia</b> = minutos estándar producidos / minutos reales, solo en pasos con tiempo cargado.</li><li>Por operario (con un cuadro por día), por máquina, horas no productivas por motivo y, por orden, plan contra hecho en cantidad, scrap y tiempo.</li>
   <li><b>General</b> resume órdenes abiertas, carga pendiente en días por tipo de máquina y lo que vence primero.</li></ul>`},
  {id:'ldm',t:'Listas de materiales (como en Odoo)',h:`<p>En <b>Maestro > Listas de materiales</b> está la base que usa todo el sistema. Sigue la lógica de Odoo Fabricación:</p>
   <ul><li><b>Lista de materiales</b> de un artículo: qué componentes (piezas) lleva y cuántos de cada uno. Todos los colores de Odoo del artículo comparten la misma lista.</li>
@@ -1045,7 +1113,7 @@ function dice(a,b){a=nrm(a);b=nrm(b);if(!a||!b)return 0;if(a===b)return 1;const 
 function normMaq(m){const C=(S.M.centros?.items||[]).map(c=>c.codigo);let s=nrm(m).replace(/^S0/,'SO');if(!s)return '';
   if(/^\d{1,2}$/.test(s))s='BA'+s.padStart(2,'0');else if(/^BA\d$/.test(s))s='BA0'+s.slice(2);
   else if(/^T\d$/.test(s))s='TO'+s.slice(1);else if(s==='TO'||s==='TORNO')s='TO1';else if(['LS','LA','LASER','LAZ'].includes(s))s='LAS';
-  else if(/^GU0\d$/.test(s))s='GU'+s.slice(3);else if(s==='GU')s='GU1';else if(s==='PL')s='PL1';else if(/^SOL?\d$/.test(s))s='SO'+s.slice(-1);else if(s==='CI')s='CIL';
+  else if(/^GU0\d$/.test(s))s='GU'+s.slice(3);else if(s==='GU')s='GU1';else if(s==='PL')s='PL1';else if(/^PZ\d$/.test(s))s='PZ';else if(/^SOL?\d$/.test(s))s='SO'+s.slice(-1);else if(s==='CI')s='CIL';
   return C.includes(s)?s:''}
 function matchOperario(t){const P=(S.M.personal?.items||[]);const tk=nrm(t);if(!tk)return '';let best='',bs=0;
   for(const p of P){const parts=p.nombre.split(/\s+/).map(nrm);let sc=Math.max(dice(t,p.nombre),...parts.map(x=>x===tk?1:dice(tk,x)*0.9));
@@ -1056,7 +1124,7 @@ function rankear(t,keys){const s=nrm(expandir(t));if(!s)return [];return keys.ma
 function matchArtX(t){const R=rankear(t,Object.keys(S.M.productos?.items||{}));const b=R[0];if(!b||b.v<.62)return {k:'',alts:[]};
   const alts=R.filter(x=>x.v>=b.v-0.03&&x.v>=.62).map(x=>x.k);return b.v===1||alts.length===1?{k:b.k,alts:[]}:{k:'',alts:alts.slice(0,5)}}
 function matchArt(t){return matchArtX(t).k}
-function matchPiezaX(fam,t,paso,maq){const f=S.M.productos?.items?.[fam];if(!f)return {pz:null};const tipo=centroTipo(maq);
+function matchPiezaX(fam,t,paso,maq,primero){const f=S.M.productos?.items?.[fam];if(!f)return {pz:null};const tipo=centroTipo(maq);
   const conT=f.piezas.filter(p=>!tipo||p.ops.some(w=>w.tipo===tipo));let cand;
   if(nrm(t)){const R=rankear(t,f.piezas.map(p=>p.pieza));const b=R[0];if(!b||b.v<.5)return {pz:null,msg:'pieza no encontrada'};
     let top=R.filter(x=>x.v>=b.v-0.03);const topT=top.filter(x=>conT.some(p=>p.pieza===x.k));if(topT.length)top=topT;
@@ -1065,7 +1133,7 @@ function matchPiezaX(fam,t,paso,maq){const f=S.M.productos?.items?.[fam];if(!f)r
   const opsT=cand.ops.filter(w=>w.tipo===tipo);
   if(tipo&&!opsT.length)return {pz:{pieza:cand.pieza,seq:null},msg:cand.pieza+' no pasa por '+tipoNombre(tipo)};
   let w=null;const n=parseInt(paso,10);
-  if(opsT.length===1)w=opsT[0];else if(opsT.length>1){if(n>=1&&n<=opsT.length)w=opsT[n-1];else return {pz:{pieza:cand.pieza,seq:null},msg:'elegí el paso'}}
+  if(opsT.length===1)w=opsT[0];else if(opsT.length>1){if(n>=1&&n<=opsT.length)w=opsT[n-1];else if(primero&&!(n>=1))w=opsT[0];else return {pz:{pieza:cand.pieza,seq:null},msg:'elegí el paso'}}
   else w=cand.ops.find(x=>x.seq===n)||null;
   return w?{pz:{pieza:cand.pieza,seq:w.seq}}:{pz:{pieza:cand.pieza,seq:null},msg:'elegí el paso'}}
 function matchPieza(fam,t,paso,maq){const r=matchPiezaX(fam,t,paso,maq);return r.pz&&r.pz.seq!=null?r.pz:null}
@@ -1260,7 +1328,7 @@ function restaurar(){const i=document.createElement('input');i.type='file';i.acc
 
 /* ---------- planilla de maestros: descargar y subir ---------- */
 const MH={ldm:['Artículo','Cant. que produce','Tipo de lista','Componente (pieza)','Referencia interna','Cantidad por artículo','Unidad','Materia prima','Consumo MP','Unidad MP','Secuencia','Operación','Tipo de máquina','Seg por pieza'],
-  tip:['Código','Nombre','Puestos activos','Horas por día'],maq:['Código','Tipo de máquina'],per:['ID','Nombre y apellido','Activo'],mot:['ID','Motivo','Categoría'],vin:['Código Odoo','Artículo']};
+  tip:['Código','Nombre','Puestos activos','Horas por día'],maq:['Código','Tipo de máquina'],per:['ID','Legajo','Nombre y apellido','Activo'],mot:['ID','Motivo','Categoría'],vin:['Código Odoo','Artículo']};
 const MS={ldm:'Listas de materiales',tip:'Tipos de máquina',maq:'Máquinas',per:'Personal',mot:'Motivos de parada',vin:'Vínculos Odoo'};
 const CAT={preparacion:'Preparación',parada:'Parada',auxiliar:'Tarea auxiliar',pausa:'Pausa'};const CATI={PREPARACION:'preparacion',PARADA:'parada',TAREAAUXILIAR:'auxiliar',AUXILIAR:'auxiliar',PAUSA:'pausa'};
 const LOSS={preparacion:'availability',parada:'availability',auxiliar:'performance',pausa:'productive'};
@@ -1276,7 +1344,7 @@ function planillaMaestros(){if(typeof XLSX==='undefined'){toast('No se pudo carg
   add('ldm',L,[16,10,11,24,16,11,10,18,10,9,9,11,11,11]);
   add('tip',Object.entries(S.M.centros?.tipos||{}).map(([k,t])=>[k,t.nombre,t.puestos??1,t.horas_dia??7.5]),[10,26,15,13]);
   add('maq',(S.M.centros?.items||[]).map(c=>[c.codigo,c.tipo]),[12,16]);
-  add('per',(S.M.personal?.items||[]).map(p=>[p.id,p.nombre,p.activo===false?'NO':'SI']),[8,30,9]);
+  add('per',(S.M.personal?.items||[]).map(p=>[p.id,p.legajo||'',p.nombre,p.activo===false?'NO':'SI']),[8,10,30,9]);
   add('mot',(S.M.motivos?.items||[]).map(m=>[m.id,m.nombre,CAT[m.categoria]||m.categoria]),[8,34,16]);
   add('vin',Object.entries(S.M.vinculos?.items||{}).sort().map(([c,f])=>[c,f]),[22,22]);
   guardarArchivo('Planilla de maestros Spotsline '+today()+'.xlsx',new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})]))}
@@ -1284,7 +1352,7 @@ function leerHoja(wb,k){const ws=wb.Sheets[MS[k]];if(!ws)return null;const A=XLS
   const want=MH[k].map(nrm);let h=-1;for(let i=0;i<Math.min(6,A.length);i++){const r=(A[i]||[]).map(nrm);if(r.includes(want[0])&&r.includes(want[1])){h=i;break}}
   if(h<0)return {err:[`La hoja ${MS[k]} no tiene los encabezados esperados.`],rows:[]};
   const H=A[h].map(nrm);const idx=want.map(w=>H.indexOf(w));const faltan=MH[k].filter((n,i)=>idx[i]<0&&i<2);if(faltan.length)return {err:[`En ${MS[k]} faltan las columnas: ${faltan.join(', ')}.`],rows:[]};
-  const rows=[];A.slice(h+1).forEach((r,j)=>{if(!r||r.every(v=>v==null||String(v).trim()===''))return;const o={_fila:h+j+2};MH[k].forEach((n,i)=>{const v=idx[i]>=0?r[idx[i]]:null;o[n]=v==null?'':(typeof v==='string'?v.trim():v)});rows.push(o)});return {err:[],rows}}
+  const rows=[];A.slice(h+1).forEach((r,j)=>{if(!r||r.every(v=>v==null||String(v).trim()===''))return;const o={_fila:h+j+2};MH[k].forEach((n,i)=>{if(idx[i]<0)return;const v=r[idx[i]];o[n]=v==null?'':(typeof v==='string'?v.trim():v)});rows.push(o)});return {err:[],rows}}
 function analizarMaestros(wb){const R={};const cur={tipos:JSON.parse(JSON.stringify(S.M.centros?.tipos||{})),items:JSON.parse(JSON.stringify(S.M.centros?.items||[]))};
   const num=v=>v===''||v==null?null:(typeof v==='number'?v:+String(v).replace(',','.'));
   // tipos
@@ -1295,9 +1363,10 @@ function analizarMaestros(wb){const R={};const cur={tipos:JSON.parse(JSON.string
     if(!cur.tipos[ti]){E.push(`Fila ${r._fila}: el tipo "${r['Tipo de máquina']}" no existe en Tipos de máquina.`);continue}const x=cur.items.find(i=>i.codigo===c);if(x){x.tipo=ti;up++}else{cur.items.push({codigo:c,tipo:ti});nu++}}R.maq={n:m.rows.length,nu,up,E}}
   R._centros=cur;
   const p=leerHoja(wb,'per');if(p){const E=[...p.err];const P=JSON.parse(JSON.stringify(S.M.personal?.items||[]));let mx=P.reduce((a,x)=>Math.max(a,parseInt(String(x.id).slice(1),10)||0),0);let nu=0,up=0;
-    for(const r of p.rows){const nom=String(r['Nombre y apellido']||'').trim();if(!nom){E.push(`Fila ${r._fila}: falta el nombre.`);continue}const act=nrm(r['Activo'])!=='NO';const id=String(r['ID']||'').trim();
-      const x=id?P.find(q=>q.id===id):P.find(q=>nrm(q.nombre)===nrm(nom));if(id&&!x){E.push(`Fila ${r._fila}: el ID ${id} no existe. Dejalo en blanco para una persona nueva.`);continue}
-      if(x){x.nombre=nom;x.activo=act;up++}else{P.push({id:'e'+String(++mx).padStart(2,'0'),nombre:nom,activo:act});nu++}}R.per={n:p.rows.length,nu,up,E,data:P}}
+    for(const r of p.rows){const nom=String(r['Nombre y apellido']||'').trim();if(!nom){E.push(`Fila ${r._fila}: falta el nombre.`);continue}const act=nrm(r['Activo'])!=='NO';const id=String(r['ID']||'').trim();const leg=String(r['Legajo']??'').trim()||null;
+      const x=id?P.find(q=>q.id===id):(leg&&P.find(q=>String(q.legajo||'')===leg))||P.find(q=>nrm(q.nombre)===nrm(nom));if(id&&!x){E.push(`Fila ${r._fila}: el ID ${id} no existe. Dejalo en blanco para una persona nueva.`);continue}
+      if(leg&&P.some(q=>q!==x&&String(q.legajo||'')===leg)){E.push(`Fila ${r._fila}: el legajo ${leg} ya lo tiene otra persona.`);continue}
+      if(x){x.nombre=nom;x.activo=act;if('Legajo' in r)x.legajo=leg;up++}else{P.push({id:'e'+String(++mx).padStart(2,'0'),nombre:nom,legajo:leg,activo:act});nu++}}R.per={n:p.rows.length,nu,up,E,data:P}}
   const o=leerHoja(wb,'mot');if(o){const E=[...o.err];const M=JSON.parse(JSON.stringify(S.M.motivos?.items||[]));let mx=M.reduce((a,x)=>Math.max(a,parseInt(String(x.id).slice(1),10)||0),0);let nu=0,up=0;
     for(const r of o.rows){const nom=String(r['Motivo']||'').trim();const cat=CATI[nrm(r['Categoría'])];if(!nom){E.push(`Fila ${r._fila}: falta el motivo.`);continue}if(!cat){E.push(`Fila ${r._fila}: categoría "${r['Categoría']}" inválida (Preparación, Parada, Tarea auxiliar o Pausa).`);continue}
       const id=String(r['ID']||'').trim();const x=id?M.find(q=>q.id===id):M.find(q=>nrm(q.nombre)===nrm(nom));if(id&&!x){E.push(`Fila ${r._fila}: el ID ${id} no existe.`);continue}
@@ -1366,20 +1435,27 @@ async function procesarRegistros(f){{
     const ini=hhmm(r['Inicio']),fin=hhmm(r['Fin']);const m=diffMin(ini,fin);if(!m)E.push('horas inválidas');
     const maq=normMaq(r['Máquina']);const par=nrm(r['Tipo']).startsWith('PARADA');
     const base={id:newId(),operario:op,ini,fin,min:m,obs:String(r['Observaciones']||''),origen:'importado',ts:new Date().toISOString()};let it,est;
-    if(par){const mo=M.find(x=>nrm(x.nombre)===nrm(r['Motivo']))?.id||matchMotivo(r['Motivo'],maq);if(!mo)E.push('motivo no encontrado');it={...base,tipo:'parada',centro:maq||null,centro_tipo:maq?centroTipo(maq):null,motivo:mo};est='parada'}
-    else{if(!maq)E.push(`máquina "${r['Máquina']}" no existe`);const art=S.M.productos?.items?.[r['Artículo']]?r['Artículo']:matchArt(r['Artículo']);const P2=art&&S.M.productos.items[art].piezas.find(p=>nrm(p.pieza)===nrm(r['Pieza']));
-      const seq=parseInt(r['Paso'],10);const w=P2?.ops.find(o=>o.seq===seq);if(!art)E.push(`artículo "${r['Artículo']}" no está en el maestro`);else if(!P2)E.push(`pieza "${r['Pieza']}" no está en ${art}`);else if(!w)E.push(`paso ${r['Paso']} no existe`);
-      const qty=parseInt(r['Cantidad'],10)||0,sc=parseInt(r['Scrap'],10)||0;const ot=w?matchOT(art,P2.pieza,seq):null;
-      it=w?{...base,tipo:'prod',centro:maq,centro_tipo:centroTipo(maq),op_id:ot?ot.o.id:null,op_numero:ot?ot.o.numero:null,articulo:ot?ot.o.articulo:art,pieza:ot?ot.l.pieza:P2.pieza,seq,paso:w.op,qty,scrap:sc,seg_std:w.seg||null,std_min:w.seg?qty*w.seg/60:null,fuera_plan:!ot}:null;est=ot?'OP '+ot.o.numero:'fuera de plan'}
+    if(par){if(nrm(r['Origen'])==='HISTORIAL')base.origen='historial';const mo=M.find(x=>nrm(x.nombre)===nrm(r['Motivo']))?.id||matchMotivo(r['Motivo'],maq);if(!mo)E.push('motivo no encontrado');it={...base,tipo:'parada',centro:maq||null,centro_tipo:maq?centroTipo(maq):null,motivo:mo};est='parada'}
+    else{const hist=nrm(r['Origen'])==='HISTORIAL';if(!maq)E.push(`máquina "${r['Máquina']}" no existe`);
+      const art=S.M.productos?.items?.[r['Artículo']]?r['Artículo']:matchArt(r['Artículo']);let P2=art?S.M.productos.items[art].piezas.find(p=>nrm(p.pieza)===nrm(r['Pieza'])):null;
+      let w=null;const seqN=parseInt(r['Paso'],10);
+      if(P2&&String(r['Operación']||'').trim())w=P2.ops.find(o=>o.seq===seqN&&nrm(o.op)===nrm(r['Operación']))||null;
+      if(!w&&art&&maq){const mx=matchPiezaX(art,P2?P2.pieza:r['Pieza'],r['Paso'],maq,true);if(mx.pz&&mx.pz.seq!=null){P2=S.M.productos.items[art].piezas.find(p=>p.pieza===mx.pz.pieza);w=P2.ops.find(o=>o.seq===mx.pz.seq)}}
+      const qty=parseInt(r['Cantidad'],10)||0,sc=parseInt(r['Scrap'],10)||0;const ot=w&&!hist?matchOT(art,P2.pieza,w.seq):null;
+      const org=hist?'historial':'importado';
+      if(w){it={...base,origen:org,tipo:'prod',centro:maq,centro_tipo:centroTipo(maq),op_id:ot?ot.o.id:null,op_numero:ot?ot.o.numero:null,articulo:ot?ot.o.articulo:art,pieza:ot?ot.l.pieza:P2.pieza,seq:w.seq,paso:w.op,qty,scrap:sc,seg_std:w.seg||null,std_min:w.seg?qty*w.seg/60:null,fuera_plan:!ot&&!hist};est=hist?'historial':ot?'OP '+ot.o.numero:'fuera de plan'}
+      else{const why=!art?`"${r['Artículo']}" no está en el maestro`:!P2?`pieza "${r['Pieza']}" no está en ${art}`:'paso no encontrado';
+        it={...base,origen:org,tipo:'prod',centro:maq||null,centro_tipo:maq?centroTipo(maq):null,op_id:null,op_numero:null,articulo:art||String(r['Artículo']||'').trim().toUpperCase(),pieza:P2?P2.pieza:String(r['Pieza']||'').trim().toUpperCase(),seq:null,paso:'',qty,scrap:sc,seg_std:null,std_min:null,fuera_plan:!hist,sin_estandar:true};est='sin estándar: '+why}}
     const dup=!E.length&&ex.some(e=>e.fecha===fecha&&e.operario===op&&e.ini===ini&&e.fin===fin&&(e.centro||'')===(maq||''));
     return {fila,fecha,r,it,E,dup,est,inc:!E.length&&!dup}});
+  const VIS=()=>out.length>600?[...out.filter(x=>x.E.length||String(x.est).startsWith('sin estándar')).slice(0,400),...out.filter(x=>!x.E.length&&!String(x.est).startsWith('sin estándar')).slice(0,200)]:out;
   const m=document.createElement('div');m.className='modal';
   const draw=()=>{const n=out.filter(x=>x.inc).length;m.innerHTML=`<div class="dlg" style="width:min(1000px,100%)" role="dialog" aria-modal="true" aria-label="Importar registros"><div class="pzh" style="align-items:center"><h2 style="margin:0">Importar registros del taller</h2><button class="btn link" data-x>Cerrar</button></div>
-    <p class="note">${esc(f.name)}: ${out.length} renglones. ${out.filter(x=>x.E.length).length?`<span class="poor">${out.filter(x=>x.E.length).length} con errores (no se importan).</span> `:''}${out.filter(x=>x.dup).length?`${out.filter(x=>x.dup).length} ya estaban cargados (se omiten). `:''}Las órdenes de trabajo se vinculan con las de esta base.</p>
+    <p class="note">${esc(f.name)}: ${out.length} renglones. ${out.filter(x=>x.E.length).length?`<span class="poor">${out.filter(x=>x.E.length).length} con errores (no se importan).</span> `:''}${out.filter(x=>x.dup).length?`${out.filter(x=>x.dup).length} ya estaban cargados (se omiten). `:''}${out.filter(x=>String(x.est).startsWith('sin estándar')).length?`${out.filter(x=>String(x.est).startsWith('sin estándar')).length} sin estándar en el maestro: se importan con horas y cantidades, sin eficiencia. `:''}Las órdenes de trabajo se vinculan con las de esta base.</p>
     <div class="dlgb"><table class="bt fx"><tr><th></th><th>Fila</th><th>Fecha</th><th>Operario</th><th>Máquina</th><th>Detalle</th><th>Horario</th><th class="n">Cant.</th><th>Estado</th></tr>
-    ${out.map((x,i)=>`<tr class="${x.inc?'':'off'}"><td><input type="checkbox" data-i="${i}" ${x.inc?'checked':''} ${x.E.length?'disabled':''} style="width:auto"></td><td>${x.fila}</td><td>${esc(fmtD(x.fecha))}</td><td>${esc(x.r['Operario'])}</td><td>${esc(x.r['Máquina'])}</td>
+    ${VIS().map(x=>{const i=out.indexOf(x);return `<tr class="${x.inc?'':'off'}"><td><input type="checkbox" data-i="${i}" ${x.inc?'checked':''} ${x.E.length?'disabled':''} style="width:auto"></td><td>${x.fila}</td><td>${esc(fmtD(x.fecha))}</td><td>${esc(x.r['Operario'])}</td><td>${esc(x.r['Máquina'])}</td>
      <td>${esc(x.r['Tipo']==='Parada'?x.r['Motivo']:`${x.r['Artículo']} ${x.r['Pieza']} ${x.r['Operación']||''}`)}</td><td>${esc(x.r['Inicio'])}–${esc(x.r['Fin'])}</td><td class="n">${esc(x.r['Cantidad'])}</td>
-     <td><span class="pill ${x.E.length?'bad':x.dup?'':x.est==='fuera de plan'?'lamp':'ok'}">${esc(x.E.length?x.E.join(', '):x.dup?'ya cargado':x.est)}</span></td></tr>`).join('')}</table></div>
+     <td><span class="pill ${x.E.length?'bad':x.dup?'':(x.est==='fuera de plan'||String(x.est).startsWith('sin estándar'))?'lamp':'ok'}">${esc(x.E.length?x.E.join(', '):x.dup?'ya cargado':x.est)}</span></td></tr>`}).join('')}</table>${out.length>600?`<p class="note">Se muestran primero los renglones con errores o sin estándar y una muestra del resto (${out.length} en total). Se importan todos los marcados.</p>`:''}</div>
     <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn sec" data-x>Cancelar</button><button class="btn" id="rImp">Importar ${n} registros</button></div></div>`;
     m.querySelectorAll('[data-i]').forEach(c=>c.onchange=()=>{out[+c.dataset.i].inc=c.checked;draw()});
     $('#rImp').onclick=async()=>{const sel=out.filter(x=>x.inc&&x.it);if(!sel.length){toast('No hay renglones para importar');return}if(busy('#rImp'))return;
@@ -1404,10 +1480,11 @@ diag(){const u=appURL();const gh=/github\.io/.test(location.host);
 render(){const M=$('#main');if(!M)return;const yo=this.yo();const P=(S.M.personal?.items||[]).filter(p=>p.activo!==false);
   {const dg=this.diag();if(dg){M.innerHTML=`<div class="op1">${dg}</div>`;return}}
   if(!S.M.productos){M.innerHTML='<div class="op1"><p class="note">Cargando…</p></div>';return}
-  if(!yo){M.innerHTML=`<div class="op1"><h1>¿Quién sos?</h1><p class="lead">Elegilo una vez: este celular lo recuerda.</p><div class="opgrid">${P.map(p=>`<button class="opbig sec" data-yo="${esc(p.id)}">${esc(p.nombre)}</button>`).join('')}</div></div>`;
-    M.querySelectorAll('[data-yo]').forEach(b=>b.onclick=()=>{lsSet('yo',b.dataset.yo);this.render()});return}
+  if(!yo){M.innerHTML=`<div class="op1"><h1>¿Quién sos?</h1><p class="lead">Elegilo una vez: este celular lo recuerda.</p><input id="oBus" class="opin" placeholder="Buscá por nombre o legajo" style="margin-bottom:10px" inputmode="search"><div class="opgrid" id="oGr">${P.map(p=>`<button class="opbig sec" data-yo="${esc(p.id)}" data-q="${esc(nrm(p.nombre+' '+(p.legajo||'')))}">${esc(p.nombre)}${p.legajo?`<br><small class="note">Legajo ${esc(p.legajo)}</small>`:''}</button>`).join('')}</div></div>`;
+    M.querySelectorAll('[data-yo]').forEach(b=>b.onclick=()=>{lsSet('yo',b.dataset.yo);this.render()});
+    $('#oBus').oninput=()=>{const q=nrm($('#oBus').value);M.querySelectorAll('[data-yo]').forEach(b=>b.classList.toggle('hide',!!q&&!b.dataset.q.includes(q)))};return}
   const cur=CUR.get();const c=this.ctx();
-  const head=`<div class="ophead"><span><b>${esc(persona(yo))}</b></span><span class="row" style="gap:4px"><button class="btn link" id="oHoy">Mis registros de hoy</button><button class="btn link" id="oNo">No soy yo</button></span></div>`;
+  const leg=(S.M.personal?.items||[]).find(p=>p.id===yo)?.legajo;const head=`<div class="ophead"><span><b>${esc(persona(yo))}</b>${leg?` <span class="note">legajo ${esc(leg)}</span>`:''}</span><span class="row" style="gap:4px"><button class="btn link" id="oHoy">Mis registros de hoy</button><button class="btn link" id="oNo">No soy yo</button></span></div>`;
   if(cur&&cur.yo===yo&&(!c||c.falta||cur.key.join('/')!==this.key.join('/'))){M.innerHTML=`<div class="op1">${head}<div class="opcard warn"><h2>Tenés una tarea sin terminar</h2><p>${esc(cur.titulo)}, desde las <b>${esc(cur.ini)}</b>.</p>
      <button class="opbig" id="oVolver">Ir a terminarla</button><button class="opbig sec" id="oDescartar">Descartarla</button></div></div>`;this.bindHead();
     $('#oVolver').onclick=()=>{location.hash='ot/'+cur.key.map(encodeURIComponent).join('/')};$('#oDescartar').onclick=()=>{if(confirm('¿Descartar la tarea sin guardar?')){CUR.set(null);this.render()}};return}
@@ -1465,7 +1542,7 @@ function qrPDF(d,text,x,y,size){if(typeof qrcode==='undefined')return;const q=qr
   d.setFillColor(255,255,255);d.rect(x,y,size,size,'F');d.setFillColor(0,0,0);for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))d.rect(x+(k+2)*c,y+(r+2)*c,c*1.02,c*1.02,'F')}
 
 /* ---------- router ---------- */
-function route(){const h=(location.hash||'#general').slice(1);let [v,sel,...rest]=h.split('/');if(v==='fabrica'){v='plan'}else if(v==='planificacion'){v='plan';V.plan.tab='curso'}else if(v==='plan'&&!sel){}const name=V[v]&&!['fabrica','planificacion'].includes(v)?v:'general';
+function route(){const h=(location.hash||'#general').slice(1);let [v,sel,...rest]=h.split('/');if(v==='desvios'){v='indicadores'}else if(v==='fabrica'){v='plan'}else if(v==='planificacion'){v='plan';V.plan.tab='curso'}else if(v==='plan'&&!sel){}const name=V[v]&&!['fabrica','planificacion'].includes(v)?v:'general';
   document.querySelectorAll('.rail a[data-v]').forEach(a=>a.classList.toggle('on',a.dataset.v===name));
   if(S.view&&S.view!==name)V[S.view]?.unmount?.();S.view=name;V[name].mount(sel,rest);try{window.scrollTo(0,0)}catch(e){}}
 window.addEventListener('hashchange',()=>{if(S.view==='maestro'&&BOM.dirty&&!location.hash.startsWith('#maestro')){if(!confirm('Hay cambios sin guardar en la lista de materiales. ¿Salir igual?')){history.replaceState(null,'','#maestro');return}BOM.dirty=false;BOM.draft=null}route()});
