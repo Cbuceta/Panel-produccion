@@ -153,6 +153,12 @@ tr.click:hover td{background:var(--panel2)}
 @media (max-width:900px){.kp6{grid-template-columns:repeat(2,minmax(0,1fr))}.filt{position:static}}
 table[data-sortable] tr:first-child th{cursor:pointer;user-select:none}table[data-sortable] tr:first-child th:hover{color:var(--ink);background:var(--lampbg)}
 th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';font-size:9px}th.s-asc,th.s-desc{color:var(--ink)}
+.seg.live{outline:2px solid var(--ok);outline-offset:1px;animation:pulso 1.6s ease-in-out infinite}
+@keyframes pulso{50%{outline-color:transparent}}
+.pill.live{background:var(--okbg);color:var(--ok)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}.dot.dw{background:var(--ok)}.dot.dp{background:var(--bad)}
+#pK{grid-template-columns:repeat(5,minmax(0,1fr))}@media (max-width:900px){#pK{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){.seg.live{animation:none}}
 .toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 @media (max-width:900px){
@@ -209,7 +215,7 @@ function ir(view,st){st=st||{};if(view==='plan'){if(st.tab)V.plan.tab=st.tab;if(
   if(location.hash==='#'+view)route();else location.hash=view}
 function kbtn(val,label,act,cls){return `<button class="kpi kbtn" data-go="${esc(act)}"><b class="${cls||''}">${val}</b><span>${label}</span><small>Ver detalle</small></button>`}
 function bindGo(root){(root||document).querySelectorAll('[data-go]').forEach(b=>{b.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&b.tagName!=='BUTTON'){e.preventDefault();b.click()}};b.onclick=ev=>{ev.stopPropagation();const [v,...r]=b.dataset.go.split(':');
-  if(v==='carga')return detalleCarga();if(v==='sug')return ir('plan',{tab:'lanzar'});if(v==='curso')return ir('plan',{tab:'curso',flt:r[0]||'abiertas',tipo:r[1]||'',sel:null});ir(v)}})}
+  if(v==='carga')return detalleCarga();if(v==='sug')return ir('plan',{tab:'lanzar'});if(v==='term')return ir('plan',{tab:'term'});if(v==='curso')return ir('plan',{tab:'curso',flt:r[0]||'abiertas',tipo:r[1]||'',sel:null});ir(v)}})}
 function detalleCarga(){const pend=pendientesPorTipo();const T=S.M.centros?.tipos||{};const P=params();
   const rows=Object.entries(pend).filter(([,x])=>x.hs>0.01||x.sin).map(([t,x])=>{const cap=(T[t]?.puestos||1)*(T[t]?.horas_dia||7.5);const os=S.ordenes.filter(o=>abierta(o)&&o.lineas.some(l=>l.ops.some(w=>w.tipo===t&&(S.prog.get(woKey(o.id,l.pieza,w.seq))?.qty||0)<l.cant)));return {t,hs:x.hs,dias:x.hs/cap,sin:x.sin,n:os.length}}).sort((a,b)=>b.hs-a.hs);
   const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="dlg" role="dialog" aria-modal="true" aria-label="Carga pendiente"><div class="pzh" style="align-items:center"><h2 style="margin:0">Horas estándar pendientes de las órdenes en curso</h2><button class="btn link" data-x>Cerrar</button></div>
@@ -238,7 +244,7 @@ function recompute(){
   S.prog=m;
 }
 function opState(o){
-  if(o.estado==='cancelada'||o.estado==='cerrada')return o.estado;
+  if(o.entrega)return 'entregada';if(o.estado==='cancelada'||o.estado==='cerrada')return o.estado;
   let tot=0,done=0,any=false;
   for(const l of o.lineas||[])for(const w of l.ops){const p=S.prog.get(woKey(o.id,l.pieza,w.seq));const wt=(w.seg||1)*l.cant;tot+=wt;const q=p?p.qty:0;if(q>0)any=true;done+=Math.min(q,l.cant)*(w.seg||1)}
   const av=tot?done/tot:0;
@@ -269,7 +275,7 @@ const motivo=id=>S.M.motivos?.items?.find(m=>m.id===id);
 /* ---------- tubo ---------- */
 function tubo(o,l){
   return '<div class="tubo">'+l.ops.map(w=>{const p=S.prog.get(woKey(o.id,l.pieza,w.seq));const q=p?p.qty:0;const r=Math.min(1,q/l.cant);
-    return `<div class="seg ${r>=1?'full':''}" title="Paso ${w.seq} ${esc(w.op)}: ${nf(q)} de ${nf(l.cant)}"><i style="width:${r*100}%"></i><span>${esc(w.op)}<em>${nf(q)}</em></span></div>`}).join('')+'</div>';
+    const lv=activasVivas().filter(a=>a.op_id===o.id&&a.pieza===l.pieza&&a.seq==w.seq);return `<div class="seg ${r>=1?'full':''} ${lv.length?'live':''}" title="Paso ${w.seq} ${esc(w.op)}: ${nf(q)} de ${nf(l.cant)}${lv.length?'. Ahora: '+lv.map(a=>persona(a.yo)+' en '+a.maq).join(', '):''}"><i style="width:${r*100}%"></i><span>${esc(w.op)}<em>${nf(q)}</em></span></div>`}).join('')+'</div>';
 }
 
 /* ---------- escritura de partes (un doc por día y por quien carga) ---------- */
@@ -302,7 +308,7 @@ update(){
   const rows=Object.entries(pend).filter(([,x])=>x.hs>0.01||x.sin).map(([t,x])=>{const cap=(T[t]?.puestos||1)*(T[t]?.horas_dia||7.5);return {t,hs:x.hs,dias:x.hs/cap,sin:x.sin}}).sort((a,b)=>b.dias-a.dias);
   const mx=Math.max(5,...rows.map(r=>r.dias));
   const venc=abiertas.slice().sort((a,b)=>String(a.fecha_req).localeCompare(String(b.fecha_req))).slice(0,8);
-  g.innerHTML=`<div class="kpis">
+  g.innerHTML=htmlActivas()+`<div class="kpis">
    ${kbtn(abiertas.length,'órdenes abiertas','curso:abiertas')}
    ${kbtn(nf(hsTot),'horas estándar pendientes','carga')}
    ${kbtn(real?pct(std/real):'–','eficiencia últimos 7 días','indicadores',std&&real?(std/real>=.75?'good':std/real<.55?'poor':''):'')}
@@ -310,7 +316,7 @@ update(){
   <div class="grid2"><section class="panel"><h2>Carga pendiente por tipo de máquina</h2>
    <p class="note" style="margin-top:-6px">Días de trabajo según los puestos activos de cada tipo (se ajustan en Maestro).</p>
    <div class="bars">${rows.length?rows.map(r=>`<div class="b bb" data-go="curso:abiertas:${esc(r.t)}" role="button" tabindex="0" title="Ver órdenes con carga en ${esc(tipoNombre(r.t))}"><span>${esc(tipoNombre(r.t))}</span><div class="t"><i class="${r.dias>10?'hot':''}" style="width:${r.dias/mx*100}%"></i></div><span class="n" style="text-align:right">${nf(r.dias,1)} días${r.sin?` <span class="pill bad" title="Operaciones sin tiempo estándar">${r.sin} s/std</span>`:''}</span></div>`).join(''):'<p class="note">No hay carga pendiente. Las órdenes que lance el planificador aparecen acá.</p>'}</div></section>
-  <section class="panel"><h2>Próximas por fecha requerida</h2>${venc.length?`<div class="tw"><table><tr><th>OP</th><th>Artículo</th><th class="n">Cant.</th><th>Requerida</th><th class="n">Avance</th></tr>${venc.map(o=>{const late=o.fecha_req<today();return `<tr class="click" onclick="location.hash='plan/${esc(o.id)}'"><td>${esc(o.numero)}${o.prioridad==='urgente'?' <span class="pill lamp">urgente</span>':''}</td><td>${esc(o.articulo)}</td><td class="n">${nf(o.cantidad)}</td><td>${late?`<span class="pill bad">${fmtD(o.fecha_req)}</span>`:fmtD(o.fecha_req)}</td><td class="n">${pct(opAvance(o))}</td></tr>`}).join('')}</table></div>`:'<p class="note">Sin órdenes abiertas.</p>'}</section></div>`;bindGo(g);
+  <section class="panel"><h2>Próximas por fecha requerida</h2>${venc.length?`<div class="tw"><table><tr><th>OP</th><th>Artículo</th><th class="n">Cant.</th><th>Requerida</th><th class="n">Avance</th></tr>${venc.map(o=>{const late=o.fecha_req<today();return `<tr class="click" onclick="location.hash='plan/${esc(o.id)}'"><td>${esc(o.numero)}${o.prioridad==='urgente'?' <span class="pill lamp">urgente</span>':''}</td><td>${esc(o.articulo)}</td><td class="n">${nf(o.cantidad)}</td><td>${late?`<span class="pill bad">${fmtD(o.fecha_req)}</span>`:fmtD(o.fecha_req)}</td><td class="n">${pct(opAvance(o))}</td></tr>`}).join('')}</table></div>`:'<p class="note">Sin órdenes abiertas.</p>'}</section></div>`;bindGo(g);bindActivas(g);
 }};
 
 /* PLANIFICACIÓN */
@@ -369,7 +375,7 @@ update(){const L=$('#lista');if(!L)return;const flt=$('#flt').value;const tp=$('
   const clr=()=>L.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{if(b.dataset.clr==='flt'){this.flt='abiertas';$('#flt').value='abiertas'}else{this.tipo='';$('#fltT').value=''}this.update()});
   if(!os.length){L.innerHTML=chip+`<p class="note">${S.ordenes.length?(flt==='vencidas'?'No hay órdenes vencidas. ':'No hay órdenes con ese filtro. '):'Todavía no hay órdenes. '+(S.canPlan?'Lanzalas desde la pestaña A lanzar o con una orden manual.':'')}</p>`;clr();return}
   L.innerHTML=chip+os.map(o=>{const st=opState(o);const open=this.sel===o.id;
-    return `<div class="pz opc ${open?'open':''}"><div class="pzh" style="cursor:pointer" data-op="${esc(o.id)}" role="button" tabindex="0" aria-expanded="${open}"><span><b>OP ${esc(o.numero)}</b> ${esc(o.articulo)}, ${nf(o.cantidad)} u. ${o.prioridad==='urgente'?'<span class="pill lamp">urgente</span>':''}</span>
+    return `<div class="pz opc ${open?'open':''}"><div class="pzh" style="cursor:pointer" data-op="${esc(o.id)}" role="button" tabindex="0" aria-expanded="${open}"><span><b>OP ${esc(o.numero)}</b> ${esc(o.articulo)}, ${nf(o.cantidad)} u. ${o.prioridad==='urgente'?'<span class="pill lamp">urgente</span>':''}${activasVivas().filter(a=>a.op_id===o.id).map(a=>` <span class="pill live">${a.tipo==='parada'?'parada':'ahora'}: ${esc(persona(a.yo))}, ${esc(a.maq)}</span>`).join('')}</span>
     <span><span class="pill ${st==='completa'?'ok':st==='en proceso'?'lamp':st==='cancelada'?'bad':''}">${st}</span> ${o.fecha_req<today()&&abierta(o)?`<span class="pill bad">vence ${fmtD(o.fecha_req)}</span>`:`<span class="note">${fmtD(o.fecha_req)}</span>`} <b>${pct(opAvance(o))}</b> <span class="vd">${open?'Ocultar':'Ver detalle'}</span></span></div>
     ${open?`<div style="margin-top:8px">${o.notas?`<p class="note">${esc(o.notas)}</p>`:''}${o.lineas.map((l,li)=>`<div style="margin:8px 0"><div class="pzh" style="align-items:center"><span>${esc(l.pieza)}</span>${S.canPlan&&abierta(o)?`<label class="note" style="display:flex;gap:6px;align-items:center" onclick="event.stopPropagation()">Piezas<input type="number" min="0" value="${l.cant}" data-lc="${esc(o.id)}|${li}" style="width:100px;text-align:right;font-weight:700"></label>`:`<span class="note">${nf(l.cant)} piezas</span>`}</div>${tubo(o,l)}</div>`).join('')}
     <div class="row" style="justify-content:flex-end;margin-top:6px"><button class="btn sm" data-ot="${esc(o.id)}">Imprimir órdenes de trabajo</button><button class="btn sec sm" data-pdf="${esc(o.id)}">Hoja de ruta PDF</button><button class="btn sec sm" data-xls="${esc(o.id)}">Excel</button></div>${S.canPlan&&abierta(o)?`<div class="row" style="justify-content:flex-end;margin-top:6px"><button class="btn sec sm" data-act="cerrada" data-id="${esc(o.id)}">Cerrar orden</button><button class="btn sec sm" data-act="cancelada" data-id="${esc(o.id)}">Cancelar orden</button></div>`:''}</div>`:''}</div>`}).join('');
@@ -1057,7 +1063,7 @@ const AYUDA=[
   <li>Elegí cuáles imprimir (podés filtrar por proceso) y tocá <b>Imprimir</b>. Se descarga un PDF con una orden por hoja A6, o cuatro por hoja A4 para cortar si lo elegís en Tamaño.</li></ol>
   <p>También podés bajar la <b>hoja de ruta</b> completa de cada OP (PDF) o el Excel. Todo esto está también en la pestaña <b>En curso</b>, abriendo cada OP, y arriba de la lista para imprimir por proceso las órdenes abiertas.</p>
   <p>La página no manda directo a la impresora: abrí el PDF descargado e imprimilo desde el visor.</p>`},
- {id:'ordenes',t:'En curso: seguir y modificar',h:`<ul><li>En <b>Planificación</b> hay tres pestañas: <b>A lanzar</b> (sugeridas según el pendiente), <b>En curso</b> (órdenes lanzadas y su estado) y <b>Orden manual</b>. Arriba se resume cuántas hay para lanzar, cuántas en curso, cuántas vencidas y las horas pendientes.</li><li>Cada OP muestra su avance como un tubo por pieza: un tramo por paso, que se llena con lo que confirma el taller.</li>
+ {id:'ordenes',t:'En curso: seguir y modificar',h:`<ul><li><b>Trabajando ahora</b> (en General y arriba de En curso): quién tiene una tarea iniciada en su celular, en qué máquina y desde cuándo. El paso que se está haciendo titila en verde en el tubo de la orden. Si alguien se olvidó de tocar Terminé, se marca después de 10 horas y se puede quitar.</li><li><b>Stock terminado</b>: las unidades de cada pieza que completaron el último paso del taller y todavía no salieron a otra área, sin importar de qué orden vienen. Se asigna una cantidad (por ejemplo, 800 de 2.400) a Pintura, Armado u otra área, y se consume primero de los lotes más viejos. <b>En proceso entre pasos</b> muestra las piezas que esperan la próxima máquina, y <b>Movimientos</b> el historial de envíos y ajustes, que se pueden anular. Con <b>Cargar ajuste o stock inicial</b> se suman piezas que ya estaban en el piso.</li><li>En <b>Planificación</b> hay tres pestañas: <b>A lanzar</b> (sugeridas según el pendiente), <b>En curso</b> (órdenes lanzadas y su estado) y <b>Orden manual</b>. Arriba se resume cuántas hay para lanzar, cuántas en curso, cuántas vencidas y las horas pendientes.</li><li>Cada OP muestra su avance como un tubo por pieza: un tramo por paso, que se llena con lo que confirma el taller.</li>
   <li>El planificador puede cambiar la cantidad de cada pieza de una orden abierta, cerrarla o cancelarla.</li>
   <li>También se puede crear una orden a mano (para stock, muestras o reposición puntual).</li></ul>`},
  {id:'taller',t:'Taller: confirmar el día',h:`<ol><li>Elegí la <b>fecha</b> y el <b>operario</b>.</li><li>En <b>Producción</b>: elegí la máquina; aparecen solo las órdenes de trabajo pendientes para ese tipo de máquina. Cargá hora de inicio, fin, cantidad y scrap. Antes de guardar ves la eficiencia contra el estándar.</li>
@@ -1093,22 +1099,22 @@ V.plan={tab:'lanzar',
 mount(sel){if(sel){this.tab='curso';V.planificacion.sel=sel}
   V.fabrica.mount();
   const cap=$('#fCap');
-  cap.insertAdjacentHTML('beforebegin','<div class="kpis" id="pK"></div><div class="tabs ptabs" id="pTabs"><button data-pt="lanzar">A lanzar</button><button data-pt="curso">En curso</button><button data-pt="manual">Orden manual</button></div><div id="paneL"></div><div id="paneC"></div><div id="paneN"></div>');
+  cap.insertAdjacentHTML('beforebegin','<div class="kpis" id="pK"></div><div class="tabs ptabs" id="pTabs"><button data-pt="lanzar">A lanzar</button><button data-pt="curso">En curso</button><button data-pt="term">Stock terminado</button><button data-pt="manual">Orden manual</button></div><div id="paneL"></div><div id="paneC"></div><div id="paneT"></div><div id="paneN"></div>');
   const L=$('#paneL');L.appendChild(cap);L.appendChild($('#fSug'));L.appendChild($('#fVinc'));
   $('#paneC').innerHTML=`<section class="panel"><div class="row" style="margin-bottom:10px;align-items:flex-end"><label class="f" style="flex:0 1 200px">Ver<select id="flt"><option value="abiertas">Abiertas</option><option value="vencidas">Vencidas sin terminar</option><option value="todas">Todas, con terminadas y cerradas</option></select></label>
     <label class="f" style="flex:0 1 200px">Con pendiente en<select id="fltT"><option value="">Cualquier proceso</option></select></label>
     <label class="f">Imprimir órdenes de trabajo de las abiertas<select id="otTipo"><option value="">Todos los procesos</option></select></label><button class="btn" id="otGo">Elegir e imprimir</button></div><div id="lista"></div></section>`;
-  $('#paneN').innerHTML='<section class="panel" id="nuevo" style="max-width:760px"></section>';
+  $('#paneN').innerHTML='<section class="panel" id="nuevo" style="max-width:760px"></section>';$('#paneT').innerHTML=V.disp.html();V.disp.bind();$('#paneC').insertAdjacentHTML('afterbegin','<div id="pAct"></div>');
   V.planificacion.bindList();V.planificacion.mountForm();
   $('#pTabs').querySelectorAll('[data-pt]').forEach(b=>b.onclick=()=>{this.tab=b.dataset.pt;this.show()});
   this.show();this.update()},
 show(){if(this.tab==='curso'&&(V.planificacion.tipo||V.planificacion.flt==='vencidas'))setTimeout(()=>{try{$('#pTabs').scrollIntoView({block:'start'})}catch(e){}},40);document.querySelectorAll('#pTabs [data-pt]').forEach(b=>b.classList.toggle('on',b.dataset.pt===this.tab));
-  $('#paneL').classList.toggle('hide',this.tab!=='lanzar');$('#paneC').classList.toggle('hide',this.tab!=='curso');$('#paneN').classList.toggle('hide',this.tab!=='manual')},
-update(){if(!$('#pK'))return;V.fabrica.update();V.planificacion.update();
+  $('#paneL').classList.toggle('hide',this.tab!=='lanzar');$('#paneC').classList.toggle('hide',this.tab!=='curso');$('#paneN').classList.toggle('hide',this.tab!=='manual');$('#paneT').classList.toggle('hide',this.tab!=='term')},
+update(){if(!$('#pK'))return;V.fabrica.update();V.planificacion.update();V.disp.update();{const pa=$('#pAct');if(pa){pa.innerHTML=htmlActivas();bindActivas(pa)}}
   const R=V.fabrica.R;const nL=R?R.sug.filter(s=>s.act.length||s.ajustado).length:0;const ab=S.ordenes.filter(abierta);const late=ab.filter(o=>o.fecha_req<today()).length;
   const hs=Object.values(pendientesPorTipo()).reduce((a,x)=>a+x.hs,0);const av=ab.length?ab.reduce((a,o)=>a+opAvance(o),0)/ab.length:null;
-  $('#pK').innerHTML=kbtn(S.P.pendiente?nL:'–','órdenes sugeridas para lanzar','sug')+kbtn(ab.length,'órdenes en curso','curso:abiertas')+kbtn(late,'vencidas sin terminar','curso:vencidas',late?'poor':'')+kbtn(nf(hs),`hs estándar pendientes en curso${av!=null?`, avance ${pct(av)}`:''}`,'carga');bindGo($('#pK'));
-  const t=$('#pTabs');if(t){t.querySelector('[data-pt="lanzar"]').textContent=`A lanzar (${S.P.pendiente?nL:0})`;t.querySelector('[data-pt="curso"]').textContent=`En curso (${ab.length})`}}
+  $('#pK').innerHTML=kbtn(S.P.pendiente?nL:'–','órdenes sugeridas para lanzar','sug')+kbtn(ab.length,'órdenes en curso','curso:abiertas')+kbtn(late,'vencidas sin terminar','curso:vencidas',late?'poor':'')+kbtn(nf(Object.values(stockTerminado()).reduce((a,X)=>a+X.disp,0)),'unidades terminadas para asignar','term')+kbtn(nf(hs),`hs estándar pendientes en curso${av!=null?`, avance ${pct(av)}`:''}`,'carga');bindGo($('#pK'));
+  const t=$('#pTabs');if(t){t.querySelector('[data-pt="lanzar"]').textContent=`A lanzar (${S.P.pendiente?nL:0})`;t.querySelector('[data-pt="curso"]').textContent=`En curso (${ab.length})`;t.querySelector('[data-pt="term"]').textContent=`Stock terminado (${Object.values(stockTerminado()).filter(X=>X.disp>0).length})`}}
 };
 
 /* ---------- TALLER: carga desde foto de la planilla ---------- */
@@ -1472,7 +1478,7 @@ async function procesarRegistros(f){{
 function appURL(){return location.href.split('#')[0]}
 function otURL(o,li,seq){return appURL()+'#ot/'+encodeURIComponent(o.id)+'/'+li+'/'+seq}
 const ahora=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
-const CUR={get(){try{return JSON.parse(localStorage.getItem('spl.encurso')||'null')}catch(e){return null}},set(v){try{v?localStorage.setItem('spl.encurso',JSON.stringify(v)):localStorage.removeItem('spl.encurso')}catch(e){}}};
+const CUR={get(){try{return JSON.parse(localStorage.getItem('spl.encurso')||'null')}catch(e){return null}},set(v){try{v?localStorage.setItem('spl.encurso',JSON.stringify(v)):localStorage.removeItem('spl.encurso')}catch(e){}try{v?setActiva(v):clearActiva()}catch(e){}}};
 V.ot={mount(sel,rest){document.body.classList.add('solo');this.key=sel?[decodeURIComponent(sel),...(rest||[])]:null;this.paso=null;this.render()},
 unmount(){document.body.classList.remove('solo')},
 ctx(){if(!this.key)return null;const [oid,li,seq]=this.key;const o=S.ordenes.find(x=>x.id===oid);if(!o)return {falta:true};const l=o.lineas[+li];const w=l?.ops.find(x=>x.seq==seq);if(!w)return {falta:true};
@@ -1565,6 +1571,91 @@ document.addEventListener('click',e=>{const th=e.target.closest('th');if(!th||e.
   const ci=[...th.parentNode.children].indexOf(th);const k=tsig(t);const cur=SORT[k];const dir=cur&&cur.ci===ci?-cur.dir:(cval(t.rows[1]?.children[ci]).n!=null?-1:1);SORT[k]={ci,dir};ordenarTabla(t,ci,dir)});
 new MutationObserver(()=>{document.querySelectorAll('table').forEach(t=>{if(t.dataset.sorted||!sortable(t))return;t.dataset.sortable='1';const s=SORT[tsig(t)];if(s)ordenarTabla(t,s.ci,s.dir)})}).observe(document.body,{childList:true,subtree:true});
 
+/* ---------- trabajando ahora (tareas iniciadas desde el celular) ---------- */
+function ctxKey(key){if(!key)return null;const [oid,li,seq]=key;const o=S.ordenes.find(x=>x.id===oid);const l=o?.lineas[+li];const w=l?.ops.find(x=>x.seq==seq);return w?{o,l,w}:null}
+function setActiva(cur){if(!S.db)return;const c=ctxKey(cur.key);const d={activo:true,yo:cur.yo,maq:cur.maq||'',ini:cur.ini,fecha:cur.fecha,tipo:cur.tipo,motivo:cur.motivo||null,key:cur.key,ts:new Date().toISOString()};
+  if(c)Object.assign(d,{op_id:c.o.id,op_numero:c.o.numero,articulo:c.o.articulo,pieza:c.l.pieza,seq:c.w.seq,paso:c.w.op});S.db.collection('activas').doc(uidShort()).set(d).catch(()=>{})}
+function clearActiva(id){if(!S.db)return;S.db.collection('activas').doc(id||uidShort()).set({activo:false,ts:new Date().toISOString()}).catch(()=>{})}
+function activasVivas(){return (S.activas||[]).filter(a=>a.activo&&a.fecha&&a.fecha>=addDays(today(),-1))}
+function transcurrido(a){const now=new Date();const [h,m]=String(a.ini||'0:0').split(':').map(Number);const st=new Date(a.fecha+'T00:00:00');st.setHours(h,m,0,0);const min=Math.max(0,Math.round((now-st)/60000));return min}
+const durTxt=m=>m<60?m+' min':Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' min';
+function htmlActivas(){const A=activasVivas().sort((a,b)=>String(a.maq).localeCompare(String(b.maq),'es',{numeric:true}));
+  return `<section class="panel"><div class="pzh" style="align-items:baseline"><h2>Trabajando ahora <span class="note">${A.length}</span></h2><span class="note">se actualiza solo cuando el operario toca Empecé o Terminé en su celular</span></div>
+  ${A.length?`<div class="tw"><table><tr><th>Operario</th><th>Máquina</th><th>Tarea</th><th>Desde</th><th class="n">Tiempo</th><th></th></tr>${A.map(a=>{const min=transcurrido(a);const olv=min>600;const par=a.tipo==='parada';
+    return `<tr class="${a.op_id?'click':''}" ${a.op_id?`data-verop="${esc(a.op_id)}"`:''}><td><span class="dot ${par?'dp':'dw'}"></span>${esc(persona(a.yo))}</td><td>${esc(a.maq||'–')}</td>
+    <td>${par?`<span class="pill bad">parada</span> ${esc(motivo(a.motivo)?.nombre||'')}${a.op_numero?` <span class="note">en OP ${esc(a.op_numero)}</span>`:''}`:`OP ${esc(a.op_numero||'?')} ${esc(a.articulo||'')}, ${esc(a.pieza||'')} <b>${esc(a.paso||'')}</b>`}</td>
+    <td>${a.fecha!==today()?fmtD(a.fecha)+' ':''}${esc(a.ini)}</td><td class="n ${olv?'poor':''}">${durTxt(min)}${olv?' <span class="pill bad">¿se olvidó?</span>':''}</td>
+    <td class="n">${S.canPlan?`<button class="btn link" data-cerrar="${esc(a.id)}">Quitar</button>`:''}</td></tr>`}).join('')}</table></div>`:'<p class="note">Nadie tiene una tarea iniciada en este momento.</p>'}</section>`}
+function bindActivas(root){root.querySelectorAll('[data-verop]').forEach(r=>r.onclick=()=>ir('plan',{tab:'curso',flt:'abiertas',tipo:'',sel:r.dataset.verop}));
+  root.querySelectorAll('[data-cerrar]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();if(!confirm('¿Quitar esta tarea de "Trabajando ahora"? No borra nada de lo producido; solo sirve si el operario se olvidó de tocar Terminé.'))return;clearActiva(b.dataset.cerrar);toast('Tarea quitada')})}
+setInterval(()=>{if(document.hidden)return;if(S.view==='general'||(S.view==='plan'&&V.plan.tab==='curso'))changed('reloj')},60000);
+
+function ultimaFecha(o){let f='';for(const e of entries())if(e.op_id===o.id&&e.fecha>f)f=e.fecha;return f}
+/* ---------- stock terminado en taller: unidades disponibles para asignar ---------- */
+const AREAS=['Pintura','Armado','Depósito','Expedición','Otra área'];
+function lastSeqL(l){return l.ops.reduce((a,w)=>Math.max(a,w.seq),0)}
+function claveStock(o,l,sh){if(o.tipo==='lote'&&l.codigo)return 'C:'+l.codigo;return l.codigo&&sh.has(l.codigo)?'C:'+l.codigo:o.articulo+'|'+l.pieza}
+function stockTerminado(){const sh=compartidas();const P={};const prodM=S.M.productos?.items||{};
+  const add=(k,info,lote)=>{const X=P[k]=P[k]||{key:k,pieza:info.pieza,codigo:info.codigo,arts:new Set(),lotes:[],prod:0,cons:0,disp:0};if(info.art&&!String(info.art).startsWith('LOTE '))X.arts.add(info.art);X.lotes.push(lote);X.prod+=lote.qty};
+  for(const o of S.ordenes){if(o.estado==='cancelada')continue;o.lineas.forEach((l,li)=>{const p=S.prog.get(woKey(o.id,l.pieza,lastSeqL(l)));const q=p?p.qty:0;if(q<=0)return;
+    add(claveStock(o,l,sh),{pieza:l.pieza,codigo:l.codigo,art:o.articulo},{id:o.id+'|'+li,tipo:'op',op:o.numero,fecha:ultimaFecha(o)||String(o.creada||'').slice(0,10),qty:q});
+    if(o.tipo==='lote'&&o.destinos)o.destinos.forEach(d=>P[claveStock(o,l,sh)].arts.add(d.fam))})}
+  // producción fuera de plan en el último paso de la ruta
+  for(const e of entries()){if(e.tipo!=='prod'||e.op_id||e.seq==null||!(+e.qty>0))continue;const f=prodM[e.articulo];const pz=f?.piezas.find(p=>p.pieza===e.pieza);if(!pz||lastSeqL(pz)!==e.seq)continue;
+    const k=pz.codigo&&sh.has(pz.codigo)?'C:'+pz.codigo:e.articulo+'|'+e.pieza;add(k,{pieza:e.pieza,codigo:pz.codigo,art:e.articulo},{id:'fp|'+e.id,tipo:'fp',op:'sin orden',fecha:e.fecha,qty:+e.qty})}
+  // movimientos: ajustes suman o restan, salidas consumen
+  const movs=(S.movs||[]).filter(m=>!m.anulado).sort((a,b)=>String(a.ts).localeCompare(String(b.ts)));
+  for(const m of movs)if(m.tipo==='ajuste'&&+m.qty>0)add(m.key,{pieza:m.pieza,codigo:m.codigo,art:m.articulo},{id:'aj|'+m.id,tipo:'aj',op:'ajuste',fecha:m.fecha,qty:+m.qty});
+  for(const X of Object.values(P)){X.lotes.sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));for(const l of X.lotes)l.cons=0}
+  for(const m of movs){const X=P[m.key];if(!X)continue;if(m.tipo==='ajuste'&&+m.qty>0)continue;const cons=m.consumo||[];
+    for(const c of cons){const l=X.lotes.find(z=>z.id===c.lote);if(l)l.cons+=+c.qty||0}}
+  for(const X of Object.values(P)){X.cons=X.lotes.reduce((a,l)=>a+l.cons,0);for(const l of X.lotes)l.disp=Math.max(0,l.qty-l.cons);X.disp=X.lotes.reduce((a,l)=>a+l.disp,0);X.arts=[...X.arts].sort()}
+  return P}
+function enProcesoEntrePasos(){const out=[];for(const o of S.ordenes){if(!abierta(o))continue;for(const l of o.lineas){for(let i=0;i<l.ops.length-1;i++){const a=S.prog.get(woKey(o.id,l.pieza,l.ops[i].seq))?.qty||0,b=S.prog.get(woKey(o.id,l.pieza,l.ops[i+1].seq))?.qty||0;
+  const q=Math.max(0,Math.min(a,l.cant)-b);if(q>0)out.push({o,l,desde:l.ops[i],hacia:l.ops[i+1],q})}}}return out}
+function consumirFIFO(X,qty){let r=qty;const c=[];for(const l of X.lotes){if(r<=0)break;const t=Math.min(l.disp,r);if(t>0){c.push({lote:l.id,op:l.op,qty:t});r-=t}}return {consumo:c,falta:r}}
+V.disp={ver:'disp',open:null,q:'',
+html(){return `<section class="panel"><div class="row" style="justify-content:space-between;align-items:flex-end;margin-bottom:10px"><div class="tabs" style="margin:0;border:0"><button data-dv="disp">Disponible para asignar</button><button data-dv="proc">En proceso entre pasos</button><button data-dv="mov">Movimientos</button></div>
+  <label class="f" style="flex:0 1 220px">Buscar pieza o artículo<input id="dQ" autocomplete="off"></label></div><div id="dList"></div></section>`},
+bind(){document.querySelectorAll('[data-dv]').forEach(b=>b.onclick=()=>{this.ver=b.dataset.dv;this.update()});const q=$('#dQ');q.value=this.q;q.oninput=()=>{this.q=q.value;this.update(true)}},
+update(keepFocus){const L=$('#dList');if(!L)return;if(!keepFocus&&document.activeElement&&L.contains(document.activeElement)&&['INPUT','SELECT'].includes(document.activeElement.tagName))return;
+  document.querySelectorAll('[data-dv]').forEach(b=>b.classList.toggle('on',b.dataset.dv===this.ver));const qq=nrm(this.q);
+  if(this.ver==='disp'){const P=Object.values(stockTerminado()).filter(X=>X.disp>0||this.open===X.key).filter(X=>!qq||nrm(X.pieza+' '+(X.codigo||'')+' '+X.arts.join(' ')).includes(qq)).sort((a,b)=>b.disp-a.disp);
+    L.innerHTML=`<p class="note" style="margin-top:0">Unidades que completaron el último paso del taller y todavía no se mandaron a otra área. Al asignar se consume primero de los lotes más viejos. Tocá una pieza para ver sus lotes, o cargá un ajuste si hay piezas en el piso que no pasaron por el sistema.</p>
+    ${S.canPlan?'<div class="row" style="margin:0 0 10px"><button class="btn sec sm" id="dAj">Cargar ajuste o stock inicial</button></div>':''}
+    ${P.length?`<div class="tw"><table><tr><th>Pieza</th><th>Código</th><th>Artículos</th><th class="n">Disponible</th><th class="n">Lotes</th><th>Más viejo</th><th>Asignar</th></tr>
+    ${P.map(X=>{const open=this.open===X.key;const conD=X.lotes.filter(l=>l.disp>0);return `<tr class="click" data-dk="${esc(X.key)}"><td><b>${esc(X.pieza)}</b></td><td class="note">${esc(X.codigo||'')}</td><td class="note">${esc(X.arts.slice(0,4).join(', '))}${X.arts.length>4?'…':''}</td><td class="n"><b>${nf(X.disp)}</b></td><td class="n">${conD.length}</td><td>${fmtD(conD[0]?.fecha||'')}</td>
+      <td onclick="event.stopPropagation()">${S.canPlan?`<span class="row" style="gap:4px;flex-wrap:nowrap"><input type="number" min="1" max="${X.disp}" placeholder="${nf(X.disp)}" data-dq="${esc(X.key)}" style="width:86px;text-align:right"><select data-da="${esc(X.key)}" style="width:auto">${AREAS.map(a=>`<option>${a}</option>`).join('')}</select><button class="btn sm" data-dgo="${esc(X.key)}">Enviar</button></span>`:''}</td></tr>
+      ${open?`<tr><td colspan="7"><table><tr><th>Lote</th><th>Fecha</th><th class="n">Producido</th><th class="n">Asignado</th><th class="n">Disponible</th></tr>${X.lotes.map(l=>`<tr><td>${l.tipo==='op'?'OP '+esc(l.op):l.tipo==='aj'?'Ajuste / stock inicial':'Fuera de plan'}</td><td>${fmtD(l.fecha)}</td><td class="n">${nf(l.qty)}</td><td class="n">${nf(l.cons)}</td><td class="n"><b>${nf(l.disp)}</b></td></tr>`).join('')}</table></td></tr>`:''}`}).join('')}</table></div>`:'<p class="note">No hay unidades terminadas disponibles. Aparecen acá cuando el taller completa el último paso de una pieza.</p>'}`;
+    L.querySelectorAll('[data-dk]').forEach(r=>r.onclick=()=>{this.open=this.open===r.dataset.dk?null:r.dataset.dk;this.update(true)});
+    L.querySelectorAll('[data-dgo]').forEach(b=>b.onclick=()=>this.enviar(b.dataset.dgo));
+    const aj=$('#dAj');if(aj)aj.onclick=()=>this.ajuste()}
+  else if(this.ver==='proc'){const R=enProcesoEntrePasos().filter(x=>!qq||nrm(x.l.pieza+' '+x.o.articulo+' '+(x.l.codigo||'')).includes(qq));const por={};R.forEach(x=>{por[x.hacia.tipo]=(por[x.hacia.tipo]||0)+x.q});
+    L.innerHTML=`<p class="note" style="margin-top:0">Piezas que terminaron un paso y esperan el siguiente, en las órdenes abiertas. Muestra dónde se está acumulando el trabajo.</p>
+    ${R.length?`<div class="chips" style="margin-bottom:10px">${Object.entries(por).sort((a,b)=>b[1]-a[1]).map(([t,q])=>`<span class="chip">Esperando ${esc(tipoNombre(t))}: ${nf(q)}</span>`).join('')}</div>
+    <div class="tw"><table><tr><th>OP</th><th>Artículo</th><th>Pieza</th><th>Hecho en</th><th>Espera</th><th class="n">Unidades</th></tr>${R.map(x=>`<tr class="click" data-verop="${esc(x.o.id)}"><td>OP ${esc(x.o.numero)}</td><td>${esc(x.o.articulo)}</td><td>${esc(x.l.pieza)}</td><td>${esc(x.desde.op)}</td><td><b>${esc(x.hacia.op)}</b> <span class="note">${esc(tipoNombre(x.hacia.tipo))}</span></td><td class="n"><b>${nf(x.q)}</b></td></tr>`).join('')}</table></div>`:'<p class="note">No hay piezas esperando entre pasos.</p>'}`;
+    bindActivas(L)}
+  else{const M=(S.movs||[]).slice().sort((a,b)=>String(b.ts).localeCompare(String(a.ts))).filter(m=>!qq||nrm(m.pieza+' '+(m.codigo||'')+' '+(m.area||'')).includes(qq));
+    L.innerHTML=M.length?`<div class="tw"><table><tr><th>Fecha</th><th>Tipo</th><th>Pieza</th><th class="n">Unidades</th><th>Destino</th><th>De los lotes</th><th>Observación</th><th></th></tr>${M.map(m=>`<tr class="${m.anulado?'off':''}"><td>${fmtD(m.fecha)}</td><td>${m.tipo==='ajuste'?(+m.qty>0?'Ajuste (+)':'Ajuste (−)'):'Envío'}</td><td>${esc(m.pieza)} <span class="note">${esc(m.codigo||'')}</span></td><td class="n">${nf(Math.abs(+m.qty))}</td><td>${m.area?`<span class="pill ok">${esc(m.area)}</span>`:''}</td><td class="note">${(m.consumo||[]).map(c=>`${c.op==='ajuste'?'ajuste':c.op==='sin orden'?'fuera de plan':'OP '+esc(c.op)}: ${nf(c.qty)}`).join(', ')}</td><td class="note">${esc(m.obs||'')}${m.anulado?' (anulado)':''}</td><td class="n">${S.canPlan&&!m.anulado?`<button class="btn link" data-anu="${esc(m.id)}">Anular</button>`:''}</td></tr>`).join('')}</table></div>`:'<p class="note">Todavía no hay movimientos.</p>';
+    L.querySelectorAll('[data-anu]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Anular este movimiento? Las unidades vuelven a estar disponibles.'))return;try{await S.db.collection('movimientos').doc(b.dataset.anu).update({anulado:true,anulado_ts:new Date().toISOString()});toast('Movimiento anulado')}catch(e){toast('No se pudo guardar')}})}},
+async enviar(k){const P=stockTerminado();const X=P[k];if(!X)return;const inp=document.querySelector(`[data-dq="${CSS.escape(k)}"]`);const q=parseInt(inp.value||X.disp,10);const area=document.querySelector(`[data-da="${CSS.escape(k)}"]`).value;
+  if(!(q>0)){toast('Poné cuántas unidades mandás');return}if(q>X.disp){toast('Hay solo '+nf(X.disp)+' disponibles');return}
+  const obs=prompt(`Enviar ${nf(q)} ${X.pieza} a ${area}. Observación (opcional):`,'');if(obs===null)return;const {consumo}=consumirFIFO(X,q);const id='mv-'+newId();
+  try{await S.db.collection('movimientos').doc(id).set({id,tipo:'salida',fecha:today(),ts:new Date().toISOString(),por:S.uid||null,key:k,pieza:X.pieza,codigo:X.codigo||null,articulos:X.arts,qty:q,area,obs:obs.trim(),consumo});toast(nf(q)+' '+X.pieza+' enviadas a '+area)}catch(e){toast('No se pudo guardar. Probá de nuevo.')}},
+ajuste(){const fams=Object.keys(S.M.productos?.items||{}).sort((a,b)=>a.localeCompare(b,'es',{numeric:true}));const m=document.createElement('div');m.className='modal';
+  m.innerHTML=`<div class="dlg" style="width:min(560px,100%)"><div class="pzh" style="align-items:center"><h2 style="margin:0">Ajuste de stock terminado</h2><button class="btn link" data-x>Cerrar</button></div>
+   <p class="note">Para cargar piezas terminadas que ya están en el piso (conteo inicial) o corregir diferencias. Positivo suma, negativo resta.</p>
+   <div class="row"><label class="f">Artículo<input id="ajA" list="dlAj"></label><datalist id="dlAj">${fams.map(f=>`<option value="${esc(f)}">`).join('')}</datalist><label class="f">Pieza<select id="ajP"><option value="">Elegí el artículo</option></select></label></div>
+   <div class="row" style="margin-top:10px"><label class="f" style="flex:0 1 150px">Unidades<input id="ajQ" type="number"></label><label class="f">Observación<input id="ajO" placeholder="ej. conteo del 01/10"></label></div><div class="err" id="ajE"></div>
+   <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" id="ajGo">Guardar ajuste</button></div></div>`;
+  document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.hasAttribute('data-x'))m.remove()};
+  $('#ajA').oninput=()=>{const f=S.M.productos?.items?.[$('#ajA').value.trim()];$('#ajP').innerHTML=f?f.piezas.map(p=>`<option>${esc(p.pieza)}</option>`).join(''):'<option value="">Elegí el artículo</option>'};
+  $('#ajGo').onclick=async()=>{const a=$('#ajA').value.trim(),pz=$('#ajP').value,q=parseInt($('#ajQ').value,10);const E=$('#ajE');const f=S.M.productos?.items?.[a];if(!f||!pz){E.textContent='Elegí artículo y pieza.';return}if(!q){E.textContent='Poné las unidades (positivo suma, negativo resta).';return}
+    const p=f.piezas.find(x=>x.pieza===pz);const sh=compartidas();const k=p.codigo&&sh.has(p.codigo)?'C:'+p.codigo:a+'|'+pz;let consumo=[];
+    if(q<0){const X=stockTerminado()[k];if(!X||X.disp<-q){E.textContent='No hay tantas unidades disponibles para restar.';return}consumo=consumirFIFO(X,-q).consumo}
+    const id='mv-'+newId();try{await S.db.collection('movimientos').doc(id).set({id,tipo:'ajuste',fecha:today(),ts:new Date().toISOString(),por:S.uid||null,key:k,pieza:pz,codigo:p.codigo||null,articulo:a,qty:q,obs:$('#ajO').value.trim(),consumo});m.remove();toast('Ajuste guardado')}catch(e){E.textContent='No se pudo guardar.'}}}
+};
+
 /* ---------- router ---------- */
 function route(){const h=(location.hash||'#general').slice(1);let [v,sel,...rest]=h.split('/');if(v==='desvios'){v='indicadores'}else if(v==='fabrica'){v='plan'}else if(v==='planificacion'){v='plan';V.plan.tab='curso'}else if(v==='plan'&&!sel){}const name=V[v]&&!['fabrica','planificacion'].includes(v)?v:'general';
   document.querySelectorAll('.rail a[data-v]').forEach(a=>a.classList.toggle('on',a.dataset.v===name));
@@ -1588,6 +1679,8 @@ route();
   for(const k of ['productos','centros','personal','motivos','vinculos','ventas']){
     db.doc('maestro/'+k).onSnapshot(s=>{S.M[k]=s.exists?s.data():null;S.loaded[k]=true;changed('maestro')},()=>{})}
   for(const k of ['pendiente','parametros','stock','ajustes'])db.doc('planificacion/'+k).onSnapshot(s=>{S.P[k]=s.exists?s.data():null;changed('plan')},()=>{});
+  S.movs=[];db.collection('movimientos').onSnapshot(q=>{S.movs=q.docs.map(d=>({id:d.id,...d.data()}));changed('datos')},()=>{});
+  S.activas=[];db.collection('activas').onSnapshot(q=>{S.activas=q.docs.map(d=>({id:d.id,...d.data()}));changed('datos')},()=>{});
   db.collection('ordenes').onSnapshot(q=>{S.ordenes=q.docs.map(d=>({id:d.id,...d.data()}));recompute();changed('datos')},()=>{});
   db.collection('partes').onSnapshot(q=>{S.partes=q.docs.map(d=>({id:d.id,...d.data()}));recompute();changed('datos')},()=>{});
 })();
