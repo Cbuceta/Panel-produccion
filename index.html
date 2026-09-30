@@ -159,6 +159,26 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}.dot.dw{background:var(--ok)}.dot.dp{background:var(--bad)}
 #pK{grid-template-columns:repeat(5,minmax(0,1fr))}@media (max-width:900px){#pK{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-reduced-motion:reduce){.seg.live{animation:none}}
+.sectores{display:flex;flex-direction:column;gap:14px;margin-top:12px}.sector h3{margin:0 0 6px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.mqs{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.mq{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line2);border-radius:10px;background:var(--panel)}
+.mq.click{cursor:pointer}.mq.click:hover{border-color:var(--ink)}
+.mqc{flex:0 0 auto;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--panel2);border:3px solid var(--line);font-weight:800;font-size:12px;font-stretch:80%;color:var(--muted)}
+.mq.trabajando .mqc{background:var(--ok);border-color:var(--ok);color:#fff;box-shadow:0 0 0 4px var(--okbg);animation:latido 2.4s ease-in-out infinite}
+.mq.parada .mqc{background:var(--bad);border-color:var(--bad);color:#fff;box-shadow:0 0 0 4px var(--badbg)}
+.mq.trabajando{border-color:var(--ok)}.mq.parada{border-color:var(--bad)}
+@keyframes latido{50%{box-shadow:0 0 0 8px var(--okbg)}}
+.mqi{display:flex;flex-direction:column;min-width:0;font-size:13px;line-height:1.3}.mqi b{font-size:14px}.mqi span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.planta.big .mqs{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}.planta.big .mqc{width:66px;height:66px;font-size:14px}.planta.big .mqi{font-size:14.5px}.planta.big .mqi b{font-size:16px}
+.lg{font-size:13px;display:inline-flex;align-items:center}.dot.dl{background:var(--line)}
+@media (prefers-reduced-motion:reduce){.mq.trabajando .mqc{animation:none}}
+.tipd{text-decoration:underline dotted;text-decoration-color:var(--muted);text-underline-offset:3px;cursor:help}
+#tipbox{position:fixed;z-index:20;background:var(--ink);color:var(--panel);font-size:13px;line-height:1.4;padding:9px 11px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .12s}
+#tipbox.on{opacity:1}#tipbox b{color:var(--lamp)}
+.opcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-bottom:12px}
+.opc2{text-align:left;background:var(--panel);border:1px solid var(--line2);border-left:4px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer;color:var(--ink);font:inherit}
+.opc2:hover{border-color:var(--ink)}.opc2.trabajando{border-left-color:var(--ok)}.opc2.parada{border-left-color:var(--bad)}
+.opm{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}.opm div{background:var(--panel2);border-radius:6px;padding:5px;text-align:center}.opm b{display:block;font-size:17px;font-stretch:85%}.opm span{font-size:11px;color:var(--muted)}
 .toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 @media (max-width:900px){
@@ -179,6 +199,7 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
     <div class="brand">Spotsline</div>
     <div class="brandsub">Producción</div>
     <a href="#general" data-v="general">General</a>
+    <a href="#planta" data-v="planta">Planta en vivo</a>
     <a href="#plan" data-v="plan">Planificación</a>
     <div class="grp">Áreas</div>
     <a href="#taller" data-v="taller">Taller</a>
@@ -308,7 +329,7 @@ update(){
   const rows=Object.entries(pend).filter(([,x])=>x.hs>0.01||x.sin).map(([t,x])=>{const cap=(T[t]?.puestos||1)*(T[t]?.horas_dia||7.5);return {t,hs:x.hs,dias:x.hs/cap,sin:x.sin}}).sort((a,b)=>b.dias-a.dias);
   const mx=Math.max(5,...rows.map(r=>r.dias));
   const venc=abiertas.slice().sort((a,b)=>String(a.fecha_req).localeCompare(String(b.fecha_req))).slice(0,8);
-  g.innerHTML=htmlActivas()+`<div class="kpis">
+  g.innerHTML=htmlPlanta(false)+`<div class="kpis">
    ${kbtn(abiertas.length,'órdenes abiertas','curso:abiertas')}
    ${kbtn(nf(hsTot),'horas estándar pendientes','carga')}
    ${kbtn(real?pct(std/real):'–','eficiencia últimos 7 días','indicadores',std&&real?(std/real>=.75?'good':std/real<.55?'poor':''):'')}
@@ -421,7 +442,7 @@ V.taller={mount(){
   $('#fArt').oninput=()=>{this.fillFuera();this.calc()};$('#fPz').onchange=()=>this.calc();
   ['pIni','pFin','pQty'].forEach(i=>$('#'+i).oninput=()=>{$('#pErr').textContent='';this.calc()});
   if(S.supa||S.local){$('#tFoto').classList.add('hide')}$('#tFoto').onclick=()=>FOTO.open();$('#tImp').onclick=()=>importarRegistros();loteBar();$('#pGo').onclick=()=>this.guardarProd();$('#sGo').onclick=()=>this.guardarParada();
-  this.autoTimes(true);this.update()},
+  this.autoTimes(true);TT.init();this.update()},
 dayEntries(){const f=$('#tFecha')?.value,op=$('#tOp')?.value;return entries().filter(e=>e.fecha===f&&e.operario===op).sort((a,b)=>(toMin(a.ini)??0)-(toMin(b.ini)??0))},
 autoTimes(force){const es=this.dayEntries();const lastFin=es.length?es.reduce((a,e)=>(toMin(e.fin)>toMin(a)?e.fin:a),es[0].fin):'06:00';
   for(const i of ['pIni','sIni']){const el=$('#'+i);if(el&&(force||!el.value))el.value=lastFin}
@@ -468,7 +489,7 @@ async guardarParada(){const err=$('#sErr');if(!S.canWrite){err.textContent='Tu a
   const it={id:newId(),tipo:'parada',operario:op,centro:maq||null,centro_tipo:maq?centroTipo(maq):null,motivo:mot,ini,fin,min:m,obs:$('#sObs').value.trim(),ts:new Date().toISOString()};
   try{await writeParte(fecha,items=>items.push(it));toast('Parada registrada');$('#sObs').value='';$('#sMot').value='';$('#pFin').value='';$('#sFin').value='';$('#pIni').value=fin;$('#sIni').value=fin}
   catch(e){err.textContent='No se pudo guardar. Probá de nuevo.'}finally{done('#sGo')}}finally{done('#sGo')}},
-update(){if(!$('#dia'))return;this.fillWO();this.calc();
+update(){if(!$('#dia'))return;TT.update();this.fillWO();this.calc();
   const op=$('#tOp').value;const D=$('#dia');$('#dTit').textContent=op?'Día de '+persona(op):'Día del operario';
   if(!op){D.innerHTML='<p class="note">Elegí un operario para ver y cargar su día.</p>';return}
   const es=this.dayEntries();
@@ -1071,7 +1092,7 @@ const AYUDA=[
  {id:'ordenes',t:'En curso: seguir y modificar',h:`<ul><li><b>Trabajando ahora</b> (en General y arriba de En curso): quién tiene una tarea iniciada en su celular, en qué máquina y desde cuándo. El paso que se está haciendo titila en verde en el tubo de la orden. Si alguien se olvidó de tocar Terminé, se marca después de 10 horas y se puede quitar.</li><li><b>Stock terminado</b>: las unidades de cada pieza que completaron el último paso del taller y todavía no salieron a otra área, sin importar de qué orden vienen. Se asigna una cantidad (por ejemplo, 800 de 2.400) a Pintura, Armado u otra área, y se consume primero de los lotes más viejos. <b>En proceso entre pasos</b> muestra las piezas que esperan la próxima máquina, y <b>Movimientos</b> el historial de envíos y ajustes, que se pueden anular. Con <b>Cargar ajuste o stock inicial</b> se suman piezas que ya estaban en el piso.</li><li>En <b>Planificación</b> hay tres pestañas: <b>A lanzar</b> (sugeridas según el pendiente), <b>En curso</b> (órdenes lanzadas y su estado) y <b>Orden manual</b>. Arriba se resume cuántas hay para lanzar, cuántas en curso, cuántas vencidas y las horas pendientes.</li><li>Cada OP muestra su avance como un tubo por pieza: un tramo por paso, que se llena con lo que confirma el taller.</li>
   <li>El planificador puede cambiar la cantidad de cada pieza de una orden abierta, cerrarla o cancelarla.</li>
   <li>También se puede crear una orden a mano (para stock, muestras o reposición puntual).</li></ul>`},
- {id:'taller',t:'Taller: confirmar el día',h:`<ol><li>Elegí la <b>fecha</b> y el <b>operario</b>.</li><li>En <b>Producción</b>: elegí la máquina; aparecen solo las órdenes de trabajo pendientes para ese tipo de máquina. Cargá hora de inicio, fin, cantidad y scrap. Antes de guardar ves la eficiencia contra el estándar.</li>
+ {id:'taller',t:'Taller: confirmar el día',h:`<p>Taller tiene tres pestañas: <b>Carga manual</b> (cargar a mano el día de un operario), <b>Operarios</b> (una tarjeta por persona con su día: si está trabajando ahora, horas, eficiencia, piezas y tiempo sin registrar; tocándola se abre su día) y <b>Todos los registros</b> (todo lo cargado, con filtros por fechas, operario, máquina, tipo y origen, para revisar, editar o borrar).</p><ol><li>Elegí la <b>fecha</b> y el <b>operario</b>.</li><li>En <b>Producción</b>: elegí la máquina; aparecen solo las órdenes de trabajo pendientes para ese tipo de máquina. Cargá hora de inicio, fin, cantidad y scrap. Antes de guardar ves la eficiencia contra el estándar.</li>
   <li>Si se hizo algo sin orden, elegí <b>Fuera de plan</b> e indicá artículo y pieza.</li><li>En <b>Parada o tarea</b>: cambios de matriz, limpieza, mantenimiento, refrigerio, etc.</li></ol>
   <p><b>Con el QR (recomendado):</b> cada orden de trabajo impresa lleva un QR. El operario lo escanea con la cámara de su celular y se abre su pantalla: elige su nombre la primera vez, toca <b>Empecé</b> al arrancar y <b>Terminé</b> al parar, con la cantidad y el scrap. Para cambios de matriz o paradas, <b>Parada o cambio de matriz</b>. Todo queda cargado al instante, sin papel. También se puede entrar desde el menú <b>Operario (celular)</b> y elegir la orden de la lista.</p>
   <p><b>El jefe con el celular:</b> si trabajan con la versión compartida de GitHub, el jefe abre la página en claude.ai (sin costo extra), lee las fotos de las planillas y en cada una toca <b>Agregar al lote</b>. Al terminar, <b>Descargar lote</b> baja un Excel. En la versión de GitHub, Taller > <b>Importar registros</b>: se revisa, se omiten los ya cargados y cada renglón se vincula con su orden de trabajo.</p>
@@ -1087,6 +1108,7 @@ const AYUDA=[
   <p>Para <b>editar</b>: elegí el artículo, cambiá lo que necesites y tocá <b>Guardar lista de materiales</b>. Para <b>crear</b>: <b>Nueva lista de materiales</b>, o <b>Duplicar</b> una parecida y modificarla. Vinculá ahí mismo los códigos de Odoo (uno por color).</p>
   <p><b>Desde Excel:</b> en Maestro, <b>Descargar planilla de maestros</b> baja un Excel con todos los datos actuales (listas de materiales, tipos de máquina, máquinas, personal, motivos y vínculos con Odoo). Modificalo o agregá filas y usá <b>Subir planilla de maestros</b>: antes de importar se muestra un resumen y los errores fila por fila. Se agrega o actualiza por clave; nada se borra desde la planilla.</p>
   <p>Las órdenes ya lanzadas conservan la ruta con la que se lanzaron; los cambios aplican a las próximas. <b>Exportar para Odoo</b> genera un Excel con centros de trabajo, semielaborados y listas de materiales listo para importar cuando activen Fabricación.</p>`},
+ {id:'planta',t:'Planta en vivo y cómo se calcula',h:`<p><b>Planta en vivo</b> (en el menú y arriba de General) muestra cada máquina como un círculo: <b>verde</b> si hay alguien trabajando, con el operario, el producto, la orden y desde qué hora; <b>rojo</b> si está en parada, con el motivo; <b>gris</b> si está libre. Se actualiza sola cuando los operarios tocan Empecé o Terminé. En pantalla completa sirve para dejarla en un televisor de la planta.</p><p><b>Cómo se calcula:</b> los indicadores y títulos de columna con cálculo están subrayados con puntos. Pasá el mouse por encima (o tocalos en el celular) y aparece la fórmula.</p>`},
  {id:'glosario',t:'Glosario: de la planta a Odoo',h:`<div class="tw"><table><tr><th>En la planta</th><th>En Odoo</th></tr>
   <tr><td>Artículo / familia (1004, E3)</td><td>Producto terminado, un producto por color</td></tr><tr><td>Despiece</td><td>Lista de materiales</td></tr><tr><td>Pieza</td><td>Componente (semielaborado)</td></tr>
   <tr><td>Pasos de la pieza</td><td>Operaciones de la ruta</td></tr><tr><td>Máquina / tipo de máquina</td><td>Centro de trabajo</td></tr><tr><td>OP</td><td>Orden de producción</td></tr>
@@ -1593,7 +1615,7 @@ function htmlActivas(){const A=activasVivas().sort((a,b)=>String(a.maq).localeCo
     <td class="n">${S.canPlan?`<button class="btn link" data-cerrar="${esc(a.id)}">Quitar</button>`:''}</td></tr>`}).join('')}</table></div>`:'<p class="note">Nadie tiene una tarea iniciada en este momento.</p>'}</section>`}
 function bindActivas(root){root.querySelectorAll('[data-verop]').forEach(r=>r.onclick=()=>ir('plan',{tab:'curso',flt:'abiertas',tipo:'',sel:r.dataset.verop}));
   root.querySelectorAll('[data-cerrar]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();if(!confirm('¿Quitar esta tarea de "Trabajando ahora"? No borra nada de lo producido; solo sirve si el operario se olvidó de tocar Terminé.'))return;clearActiva(b.dataset.cerrar);toast('Tarea quitada')})}
-setInterval(()=>{if(document.hidden)return;if(S.view==='general'||(S.view==='plan'&&V.plan.tab==='curso'))changed('reloj')},60000);
+setInterval(()=>{if(document.hidden)return;if(S.view==='general'||S.view==='planta'||(S.view==='plan'&&V.plan.tab==='curso'))changed('reloj')},60000);
 
 function ultimaFecha(o){let f='';for(const e of entries())if(e.op_id===o.id&&e.fecha>f)f=e.fecha;return f}
 /* ---------- stock terminado en taller: unidades disponibles para asignar ---------- */
@@ -1659,6 +1681,138 @@ ajuste(){const fams=Object.keys(S.M.productos?.items||{}).sort((a,b)=>a.localeCo
     const p=f.piezas.find(x=>x.pieza===pz);const sh=compartidas();const k=p.codigo&&sh.has(p.codigo)?'C:'+p.codigo:a+'|'+pz;let consumo=[];
     if(q<0){const X=stockTerminado()[k];if(!X||X.disp<-q){E.textContent='No hay tantas unidades disponibles para restar.';return}consumo=consumirFIFO(X,-q).consumo}
     const id='mv-'+newId();try{await S.db.collection('movimientos').doc(id).set({id,tipo:'ajuste',fecha:today(),ts:new Date().toISOString(),por:S.uid||null,key:k,pieza:pz,codigo:p.codigo||null,articulo:a,qty:q,obs:$('#ajO').value.trim(),consumo});m.remove();toast('Ajuste guardado')}catch(e){E.textContent='No se pudo guardar.'}}}
+};
+
+/* ---------- planta en vivo ---------- */
+function htmlPlanta(grande){const C=S.M.centros?.items||[];const T=S.M.centros?.tipos||{};const A=activasVivas();const usadas=new Set();
+  const tipos=[...new Set(C.map(c=>c.tipo))].sort((a,b)=>(T[a]?.nombre||a).localeCompare(T[b]?.nombre||b,'es'));
+  const card=(cod,as)=>{const a=as[0];const est=!a?'libre':a.tipo==='parada'?'parada':'trabajando';const min=a?transcurrido(a):0;
+    return `<div class="mq ${est} ${a?.op_id?'click':''}" ${a?.op_id?`data-verop="${esc(a.op_id)}"`:''} title="${esc(cod)}: ${est}"><div class="mqc"><span>${esc(cod)}</span></div>
+     <div class="mqi">${a?`<b>${esc(persona(a.yo))}</b><span>${a.tipo==='parada'?esc(motivo(a.motivo)?.nombre||'Parada'):`${esc(a.articulo||'')} ${esc(a.pieza||'')}`}</span>${a.tipo!=='parada'?`<span class="note">OP ${esc(a.op_numero||'?')}, ${esc(a.paso||'')}</span>`:''}<span class="note">desde ${esc(a.ini)}, ${durTxt(min)}${as.length>1?`, +${as.length-1} más`:''}</span>`:'<span class="note">libre</span>'}</div></div>`};
+  let n=0,np=0;const grupos=tipos.map(t=>{const ms=C.filter(c=>c.tipo===t);const html=ms.map(c=>{const as=A.filter(a=>a.maq===c.codigo);as.forEach(a=>usadas.add(a));if(as.length){as[0].tipo==='parada'?np++:n++}return card(c.codigo,as)}).join('');
+    return `<div class="sector"><h3>${esc(T[t]?.nombre||t)}</h3><div class="mqs">${html}</div></div>`}).join('');
+  const otras=A.filter(a=>!usadas.has(a));
+  return `<section class="panel planta ${grande?'big':''}"><div class="pzh" style="align-items:baseline;flex-wrap:wrap;gap:8px"><h2 style="margin:0">Planta en vivo</h2>
+   <span class="row" style="gap:12px;align-items:center"><span class="lg"><i class="dot dw"></i>${n} trabajando</span><span class="lg"><i class="dot dp"></i>${np} en parada</span><span class="lg"><i class="dot dl"></i>${C.length-n-np} libres</span>${grande?'':'<a class="help" href="#planta">Ver en pantalla completa</a>'}</span></div>
+   <div class="sectores">${grupos}</div>${otras.length?`<p class="note" style="margin:10px 0 0">Sin máquina asignada: ${otras.map(a=>`${esc(persona(a.yo))} (${a.tipo==='parada'?'parada':'OP '+esc(a.op_numero||'?')}, desde ${esc(a.ini)})`).join('; ')}</p>`:''}</section>`}
+V.planta={mount(){$('#main').innerHTML=header('Planta en vivo','Cada círculo es una máquina: verde si hay un operario trabajando, rojo si está en parada, gris si está libre. Se actualiza sola cuando los operarios tocan Empecé o Terminé en el celular. Tocá una máquina en uso para ver su orden.')+'<div id="plv"></div>';this.update()},
+update(){const b=$('#plv');if(!b)return;b.innerHTML=htmlPlanta(true);bindActivas(b)}};
+
+/* ---------- cómo se calcula: explicación al pasar el mouse ---------- */
+const TIPS={
+ 'eficiencia':'Minutos estándar producidos ÷ minutos reales trabajados. Los minutos estándar son piezas buenas × segundos por pieza de la lista de materiales ÷ 60. Solo cuenta pasos que tienen tiempo estándar. 100% = se trabajó al ritmo del estándar; más de 100% = más rápido.',
+ 'eficiencia del dia':'Minutos estándar de lo producido en el día ÷ minutos reales de producción del día.',
+ 'eficiencia ultimos 7 dias':'Minutos estándar producidos ÷ minutos reales, sumando todos los registros de los últimos 7 días.',
+ 'hs prod':'Suma de los minutos entre hora de inicio y fin de cada registro de producción, ÷ 60.',
+ 'hs productivas':'Suma de los minutos entre hora de inicio y fin de cada registro de producción, ÷ 60.',
+ 'hs std':'Piezas buenas × segundos por pieza del estándar ÷ 3.600: las horas que debería haber llevado lo producido.',
+ 'hs estandar':'Piezas × segundos por pieza del estándar ÷ 3.600.',
+ 'horas estandar pendientes':'Por cada paso de las órdenes abiertas: (cantidad pedida − cantidad hecha) × segundos por pieza ÷ 3.600.',
+ 'hs estandar pendientes en curso':'Por cada paso de las órdenes abiertas: (pedido − hecho) × segundos por pieza ÷ 3.600. El avance es el promedio del avance de esas órdenes.',
+ 'hs no prod':'Suma de paradas y tareas no productivas (cambio de matriz, mantenimiento, limpieza, espera…). No incluye pausas como el refrigerio.',
+ 'hs no productivas':'Suma de paradas y tareas no productivas, sin contar pausas. El % es tiempo no productivo ÷ (productivo + no productivo).',
+ 'horas de parada ultimos 7 dias':'Suma de paradas y tareas no productivas de los últimos 7 días, sin contar pausas.',
+ 'scrap':'Scrap ÷ (piezas buenas + scrap).',
+ 'piezas':'Suma de las cantidades buenas registradas.',
+ 'piezas buenas':'Suma de las cantidades buenas registradas en el período.',
+ 'dias con carga':'Cantidad de días distintos con al menos un registro en el período.',
+ 'desvio tiempo':'(Horas reales − horas estándar de lo hecho) ÷ horas estándar. Positivo: tardó más que el estándar. Negativo: menos.',
+ 'avance':'Por cada paso: lo hecho (hasta lo pedido) × segundos por pieza, sobre lo pedido × segundos por pieza. Pondera cada paso por su tiempo.',
+ 'faltante':'Del pendiente importado: unidades con Balance (o cantidad pronosticada) negativo, sumando todos los colores del artículo.',
+ 'necesidad':'Faltante del artículo × cantidad de esa pieza por artículo, más la cobertura de venta si está configurada.',
+ 'stock en proceso':'Cargado a mano: piezas de ese tipo que ya están fabricadas en el piso y se descuentan de la necesidad.',
+ 'en curso':'Lo que falta terminar de las órdenes abiertas para esa pieza: pedido − hecho en el último paso.',
+ 'sugerido':'Necesidad − stock en proceso − en curso, redondeado hacia arriba al múltiplo de lote.',
+ 'a fabricar':'Cantidad que se va a lanzar. Es la sugerida, salvo que la ajustes.',
+ 'pz / h':'3.600 ÷ segundos por pieza del estándar.',
+ 'pz/h':'3.600 ÷ segundos por pieza del estándar.',
+ 'std pz/h':'3.600 ÷ segundos por pieza del estándar.',
+ 'estandar':'Piezas por hora según el estándar: 3.600 ÷ segundos por pieza de la lista de materiales.',
+ 'seg / pieza':'Tiempo estándar por pieza de esa operación, cargado en la lista de materiales.',
+ 'seg/pz':'Tiempo estándar por pieza de esa operación, cargado en la lista de materiales.',
+ 'min / ciclo (odoo)':'Segundos por pieza ÷ 60, que es como lo pide Odoo.',
+ 'horas est.':'Cantidad a producir × segundos por pieza ÷ 3.600.',
+ 'hs est.':'Cantidad a producir × segundos por pieza ÷ 3.600.',
+ 'horas':'Horas estándar pendientes: (pedido − hecho) × segundos por pieza ÷ 3.600.',
+ 'dias':'Horas pendientes ÷ (puestos activos × horas por día) de ese tipo de máquina.',
+ 'disponible':'Producido en el último paso de la pieza (todas las órdenes, fuera de plan y ajustes) − lo ya enviado a otras áreas.',
+ 'unidades terminadas para asignar':'Suma de las unidades disponibles: producido en el último paso de cada pieza − lo ya enviado a otras áreas.',
+ 'vencidas sin terminar':'Órdenes abiertas cuya fecha requerida es anterior a hoy.',
+ 'ordenes sugeridas para lanzar':'Artículos o lotes compartidos con cantidad a fabricar mayor a cero según el pendiente importado.',
+ 'ordenes en curso':'Órdenes lanzadas que no están completas, cerradas ni canceladas.',
+ 'ordenes abiertas':'Órdenes lanzadas que no están completas, cerradas ni canceladas.',
+ 'puestos activos':'Cuántas máquinas de ese tipo trabajan a la vez (según la dotación). Capacidad diaria = puestos × horas por día.',
+ 'tiempo':'Minutos desde la hora de inicio hasta ahora.'};
+function tipDe(t){const k=nrm(t).toLowerCase();if(!k)return null;const norm=x=>nrm(x).toLowerCase();let best=null;for(const [kk,v] of Object.entries(TIPS)){const n=norm(kk);if(k===n)return v;if(k.startsWith(n)&&(!best||n.length>best[0]))best=[n.length,v]}return best?best[1]:null}
+function marcarTips(root){root.querySelectorAll('th:not([data-tip]),.kpi>span:not([data-tip]),.kpi>b+span:not([data-tip]),.opnums span:not([data-tip]),.bpz th:not([data-tip])').forEach(el=>{const t=tipDe(el.textContent);if(t){el.dataset.tip=t;el.classList.add('tipd');el.tabIndex=el.tabIndex>=0?el.tabIndex:0}})}
+{const tip=document.createElement('div');tip.id='tipbox';tip.setAttribute('role','tooltip');document.body.appendChild(tip);let cur=null,tmr=null;
+  const show=el=>{cur=el;tip.innerHTML=`<b>Cómo se calcula</b><br>${esc(el.dataset.tip)}`;tip.classList.add('on');const r=el.getBoundingClientRect();const w=Math.min(320,window.innerWidth-16);tip.style.width=w+'px';
+    let x=Math.min(window.innerWidth-w-8,Math.max(8,r.left+r.width/2-w/2));let y=r.bottom+8;tip.style.left=x+'px';tip.style.top=y+'px';const th=tip.offsetHeight;if(y+th>window.innerHeight-8)tip.style.top=Math.max(8,r.top-th-8)+'px'};
+  const hide=()=>{cur=null;tip.classList.remove('on')};
+  document.addEventListener('mouseover',e=>{const el=e.target.closest('[data-tip]');if(el&&el!==cur){clearTimeout(tmr);tmr=setTimeout(()=>show(el),250)}else if(!el&&cur){clearTimeout(tmr);hide()}});
+  document.addEventListener('focusin',e=>{const el=e.target.closest('[data-tip]');if(el)show(el)});document.addEventListener('focusout',hide);
+  document.addEventListener('touchstart',e=>{const el=e.target.closest('[data-tip]');if(el){show(el);clearTimeout(tmr);tmr=setTimeout(hide,5000)}else hide()},{passive:true});
+  window.addEventListener('scroll',hide,true);
+  new MutationObserver(()=>marcarTips(document.getElementById('main')||document.body)).observe(document.body,{childList:true,subtree:true})}
+
+/* ---------- Taller: pestañas Carga manual / Operarios / Todos los registros ---------- */
+function mutarParte(docId,mut){wq=wq.then(async()=>{const cur=S.partes.find(p=>p.id===docId);if(!cur)throw new Error('no existe');const {id,...rest}=cur;const items=JSON.parse(JSON.stringify(rest.items||[]));mut(items);
+  await S.db.collection('partes').doc(docId).set({...rest,items,actualizado:new Date().toISOString()})});return wq}
+function resumenDia(es){let prod=0,std=0,stdM=0,par=0,qty=0,scrap=0,gap=0,prev=null;const ord=es.slice().sort((a,b)=>(toMin(a.ini)??0)-(toMin(b.ini)??0));
+  for(const e of ord){const a=toMin(e.ini);if(prev!=null&&a-prev>5)gap+=a-prev;prev=Math.max(prev??0,a+(+e.min||0));
+    if(e.tipo==='prod'){prod+=+e.min||0;if(e.std_min!=null){std+=+e.std_min;stdM+=+e.min||0}qty+=+e.qty||0;scrap+=+e.scrap||0}else if(motivo(e.motivo)?.categoria!=='pausa')par+=+e.min||0}
+  return {prod,std,par,qty,scrap,gap,ef:stdM?std/stdM:null,ini:ord[0]?.ini,fin:ord.length?ord.reduce((m,e)=>toMin(e.fin)>toMin(m)?e.fin:m,ord[0].fin):null,n:es.length}}
+const TT={tab:'manual',f:today(),F:{d0:today(),d1:today(),op:'',tipo:'',reg:'',origen:'',q:''},
+init(){const main=$('#main');const nodes=[...main.children].filter(n=>!(n.tagName==='H1'||n.classList.contains('lead')||n.classList.contains('banner')));const wrap=document.createElement('div');wrap.id='tpM';nodes.forEach(n=>wrap.appendChild(n));
+  main.insertAdjacentHTML('beforeend','<div class="tabs ptabs" id="tTabs"><button data-tt="manual">Carga manual</button><button data-tt="ops">Operarios</button><button data-tt="todos">Todos los registros</button></div>');
+  main.appendChild(wrap);main.insertAdjacentHTML('beforeend','<div id="tpO" class="hide"></div><div id="tpT" class="hide"></div>');
+  main.querySelectorAll('[data-tt]').forEach(b=>b.onclick=()=>{this.tab=b.dataset.tt;this.show()});this.show()},
+show(){document.querySelectorAll('[data-tt]').forEach(b=>b.classList.toggle('on',b.dataset.tt===this.tab));$('#tpM').classList.toggle('hide',this.tab!=='manual');$('#tpO').classList.toggle('hide',this.tab!=='ops');$('#tpT').classList.toggle('hide',this.tab!=='todos');this.update(true)},
+update(force){if(this.tab==='ops')this.ops(force);if(this.tab==='todos')this.todos(force)},
+ops(force){const b=$('#tpO');if(!b)return;if(!force&&b.contains(document.activeElement)&&document.activeElement.tagName==='INPUT')return;const f=this.f;const E=entries().filter(e=>e.fecha===f);const A=activasVivas();
+  const P=(S.M.personal?.items||[]).filter(p=>p.activo!==false||E.some(e=>e.operario===p.id));
+  const cards=P.map(p=>{const es=E.filter(e=>e.operario===p.id);const r=resumenDia(es);const a=A.find(x=>x.yo===p.id);return {p,r,a,es}}).sort((x,y)=>(y.a?2:0)+(y.r.n?1:0)-((x.a?2:0)+(x.r.n?1:0))||x.p.nombre.localeCompare(y.p.nombre));
+  const tot=resumenDia(E);const conCarga=cards.filter(c=>c.r.n).length;
+  b.innerHTML=`<section class="panel"><div class="row" style="align-items:flex-end;justify-content:space-between"><label class="f" style="flex:0 1 180px">Día<input type="date" id="toF" value="${esc(f)}"></label>
+   <span class="note">${conCarga} de ${P.length} operarios con carga, ${nf(tot.prod/60,1)} hs productivas, eficiencia <b class="${tot.ef>=.75?'good':tot.ef<.55?'poor':''}">${pct(tot.ef)}</b></span></div></section>
+   <div class="opcards">${cards.map(({p,r,a})=>{const est=a?(a.tipo==='parada'?'parada':'trabajando'):'libre';
+    return `<button class="opc2 ${est}" data-opv="${esc(p.id)}"><div class="pzh"><span><span class="dot ${est==='trabajando'?'dw':est==='parada'?'dp':'dl'}"></span><b>${esc(p.nombre)}</b></span><span class="note">${p.legajo?'Leg. '+esc(p.legajo):''}</span></div>
+     <div class="note" style="min-height:18px">${a?(a.tipo==='parada'?`En parada: ${esc(motivo(a.motivo)?.nombre||'')}, desde ${esc(a.ini)}`:`Ahora en ${esc(a.maq)}: ${esc(a.articulo||'')} ${esc(a.pieza||'')}, desde ${esc(a.ini)}`):r.n?`De ${esc(r.ini)} a ${esc(r.fin)}`:'Sin registros este día'}</div>
+     ${r.n?`<div class="opm"><div><b>${nf(r.prod/60,1)}</b><span>hs prod.</span></div><div><b>${nf(r.par/60,1)}</b><span>hs no prod.</span></div><div><b class="${r.ef==null?'':r.ef>=.75?'good':r.ef<.55?'poor':''}">${pct(r.ef)}</b><span>eficiencia</span></div><div><b>${nf(r.qty)}</b><span>piezas</span></div></div>
+     ${r.gap>5?`<div class="note poor" style="margin-top:6px">${durTxt(r.gap)} sin registrar</div>`:''}`:''}</button>`}).join('')}</div>
+   <p class="note">Tocá una tarjeta para ver y corregir el día de esa persona en Carga manual.</p>`;
+  $('#toF').onchange=()=>{this.f=$('#toF').value||today();this.ops(true)};
+  b.querySelectorAll('[data-opv]').forEach(c=>c.onclick=()=>{this.tab='manual';const tf=$('#tFecha'),to=$('#tOp');tf.value=this.f;to.value=c.dataset.opv;lsSet('op',to.value);V.taller.autoTimes(true);V.taller.update();this.show();try{window.scrollTo(0,0)}catch(e){}})},
+todos(force){const b=$('#tpT');if(!b)return;if(!force&&b.contains(document.activeElement)&&['INPUT','SELECT'].includes(document.activeElement.tagName))return;const F=this.F;const T=S.M.centros?.tipos||{};const P=S.M.personal?.items||[];
+  const legOf=id=>P.find(p=>p.id===id)?.legajo||'';const q=nrm(F.q);
+  const E=entries().filter(e=>e.fecha>=F.d0&&e.fecha<=F.d1&&(!F.op||e.operario===F.op)&&(!F.tipo||(e.centro_tipo||centroTipo(e.centro))===F.tipo)&&(!F.reg||e.tipo===F.reg)&&(!F.origen||(e.origen||'manual')===F.origen)
+    &&(!q||nrm([persona(e.operario),e.centro,e.op_numero,e.articulo,e.pieza,e.paso,e.obs,motivo(e.motivo)?.nombre].join(' ')).includes(q))).sort((a,b)=>(b.fecha+b.ini).localeCompare(a.fecha+a.ini));
+  const r=resumenDia(E);const sel=(k,lab,opts)=>`<label class="f" style="flex:1 1 140px">${lab}<select data-tf="${k}">${opts.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(F[k])?'selected':''}>${esc(t)}</option>`).join('')}</select></label>`;
+  const ORG={qr:'Celular (QR)',manual:'Manual',foto:'Foto',importado:'Importado',historial:'Historial'};const MAX=800;
+  b.innerHTML=`<section class="panel filt"><div class="row"><label class="f" style="flex:0 1 150px">Desde<input type="date" data-tf="d0" value="${esc(F.d0)}"></label><label class="f" style="flex:0 1 150px">Hasta<input type="date" data-tf="d1" value="${esc(F.d1)}"></label>
+   ${sel('op','Operario',[['','Todos'],...P.map(p=>[p.id,p.nombre])])}${sel('tipo','Tipo de máquina',[['','Todos'],...Object.entries(T).map(([k,t])=>[k,t.nombre])])}${sel('reg','Registro',[['','Producción y paradas'],['prod','Solo producción'],['parada','Solo paradas']])}
+   ${sel('origen','Origen',[['','Todos'],...Object.entries(ORG)])}<label class="f" style="flex:1 1 170px">Buscar<input data-tf="q" value="${esc(F.q)}" placeholder="OP, artículo, pieza…"></label></div>
+   <p class="note" style="margin:8px 0 0">${nf(E.length)} registros: ${nf(r.prod/60,1)} hs productivas, ${nf(r.par/60,1)} hs no productivas, ${nf(r.qty)} piezas, eficiencia ${pct(r.ef)}.</p></section>
+   <section class="panel">${E.length?`<div class="tw"><table><tr><th>Fecha</th><th>Horario</th><th>Operario</th><th>Legajo</th><th>Máquina</th><th>Registro</th><th>OP</th><th>Artículo</th><th>Pieza</th><th>Operación</th><th class="n">Cantidad</th><th class="n">Scrap</th><th class="n">Min</th><th class="n">Eficiencia</th><th>Origen</th><th>Obs.</th><th></th></tr>
+   ${E.slice(0,MAX).map(e=>{const ef=e.std_min!=null&&e.min?e.std_min/e.min:null;return `<tr><td>${fmtD(e.fecha)}</td><td>${esc(e.ini)}–${esc(e.fin)}</td><td>${esc(persona(e.operario))}</td><td class="note">${esc(legOf(e.operario))}</td><td>${esc(e.centro||'')}</td>
+    <td>${e.tipo==='prod'?'Producción':`<span class="pill bad">${esc(motivo(e.motivo)?.nombre||'Parada')}</span>`}</td><td>${e.op_numero?'OP '+esc(e.op_numero):e.tipo==='prod'?'<span class="note">sin orden</span>':''}</td><td>${esc(e.articulo||'')}</td><td>${esc(e.pieza||'')}</td><td>${esc(e.paso||'')}</td>
+    <td class="n">${e.tipo==='prod'?nf(e.qty):''}</td><td class="n">${e.tipo==='prod'&&e.scrap?nf(e.scrap):''}</td><td class="n">${nf(e.min)}</td><td class="n ${ef==null?'':ef>=.75?'good':ef<.55?'poor':''}">${pct(ef)}</td><td class="note">${esc(ORG[e.origen||'manual']||e.origen)}</td><td class="note">${esc(e.obs||'')}</td>
+    <td class="n" style="white-space:nowrap">${S.canPlan?`<button class="btn link" data-ed="${esc(e._doc)}|${esc(e.id)}">Editar</button><button class="btn link" data-bo="${esc(e._doc)}|${esc(e.id)}">Borrar</button>`:''}</td></tr>`}).join('')}</table></div>
+   ${E.length>MAX?`<p class="note">Se muestran los ${MAX} más recientes. Acotá las fechas o usá los filtros para ver el resto.</p>`:''}`:'<p class="note">No hay registros con estos filtros.</p>'}</section>`;
+  b.querySelectorAll('[data-tf]').forEach(el=>{const ev=el.tagName==='INPUT'&&el.type!=='date'?'input':'change';el.addEventListener(ev,()=>{F[el.dataset.tf]=el.value;if(el.dataset.tf==='q'){clearTimeout(this._t);this._t=setTimeout(()=>{this.todos(true);const n=$('#tpT [data-tf="q"]');n.focus();n.setSelectionRange(n.value.length,n.value.length)},300)}else this.todos(true)})});
+  b.querySelectorAll('[data-bo]').forEach(x=>x.onclick=async()=>{const [d,i]=x.dataset.bo.split('|');if(!confirm('¿Borrar este registro? No se puede deshacer.'))return;try{await mutarParte(d,a=>{const k=a.findIndex(z=>z.id===i);if(k>=0)a.splice(k,1)});toast('Registro borrado')}catch(e){toast('No se pudo borrar')}});
+  b.querySelectorAll('[data-ed]').forEach(x=>x.onclick=()=>{const [d,i]=x.dataset.ed.split('|');const e=entries().find(z=>z._doc===d&&z.id===i);if(e)this.editar(e)})},
+editar(e){const M=S.M.motivos?.items||[];const m=document.createElement('div');m.className='modal';
+  m.innerHTML=`<div class="dlg" style="width:min(560px,100%)"><div class="pzh" style="align-items:center"><h2 style="margin:0">Editar registro</h2><button class="btn link" data-x>Cerrar</button></div>
+   <p class="note">${esc(persona(e.operario))}, ${fmtD(e.fecha)}. ${e.tipo==='prod'?`${esc(e.centro||'')} ${esc(e.articulo||'')} ${esc(e.pieza||'')} ${esc(e.paso||'')}${e.op_numero?', OP '+esc(e.op_numero):''}`:'Parada'}</p>
+   <div class="row"><label class="f">Inicio<input type="time" id="eI" value="${esc(e.ini)}"></label><label class="f">Fin<input type="time" id="eF" value="${esc(e.fin)}"></label>
+   ${e.tipo==='prod'?`<label class="f">Cantidad<input type="number" id="eQ" min="0" value="${e.qty??0}"></label><label class="f">Scrap<input type="number" id="eS" min="0" value="${e.scrap??0}"></label>`:`<label class="f" style="flex:2 1 200px">Motivo<select id="eM">${M.map(x=>`<option value="${esc(x.id)}" ${x.id===e.motivo?'selected':''}>${esc(x.nombre)}</option>`).join('')}</select></label>`}</div>
+   <label class="f" style="margin-top:10px">Observaciones<input id="eO" value="${esc(e.obs||'')}"></label><div class="err" id="eE"></div>
+   <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn sec" data-x>Cancelar</button><button class="btn" id="eGo">Guardar cambios</button></div></div>`;
+  document.body.appendChild(m);m.onclick=ev=>{if(ev.target===m||ev.target.hasAttribute('data-x'))m.remove()};
+  $('#eGo').onclick=async()=>{const ini=$('#eI').value,fin=$('#eF').value,mm=diffMin(ini,fin);if(!mm){$('#eE').textContent='Revisá las horas.';return}
+    const ch={ini,fin,min:mm,obs:$('#eO').value.trim(),editado:new Date().toISOString()};if(e.tipo==='prod'){const q=parseInt($('#eQ').value,10);if(!(q>=0)){$('#eE').textContent='Cantidad inválida.';return}ch.qty=q;ch.scrap=parseInt($('#eS').value,10)||0;ch.std_min=e.seg_std?q*e.seg_std/60:null}else ch.motivo=$('#eM').value;
+    try{await mutarParte(e._doc,a=>{const k=a.findIndex(z=>z.id===e.id);if(k>=0)a[k]={...a[k],...ch}});m.remove();toast('Registro actualizado')}catch(err){$('#eE').textContent='No se pudo guardar.'}}}
 };
 
 /* ---------- router ---------- */
