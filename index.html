@@ -422,6 +422,7 @@ V.taller={mount(){
   <div class="grid2"><section class="panel"><div class="tabs"><button class="on" data-tab="prod">Producción</button><button data-tab="parada">Parada o tarea</button></div>
   <div id="fProd"><div class="row"><label class="f">Máquina<select id="pMaq"><option value="">Elegí la máquina</option>${tipos.map(t=>`<optgroup label="${esc(tipoNombre(t))}">${C.filter(c=>c.tipo===t).map(c=>`<option>${esc(c.codigo)}</option>`).join('')}</optgroup>`).join('')}</select></label></div>
    <label class="f" style="margin-top:10px">Orden de trabajo<select id="pWO"><option value="">Primero elegí la máquina</option></select></label>
+   <div id="pExtra"></div><button class="btn link" id="pAddX" style="margin-top:4px;padding-left:0">+ Otra orden en la misma cama</button>
    <div id="pFuera" class="hide" style="margin-top:10px"><div class="row"><label class="f">Artículo<input id="fArt" list="dlArt2" autocomplete="off"></label><datalist id="dlArt2"></datalist><label class="f">Pieza y paso<select id="fPz"></select></label></div></div>
    <div class="row" style="margin-top:10px"><label class="f">Hora inicio<input id="pIni" type="time"></label><label class="f">Hora fin<input id="pFin" type="time"></label>
    <label class="f">Cantidad<input id="pQty" type="number" min="0" inputmode="numeric"></label><label class="f">Scrap<input id="pScrap" type="number" min="0" inputmode="numeric" value="0"></label></div>
@@ -438,7 +439,11 @@ V.taller={mount(){
   const last=lsGet('op');if(last&&P.some(p=>p.id===last))$('#tOp').value=last;
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('on',x===b));$('#fProd').classList.toggle('hide',b.dataset.tab!=='prod');$('#fPar').classList.toggle('hide',b.dataset.tab!=='parada')});
   $('#tOp').onchange=()=>{lsSet('op',$('#tOp').value);this.autoTimes(true);this.update()};$('#tFecha').onchange=()=>{this.autoTimes(true);this.update()};
-  $('#pMaq').onchange=()=>{this.fillWO();this.calc()};$('#pWO').onchange=()=>{$('#pFuera').classList.toggle('hide',$('#pWO').value!=='__fuera');this.calc()};
+  $('#pMaq').onchange=()=>{this.fillWO();this.calc()};$('#pWO').onchange=()=>{const v=$('#pWO').value;if(v&&v!=='__fuera'){const [oid,pz,sq]=v.split('|');const o=S.ordenes.find(x=>x.id===oid);const w=o?.lineas.find(l=>l.pieza===pz)?.ops.find(x=>x.seq==sq);
+    if(w&&centroTipo($('#pMaq').value)!==w.tipo){const C=(S.M.centros?.items||[]).filter(c=>c.tipo===w.tipo);const r=lsGet('maq.'+w.tipo);$('#pMaq').value=C.some(c=>c.codigo===r)?r:(C[0]?.codigo||'');this.fillWO();$('#pWO').value=v}
+    if(w&&$('#pMaq').value)lsSet('maq.'+w.tipo,$('#pMaq').value)}
+  $('#pFuera').classList.toggle('hide',$('#pWO').value!=='__fuera');this.fillExtra();this.calc()};
+  $('#pAddX').onclick=()=>{const v=$('#pWO').value;if(!v||v==='__fuera'){toast('Elegí primero la orden principal');return}this.extras=(this.extras||[]).concat([{v:'',q:'',s:0}]);this.fillExtra()};
   $('#fArt').oninput=()=>{this.fillFuera();this.calc()};$('#fPz').onchange=()=>this.calc();
   ['pIni','pFin','pQty'].forEach(i=>$('#'+i).oninput=()=>{$('#pErr').textContent='';this.calc()});
   if(S.supa||S.local){$('#tFoto').classList.add('hide')}$('#tFoto').onclick=()=>FOTO.open();$('#tImp').onclick=()=>importarRegistros();loteBar();$('#pGo').onclick=()=>this.guardarProd();$('#sGo').onclick=()=>this.guardarParada();
@@ -448,17 +453,24 @@ autoTimes(force){const es=this.dayEntries();const lastFin=es.length?es.reduce((a
   for(const i of ['pIni','sIni']){const el=$('#'+i);if(el&&(force||!el.value))el.value=lastFin}
   for(const i of ['pFin','sFin']){const el=$('#'+i);if(el&&force)el.value=''}},
 fillWO(){const m=$('#pMaq').value;const sel=$('#pWO');const prev=sel.value;
-  if(!m){sel.innerHTML='<option value="">Primero elegí la máquina</option>';return}
+  if(!m){const ws=workordersFor(null);const tp=[...new Set(ws.map(x=>x.w.tipo))];sel.innerHTML=`<option value="">${ws.length?'Elegí la orden de trabajo (o primero la máquina)':'No hay órdenes pendientes'}</option>`+tp.map(t=>`<optgroup label="${esc(tipoNombre(t))}">${ws.filter(x=>x.w.tipo===t).map(x=>`<option value="${esc(x.o.id+'|'+x.l.pieza+'|'+x.w.seq)}">OP ${esc(x.o.numero)}  ${esc(x.o.articulo)}  ${esc(x.l.pieza)}  ${esc(x.w.op)}  faltan ${nf(x.falta)}</option>`).join('')}</optgroup>`).join('');
+    if([...sel.options].some(o=>o.value===prev))sel.value=prev;$('#pFuera').classList.add('hide');this.fillExtra();return}
   const t=centroTipo(m);const ws=workordersFor(t);
   sel.innerHTML=`<option value="">${ws.length?'Elegí la orden de trabajo':'No hay órdenes pendientes para '+esc(tipoNombre(t))}</option>`+ws.map(x=>`<option value="${esc(x.o.id+'|'+x.l.pieza+'|'+x.w.seq)}">OP ${esc(x.o.numero)}  ${esc(x.o.articulo)}  ${esc(x.l.pieza)}  paso ${x.w.seq} (${esc(x.w.op)})  faltan ${nf(x.falta)}</option>`).join('')+'<option value="__fuera">Fuera de plan (sin orden)…</option>';
   if([...sel.options].some(o=>o.value===prev))sel.value=prev;
-  $('#pFuera').classList.toggle('hide',sel.value!=='__fuera');
+  $('#pFuera').classList.toggle('hide',sel.value!=='__fuera');this.fillExtra();
   const t2=centroTipo(m);const fams=Object.entries(S.M.productos?.items||{}).filter(([,f])=>f.piezas.some(p=>p.ops.some(w=>w.tipo===t2))).map(([k])=>k).sort((a,b)=>a.localeCompare(b,'es',{numeric:true}));
   $('#dlArt2').innerHTML=fams.map(f=>`<option value="${esc(f)}">`).join('');this.fillFuera()},
 fillFuera(){const f=S.M.productos?.items?.[$('#fArt').value.trim()];const t=centroTipo($('#pMaq').value);const s=$('#fPz');const prevPz=s.value;
   if(!f){s.innerHTML='<option value="">Elegí un artículo</option>';return}
   const opts=[];f.piezas.forEach(p=>p.ops.forEach(w=>{if(w.tipo===t)opts.push(`<option value="${esc(p.pieza+'|'+w.seq)}">${esc(p.pieza)}, paso ${w.seq} (${esc(w.op)})</option>`)}));
   s.innerHTML=opts.length?opts.join(''):'<option value="">Ninguna pieza de este artículo pasa por esta máquina</option>';if([...s.options].some(o=>o.value===prevPz))s.value=prevPz},
+fillExtra(){const box=$('#pExtra');if(!box)return;const v=$('#pWO').value;const X=this.extras||[];if(!v||v==='__fuera'){box.innerHTML='';this.extras=[];return}
+  const [oid,pz,sq]=v.split('|');const o=S.ordenes.find(x=>x.id===oid);const t=o?.lineas.find(l=>l.pieza===pz)?.ops.find(x=>x.seq==sq)?.tipo;const ws=workordersFor(t).filter(x=>x.o.id+'|'+x.l.pieza+'|'+x.w.seq!==v);
+  box.innerHTML=X.length?`<p class="note" style="margin:8px 0 4px">Misma cama: el tiempo se reparte entre las órdenes según lo producido. La cantidad de arriba es la de la orden principal.</p>`+X.map((x,i)=>`<div class="row" style="margin-top:6px;align-items:flex-end"><label class="f" style="flex:3 1 220px">Orden ${i+2}<select data-xv="${i}"><option value="">Elegí</option>${ws.map(w=>`<option value="${esc(w.o.id+'|'+w.l.pieza+'|'+w.w.seq)}" ${w.o.id+'|'+w.l.pieza+'|'+w.w.seq===x.v?'selected':''}>OP ${esc(w.o.numero)}  ${esc(w.o.articulo)}  ${esc(w.l.pieza)}  ${esc(w.w.op)}  faltan ${nf(w.falta)}</option>`).join('')}</select></label>
+   <label class="f" style="flex:0 1 100px">Cantidad<input type="number" min="0" data-xq="${i}" value="${esc(x.q)}"></label><label class="f" style="flex:0 1 80px">Scrap<input type="number" min="0" data-xs="${i}" value="${esc(x.s)}"></label><button class="btn link" data-xd="${i}">quitar</button></div>`).join(''):'';
+  box.querySelectorAll('[data-xv]').forEach(e=>e.onchange=()=>{X[+e.dataset.xv].v=e.value});box.querySelectorAll('[data-xq]').forEach(e=>e.oninput=()=>{X[+e.dataset.xq].q=e.value});box.querySelectorAll('[data-xs]').forEach(e=>e.oninput=()=>{X[+e.dataset.xs].s=e.value});
+  box.querySelectorAll('[data-xd]').forEach(e=>e.onclick=()=>{X.splice(+e.dataset.xd,1);this.fillExtra()})},
 resolveWO(){const v=$('#pWO').value;
   if(v==='__fuera'){const art=$('#fArt').value.trim();const f=S.M.productos?.items?.[art];const [pz,seq]=($('#fPz').value||'').split('|');if(!f||!pz)return null;
     const p=f.piezas.find(x=>x.pieza===pz);const w=p?.ops.find(x=>x.seq==seq);return w?{op_id:null,articulo:art,pieza:pz,w}:null}
@@ -477,9 +489,13 @@ async guardarProd(){const err=$('#pErr');if(!S.canWrite){err.textContent='Tu acc
   const q=parseInt($('#pQty').value,10);if(!(q>=0)||$('#pQty').value===''){err.textContent='Ingresá la cantidad producida.';return}
   const sc=parseInt($('#pScrap').value,10)||0;
   const ov=this.overlaps(ini,fin);if(ov&&!confirm(`Se superpone con otro registro de ${ov.ini} a ${ov.fin}. ¿Guardar igual?`))return;
-  const it={id:newId(),tipo:'prod',operario:op,centro:maq,centro_tipo:centroTipo(maq),op_id:r.op_id,op_numero:r.numero||null,articulo:r.articulo,pieza:r.pieza,seq:r.w.seq,paso:r.w.op,
-    ini,fin,min:m,qty:q,scrap:sc,seg_std:r.w.seg||null,std_min:r.w.seg?q*r.w.seg/60:null,fuera_plan:!r.op_id,obs:$('#pObs').value.trim(),ts:new Date().toISOString()};
-  try{await writeParte(fecha,items=>items.push(it));toast('Producción registrada');$('#pQty').value='';$('#pScrap').value='0';$('#pObs').value='';$('#pFin').value='';$('#sFin').value='';$('#pIni').value=fin;$('#sIni').value=fin;this.calc()}
+  const X=(this.extras||[]).filter(x=>x.v);for(const x of X){if(!(parseInt(x.q,10)>=0)){err.textContent='Poné la cantidad de cada orden de la cama.';return}}
+  const lst=[{op_id:r.op_id,numero:r.numero||null,articulo:r.articulo,pieza:r.pieza,w:r.w,q,sc},...X.map(x=>{const [oid,pz,sq]=x.v.split('|');const o=S.ordenes.find(z=>z.id===oid);const l=o.lineas.find(z=>z.pieza===pz);const w=l.ops.find(z=>z.seq==sq);return {op_id:o.id,numero:o.numero,articulo:o.articulo,pieza:l.pieza,w,q:parseInt(x.q,10),sc:parseInt(x.s,10)||0}})];
+  const W=lst.map(z=>(z.q+z.sc)*(z.w.seg||1));const sw=W.reduce((a,b)=>a+b,0);let resto=m;const mins=lst.map((z,i)=>{if(i===lst.length-1)return Math.max(0,resto);const k=Math.round(m*(sw?W[i]/sw:1/lst.length));resto-=k;return k});
+  const grupo=lst.length>1?'cama-'+newId():null;const obs0=$('#pObs').value.trim();
+  const its=lst.map((z,i)=>({id:newId(),tipo:'prod',operario:op,centro:maq,centro_tipo:centroTipo(maq),op_id:z.op_id,op_numero:z.numero,articulo:z.articulo,pieza:z.pieza,seq:z.w.seq,paso:z.w.op,
+    ini,fin,min:mins[i],qty:z.q,scrap:z.sc,seg_std:z.w.seg||null,std_min:z.w.seg?z.q*z.w.seg/60:null,fuera_plan:!z.op_id,grupo,obs:[obs0,grupo?'Cama compartida: '+lst.map(y=>y.numero?'OP '+y.numero:'fuera de plan').join(', '):''].filter(Boolean).join('. '),origen:'manual',ts:new Date().toISOString()}));
+  try{await writeParte(fecha,items=>items.push(...its));this.extras=[];this.fillExtra();toast('Producción registrada');$('#pQty').value='';$('#pScrap').value='0';$('#pObs').value='';$('#pFin').value='';$('#sFin').value='';$('#pIni').value=fin;$('#sIni').value=fin;this.calc()}
   catch(e){err.textContent=e?.code==='invalid_argument'?'No tenés permiso para cargar.':'No se pudo guardar. Probá de nuevo.'}
   finally{done('#pGo')}}finally{done('#pGo')}},
 async guardarParada(){const err=$('#sErr');if(!S.canWrite){err.textContent='Tu acceso es de solo lectura: pedí permiso de colaborador para cargar.';return}if(busy('#sGo'))return;try{const op=$('#tOp').value,fecha=$('#tFecha').value,mot=$('#sMot').value;
@@ -898,7 +914,7 @@ function elegirOTs(os,tipo){
    <span class="row" style="gap:6px"><button class="btn sec sm" data-m="todas">Marcar visibles</button><button class="btn sec sm" data-m="pend">Solo pendientes</button><button class="btn sec sm" data-m="nada">Desmarcar todo</button></span></div>
    <p class="note" style="margin:0 0 8px">Cada orden lleva un QR que abre la pantalla del operario en: <b>${esc(appURL())}</b>${/^https?:/.test(location.protocol)&&!/claude\.ai|claudeusercontent/.test(location.host)?'':' <span class="poor">Imprimilas desde la versión publicada en GitHub para que el QR abra la dirección correcta.</span>'}</p>
    <div class="dlgb" id="oList"></div>
-   <div class="pzh" style="align-items:center;margin-top:12px"><span class="note" id="oCnt"></span><span class="row" style="gap:8px;align-items:center"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Tamaño<select id="oFmt" style="width:auto"><option value="a6">Una por hoja A6</option><option value="a4">4 por hoja A4</option></select></label><label style="display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap"><input type="checkbox" id="oRen" style="width:auto"> Renglones para anotar a mano</label><button class="btn" id="oGo">Imprimir</button></span></div></div>`;
+   <div class="pzh" style="align-items:center;margin-top:12px"><span class="note" id="oCnt"></span><span class="row" style="gap:8px;align-items:center"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Tamaño<select id="oFmt" style="width:auto"><option value="a6">Una por hoja A6</option><option value="a4">4 por hoja A4</option></select></label><label style="display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap"><input type="checkbox" id="oRen" style="width:auto"> Renglones para anotar a mano</label><button class="btn sec" id="oCama" title="Una sola hoja con un QR que abre todas las órdenes marcadas juntas">Una hoja para la misma cama</button><button class="btn" id="oGo">Imprimir</button></span></div></div>`;
   document.body.appendChild(m);const close=()=>{m.remove();document.removeEventListener('keydown',esc_)};const esc_=e=>{if(e.key==='Escape')close()};document.addEventListener('keydown',esc_);
   m.onclick=e=>{if(e.target===m||e.target.hasAttribute('data-x'))close()};
   const vis=()=>L.filter(x=>!filtro||x.w.tipo===filtro);
@@ -913,9 +929,21 @@ function elegirOTs(os,tipo){
   m.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const a=b.dataset.m;if(a==='nada')sel.clear();else vis().forEach(x=>{if(a==='todas'||x.hecho<x.l.cant)sel.add(x.num);else sel.delete(x.num)});draw()});
   {const rc=$('#oRen');rc.checked=lsGet('otren')==='1';rc.onchange=()=>lsSet('otren',rc.checked?'1':'0')}
   {const f=$('#oFmt');f.value=lsGet('otfmt')||'a6';f.onchange=()=>{lsSet('otfmt',f.value);cnt()}}
+  $('#oCama').onclick=()=>{const out=L.filter(x=>sel.has(x.num));if(out.length<2){toast('Marcá al menos dos órdenes para la misma cama');return}const tp=new Set(out.map(x=>x.w.tipo));if(tp.size>1){toast('Todas tienen que ser del mismo tipo de máquina');return}if(out.length>8){toast('Hasta 8 órdenes por cama');return}hojaCama(out)};
   $('#oGo').onclick=()=>{const out=L.filter(x=>sel.has(x.num));if(!out.length){toast('Marcá al menos una orden de trabajo');return}descargarOTs(out,$('#oFmt').value,$('#oRen').checked)};
   draw();$('#oGo').focus()}
 
+function hojaCama(L){if(!window.jspdf){toast('No se pudo cargar el generador de PDF. Recargá la página.');return}const {jsPDF}=window.jspdf;const d=new jsPDF({orientation:'landscape',unit:'mm',format:[148.5,105]});
+  const W=148.5,H=105,M=7;const keys=L.map(x=>[x.o.id,x.li,x.w.seq]);const tipo=L[0].w.tipo;
+  d.setFont('helvetica','bold');d.setFontSize(13);d.text('Cama compartida: '+tipoNombre(tipo),M,10);d.setDrawColor(0);d.setLineWidth(0.3);d.line(M,12.5,W-M,12.5);d.setLineWidth(0.2);
+  const QS=32;qrPDF(d,otGrupoURL(keys),W-M-QS,15,QS);d.setFontSize(6);d.setTextColor(90);d.text('Escaneá para cargar toda la cama',W-M-QS/2,15+QS+2.5,{align:'center'});d.setTextColor(0);
+  const cols=[['OT',17],['OP',12],['Artículo',22],['Pieza',22],['Op.',11],['Cant.',14]];const tw=cols.reduce((a,c)=>a+c[1],0);const sc=(W-2*M-QS-4)/tw;let y=16;
+  d.setFont('helvetica','bold');d.setFontSize(7);let x=M;cols.forEach(([n,w])=>{d.text(n,x+1,y+3.5);x+=w*sc});d.rect(M,y,tw*sc,5);y+=5;d.setFont('helvetica','normal');d.setFontSize(7.5);
+  for(const it of L){x=M;const v=[it.num,it.o.numero,it.o.articulo,it.l.pieza,it.w.op,nf(it.l.cant)];cols.forEach(([n,w],i)=>{d.text(d.splitTextToSize(String(v[i]),w*sc-1.5)[0],x+1,y+3.8);x+=w*sc});d.setDrawColor(170);d.line(M,y+5.5,M+tw*sc,y+5.5);y+=5.5}
+  y=Math.max(y+4,15+QS+7);d.setDrawColor(0);d.roundedRect(M,y,W-2*M,H-M-y-4,1.5,1.5);d.setFont('helvetica','bold');d.setFontSize(8.5);d.text('Cómo cargar',M+3,y+5);d.setFont('helvetica','normal');d.setFontSize(7.5);
+  ['1. Escaneá el QR: se abren todas las órdenes de la cama juntas.','2. Elegí la máquina y tocá EMPECÉ.','3. Al terminar, tocá TERMINÉ y poné la cantidad buena de cada orden. El tiempo se reparte solo.'].forEach((t,j)=>d.text(t,M+3,y+10+j*4.2));
+  d.setFontSize(5.5);d.setTextColor(120);d.text(`Spotsline Fabricación. Emitida ${new Date().toLocaleDateString('es-AR')}. ${L.length} órdenes.`,M,H-3);d.setTextColor(0);
+  guardarArchivo(`Cama ${tipoNombre(tipo)} (${L.length} ordenes).pdf`,d.output('blob'))}
 function descargarXLS(os){
   if(typeof XLSX==='undefined'){toast('No se pudo cargar el generador de Excel. Recargá la página.');return}
   const wb=XLSX.utils.book_new();
@@ -1095,6 +1123,7 @@ const AYUDA=[
  {id:'taller',t:'Taller: confirmar el día',h:`<p>Taller tiene tres pestañas: <b>Carga manual</b> (cargar a mano el día de un operario), <b>Operarios</b> (una tarjeta por persona con su día: si está trabajando ahora, horas, eficiencia, piezas y tiempo sin registrar; tocándola se abre su día) y <b>Todos los registros</b> (todo lo cargado, con filtros por fechas, operario, máquina, tipo y origen, para revisar, editar o borrar).</p><ol><li>Elegí la <b>fecha</b> y el <b>operario</b>.</li><li>En <b>Producción</b>: elegí la máquina; aparecen solo las órdenes de trabajo pendientes para ese tipo de máquina. Cargá hora de inicio, fin, cantidad y scrap. Antes de guardar ves la eficiencia contra el estándar.</li>
   <li>Si se hizo algo sin orden, elegí <b>Fuera de plan</b> e indicá artículo y pieza.</li><li>En <b>Parada o tarea</b>: cambios de matriz, limpieza, mantenimiento, refrigerio, etc.</li></ol>
   <p><b>Con el QR (recomendado):</b> cada orden de trabajo impresa lleva un QR. El operario lo escanea con la cámara de su celular y se abre su pantalla: elige su nombre la primera vez, toca <b>Empecé</b> al arrancar y <b>Terminé</b> al parar, con la cantidad y el scrap. Para cambios de matriz o paradas, <b>Parada o cambio de matriz</b>. Todo queda cargado al instante, sin papel. También se puede entrar desde el menú <b>Operario (celular)</b> y elegir la orden de la lista.</p>
+  <p><b>Varias órdenes en la misma cama</b> (por ejemplo, en el láser): en el celular, <b>Agregar otra orden a esta tarea</b>; al tocar Terminé se pone la cantidad de cada una y el tiempo se reparte solo según lo producido. En la impresión, marcá las órdenes y tocá <b>Una hoja para la misma cama</b>: sale una sola hoja con un QR que abre todas juntas. En Carga manual, <b>+ Otra orden en la misma cama</b>.</p>
   <p><b>El jefe con el celular:</b> si trabajan con la versión compartida de GitHub, el jefe abre la página en claude.ai (sin costo extra), lee las fotos de las planillas y en cada una toca <b>Agregar al lote</b>. Al terminar, <b>Descargar lote</b> baja un Excel. En la versión de GitHub, Taller > <b>Importar registros</b>: se revisa, se omiten los ya cargados y cada renglón se vincula con su orden de trabajo.</p>
   <p><b>Desde foto:</b> tocá <b>Cargar desde foto</b>, elegí la foto de la planilla en papel y esperá la lectura. Aparece cada renglón al lado de la foto para revisarlo: lo que está en rojo hay que corregirlo o desmarcarlo. Al guardar, cada renglón se vincula solo a su orden de trabajo si está en curso, o queda como fuera de plan.</p>
   <p>La hora de inicio se encadena con la tarea anterior. A la derecha queda el día del operario, con los <b>huecos sin registrar</b> marcados en rojo.</p>`},
@@ -1506,76 +1535,110 @@ function appURL(){return location.href.split('#')[0]}
 function otURL(o,li,seq){return appURL()+'#ot/'+encodeURIComponent(o.id)+'/'+li+'/'+seq}
 const ahora=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 const CUR={get(){try{return JSON.parse(localStorage.getItem('spl.encurso')||'null')}catch(e){return null}},set(v){try{v?localStorage.setItem('spl.encurso',JSON.stringify(v)):localStorage.removeItem('spl.encurso')}catch(e){}try{v?setActiva(v):clearActiva()}catch(e){}}};
-V.ot={mount(sel,rest){document.body.classList.add('solo');this.key=sel?[decodeURIComponent(sel),...(rest||[])]:null;this.paso=null;this.render()},
+const kStr=k=>k.map(x=>encodeURIComponent(String(x))).join('.');
+const kParse=s=>{const p=String(s).split('.');const seq=p.pop(),li=p.pop();return [decodeURIComponent(p.join('.')),li,seq]};
+function otGrupoURL(keys){return appURL()+'#ot/g/'+keys.map(kStr).join('~')}
+V.ot={keys:[],
+mount(sel,rest){document.body.classList.add('solo');if(sel==='g'&&rest&&rest[0])this.keys=rest[0].split('~').map(kParse);else if(sel)this.keys=[[decodeURIComponent(sel),...(rest||[])]];else this.keys=[];this.render()},
 unmount(){document.body.classList.remove('solo')},
-ctx(){if(!this.key)return null;const [oid,li,seq]=this.key;const o=S.ordenes.find(x=>x.id===oid);if(!o)return {falta:true};const l=o.lineas[+li];const w=l?.ops.find(x=>x.seq==seq);if(!w)return {falta:true};
-  const i=l.ops.indexOf(w);const p=S.prog.get(woKey(o.id,l.pieza,w.seq));return {o,l,w,li:+li,prev:l.ops[i-1],next:l.ops[i+1],hecho:p?p.qty:0}},
+ctxs(keys){return (keys||this.keys).map(k=>({k,c:ctxKey(k)}))},
 yo(){const id=lsGet('yo');return (S.M.personal?.items||[]).find(p=>p.id===id&&p.activo!==false)?id:''},
+goKeys(keys){location.hash=keys.length>1?'ot/g/'+keys.map(kStr).join('~'):keys.length?'ot/'+keys[0].map(x=>encodeURIComponent(String(x))).join('/'):'ot'},
+mismo(cur){return !!(cur&&cur.keys&&cur.keys.length&&cur.keys.length===this.keys.length&&cur.keys.every((k,i)=>k.map(String).join('|')===this.keys[i].map(String).join('|')))},
+render(){const M=$('#main');if(!M)return;{const dg=this.diag();if(dg){M.innerHTML=`<div class="op1">${this.volver()}${dg}</div>`;return}}
+  const yo=this.yo();const P=(S.M.personal?.items||[]).filter(p=>p.activo!==false);
+  if(!S.M.productos){M.innerHTML='<div class="op1"><p class="note">Cargando…</p></div>';return}
+  if(!yo){M.innerHTML=`<div class="op1">${this.volver()}<h1>¿Quién sos?</h1><p class="lead">Elegilo una vez: este celular lo recuerda.</p><input id="oBus" class="opin" placeholder="Buscá por nombre o legajo" style="margin-bottom:10px" inputmode="search"><div class="opgrid" id="oGr">${P.map(p=>`<button class="opbig sec" data-yo="${esc(p.id)}" data-q="${esc(nrm(p.nombre+' '+(p.legajo||'')))}">${esc(p.nombre)}${p.legajo?`<br><small class="note">Legajo ${esc(p.legajo)}</small>`:''}</button>`).join('')}</div></div>`;
+    M.querySelectorAll('[data-yo]').forEach(b=>b.onclick=()=>{lsSet('yo',b.dataset.yo);this.render()});$('#oBus').oninput=()=>{const q=nrm($('#oBus').value);M.querySelectorAll('[data-yo]').forEach(b=>b.classList.toggle('hide',!!q&&!b.dataset.q.includes(q)))};return}
+  let cur=CUR.get();if(cur&&cur.key&&!cur.keys)cur.keys=[cur.key];
+  const leg=(S.M.personal?.items||[]).find(p=>p.id===yo)?.legajo;
+  const head=`${this.volver()}<div class="ophead"><span><b>${esc(persona(yo))}</b>${leg?` <span class="note">legajo ${esc(leg)}</span>`:''}</span><span class="row" style="gap:4px"><button class="btn link" id="oHoy">Mis registros de hoy</button><button class="btn link" id="oNo">No soy yo</button></span></div>`;
+  const mio=cur&&cur.yo===yo?cur:null;
+  if(mio&&!(mio.keys||[]).length){M.innerHTML=`<div class="op1">${head}<div class="opcard warn"><h2>${esc(motivo(mio.motivo)?.nombre||'Tarea')} desde las ${esc(mio.ini)}</h2><p class="note">${mio.maq?esc(mio.maq):'Sin máquina'}</p><button class="opbig" id="oFinPar">Terminé</button><button class="btn link" id="oCancel" style="margin-top:8px">Cancelar</button></div></div>`;this.bindHead();this.bindParadaFin(mio,yo);return}
+  if(mio&&!this.mismo(mio)){M.innerHTML=`<div class="op1">${head}<div class="opcard warn"><h2>Tenés una tarea sin terminar</h2><p>${esc(mio.titulo)}, desde las <b>${esc(mio.ini)}</b>.</p><button class="opbig" id="oVolver">Ir a terminarla</button><button class="opbig sec" id="oDescartar" style="margin-top:8px">Descartarla</button></div></div>`;this.bindHead();
+    $('#oVolver').onclick=()=>this.goKeys(mio.keys);$('#oDescartar').onclick=()=>{if(confirm('¿Descartar la tarea sin guardar?')){CUR.set(null);this.render()}};return}
+  if(!this.keys.length){M.innerHTML=`<div class="op1">${head}${this.inicio()}</div>`;this.bindHead();this.bindInicio(yo);return}
+  const C=this.ctxs();if(C.some(x=>!x.c)){M.innerHTML=`<div class="op1">${head}<div class="opcard"><h2>No encuentro ${C.length>1?'alguna de estas órdenes':'esta orden de trabajo'}</h2><p class="note">Puede estar cerrada o cancelada, o haberse lanzado en otra versión de la página. Hay ${S.ordenes.length} órdenes en la base.</p><button class="opbig sec" id="oLista">Elegir otra orden</button></div></div>`;this.bindHead();$('#oLista').onclick=()=>{location.hash='ot'};return}
+  const tipo=C[0].c.w.tipo;const maqs=(S.M.centros?.items||[]).filter(x=>x.tipo===tipo);const mq=lsGet('maq.'+tipo);const maq=maqs.some(x=>x.codigo===mq)?mq:(maqs.length===1?maqs[0].codigo:'');
+  const enc=this.mismo(mio)?mio:null;const multi=C.length>1;
+  const infoUna=({c})=>{const {o,l,w}=c;const p=S.prog.get(woKey(o.id,l.pieza,w.seq));const h=p?p.qty:0;const falta=Math.max(0,l.cant-h);const i=l.ops.indexOf(w);
+    return multi?`<div class="opline"><div><b>OP ${esc(o.numero)}</b> ${esc(o.articulo)}<br><span>${esc(l.pieza)}, ${esc(w.op)}</span></div><div style="text-align:right"><b>${nf(falta)}</b><br><span>faltan de ${nf(l.cant)}</span></div></div>`
+    :`<div class="opt">${esc(tipoNombre(w.tipo))} <span>${esc(w.op)}</span></div><div class="ops">OP ${esc(o.numero)}, ${esc(o.articulo)}</div><div class="opp">${esc(l.pieza)} <span class="note">paso ${w.seq} de ${l.ops.length}</span></div>
+     <div class="opnums"><div><b>${nf(l.cant)}</b><span>pedidas</span></div><div><b>${nf(h)}</b><span>hechas</span></div><div><b class="${falta?'':'good'}">${nf(falta)}</b><span>faltan</span></div></div>
+     <p class="note" style="margin:6px 0 0">${w.seg?`Estándar ${nf(3600/w.seg)} por hora. `:''}Viene de ${l.ops[i-1]?esc(l.ops[i-1].op):'materia prima'}, sigue en ${l.ops[i+1]?esc(l.ops[i+1].op):'pintura'}.</p>`};
+  const info=`<div class="opcard">${multi?`<div class="opt">${esc(tipoNombre(tipo))} <span>cama compartida</span></div><p class="note" style="margin:4px 0 8px">${C.length} órdenes en la misma tarea. El tiempo se reparte entre ellas según lo producido.</p>`:''}${C.map(infoUna).join('')}
+    ${!enc||enc.tipo!=='parada'?`<button class="btn sec sm" id="oAdd" style="margin-top:10px">Agregar otra orden a esta tarea (misma cama)</button>`:''}${multi&&!enc?`<button class="btn link" id="oQuitar" style="margin-left:6px">Quitar la última</button>`:''}</div>`;
+  let act;
+  if(enc&&enc.tipo==='parada'){act=`<div class="opcard warn"><h2>En parada desde las ${esc(enc.ini)}</h2><p>${esc(motivo(enc.motivo)?.nombre||'')}</p><button class="opbig" id="oFinPar">Terminé la parada</button></div>`}
+  else if(enc){act=`<div class="opcard run"><h2>Trabajando desde las ${esc(enc.ini)}</h2><p class="note">${esc(enc.maq)}${enc.pausa?`, con ${enc.pausa} min de parada que no cuentan`:''}</p>
+     ${C.map(({c},i)=>`<div class="${multi?'opq':''}">${multi?`<b>OP ${esc(c.o.numero)}</b> ${esc(c.l.pieza)}`:''}<div class="row"><label class="f">Cantidad buena<input data-q="${i}" type="number" inputmode="numeric" min="0" class="opin"></label><label class="f">Scrap<input data-s="${i}" type="number" inputmode="numeric" min="0" value="0" class="opin"></label></div></div>`).join('')}
+     <label class="f" style="margin-top:8px">Observaciones<input id="oObs" class="opin" placeholder="opcional"></label><div class="err" id="oErr"></div>
+     <button class="opbig" id="oFin">Terminé</button><div class="row" style="gap:6px;margin-top:8px"><button class="btn sec" id="oPar">Parada o cambio de matriz</button><button class="btn link" id="oCancel">Cancelar tarea</button></div></div>`}
+  else{act=`<div class="opcard"><label class="f">Máquina<select id="oMaq" class="opin"><option value="">Elegí la máquina</option>${maqs.map(x=>`<option ${x.codigo===maq?'selected':''}>${esc(x.codigo)}</option>`).join('')}</select></label><div class="err" id="oErr"></div>
+     <button class="opbig" id="oIni">Empecé</button><div class="row" style="gap:6px;margin-top:8px"><button class="btn sec" id="oPar">Parada o cambio de matriz</button>${multi?'':'<button class="btn sec" id="oMano">Cargar a mano</button>'}</div><div id="oManoF"></div></div>`}
+  M.innerHTML=`<div class="op1">${head}${info}${act}</div>`;this.bindHead();
+  const titulo=C.map(({c})=>`OP ${c.o.numero} ${c.l.pieza} ${c.w.op}`).join(' + ');
+  const bA=$('#oAdd');if(bA)bA.onclick=()=>this.agregar(tipo);const bQ=$('#oQuitar');if(bQ)bQ.onclick=()=>this.goKeys(this.keys.slice(0,-1));
+  const bI=$('#oIni');if(bI)bI.onclick=()=>{const m=$('#oMaq').value;if(!m){$('#oErr').textContent='Elegí la máquina.';return}lsSet('maq.'+tipo,m);CUR.set({yo,keys:this.keys,key:this.keys[0],titulo,maq:m,ini:ahora(),fecha:today(),tipo:'prod',pausa:0});toast('Empezaste a las '+ahora());this.render()};
+  const bF=$('#oFin');if(bF)bF.onclick=()=>this.terminar(enc,C,yo);
+  const bC=$('#oCancel');if(bC)bC.onclick=()=>{if(confirm('¿Cancelar la tarea sin guardar?')){CUR.set(null);this.render()}};
+  const bP=$('#oPar');if(bP)bP.onclick=()=>this.parada(yo,titulo,enc||{maq:$('#oMaq')?.value||''});
+  if(enc&&enc.tipo==='parada')this.bindParadaFin(enc,yo);
+  const bM=$('#oMano');if(bM)bM.onclick=()=>this.mano(C[0].c,yo)},
+async terminar(enc,C,yo){const Q=C.map((x,i)=>parseInt(document.querySelector(`[data-q="${i}"]`).value,10));const Sc=C.map((x,i)=>parseInt(document.querySelector(`[data-s="${i}"]`).value,10)||0);
+  if(Q.some(q=>!(q>=0))){$('#oErr').textContent=C.length>1?'Poné la cantidad buena de cada orden (0 si no hiciste).':'Poné la cantidad buena que hiciste.';return}
+  const fin=ahora();const tot=Math.max(1,(diffMin(enc.ini,fin)||1)-(enc.pausa||0));const W=C.map(({c},i)=>(Q[i]+Sc[i])*(c.w.seg||1));const sw=W.reduce((a,b)=>a+b,0);
+  let resto=tot;const mins=C.map((x,i)=>{if(i===C.length-1)return Math.max(0,resto);const m=Math.round(tot*(sw?W[i]/sw:1/C.length));resto-=m;return m});
+  const grupo=C.length>1?'cama-'+newId():null;const obs=$('#oObs').value.trim();if(busy('#oFin'))return;
+  try{await writeParte(enc.fecha,a=>C.forEach(({c},i)=>{const {o,l,w}=c;a.push({id:newId(),tipo:'prod',operario:yo,centro:enc.maq,centro_tipo:centroTipo(enc.maq),op_id:o.id,op_numero:o.numero,articulo:o.articulo,pieza:l.pieza,seq:w.seq,paso:w.op,ini:enc.ini,fin,min:mins[i],qty:Q[i],scrap:Sc[i],seg_std:w.seg||null,std_min:w.seg?Q[i]*w.seg/60:null,fuera_plan:false,
+      obs:[obs,grupo?'Cama compartida: '+C.map(x=>'OP '+x.c.o.numero).join(', '):''].filter(Boolean).join('. '),grupo,origen:'qr',ts:new Date().toISOString()})}));
+    CUR.set(null);toast('Guardado');this.render()}catch(e){$('#oErr').textContent='No se pudo guardar. Revisá la conexión y tocá de nuevo.'}finally{done('#oFin')}},
+parada(yo,titulo,enc){const M=S.M.motivos?.items||[];const box=document.createElement('div');box.className='modal';
+  box.innerHTML=`<div class="dlg"><div class="pzh" style="align-items:center"><h2 style="margin:0">¿Qué pasó?</h2><button class="btn link" data-x>Cerrar</button></div><div class="dlgb" style="border:0;padding:0;margin-top:10px"><div class="opgrid">${M.map(m=>`<button class="opbig sec" data-m="${esc(m.id)}">${esc(m.nombre)}</button>`).join('')}</div></div></div>`;
+  document.body.appendChild(box);box.onclick=e=>{if(e.target===box||e.target.hasAttribute('data-x'))box.remove()};
+  box.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const cur=CUR.get();const vol=cur&&cur.tipo==='prod'&&cur.yo===yo?cur:null;const t0=ahora();
+    CUR.set({yo,keys:this.keys,key:this.keys[0],titulo,maq:(vol&&vol.maq)||enc.maq||'',ini:t0,fecha:today(),tipo:'parada',motivo:b.dataset.m,volver:vol});box.remove();toast('Parada desde las '+t0);this.render()})},
+bindParadaFin(enc,yo){const b=$('#oFinPar');if(b)b.onclick=async()=>{const fin=ahora();const m=diffMin(enc.ini,fin)||1;if(busy('#oFinPar'))return;
+    try{await writeParte(enc.fecha,a=>a.push({id:newId(),tipo:'parada',operario:yo,centro:enc.maq||null,centro_tipo:enc.maq?centroTipo(enc.maq):null,motivo:enc.motivo,ini:enc.ini,fin,min:m,obs:enc.titulo||'',origen:'qr',ts:new Date().toISOString()}));
+      if(enc.volver){CUR.set({...enc.volver,pausa:(enc.volver.pausa||0)+m});toast('Parada guardada. Seguís con la tarea')}else{CUR.set(null);toast('Guardado')}this.render()}catch(e){toast('No se pudo guardar. Tocá de nuevo.')}finally{done('#oFinPar')}};
+  const c=$('#oCancel');if(c&&!(enc.keys||[]).length)c.onclick=()=>{if(confirm('¿Cancelar sin guardar?')){CUR.set(null);this.render()}}},
+agregar(tipo){const ya=new Set(this.keys.map(k=>k.map(String).join('|')));const ws=workordersFor(tipo).filter(x=>!ya.has([x.o.id,x.o.lineas.indexOf(x.l),x.w.seq].map(String).join('|')));const box=document.createElement('div');box.className='modal';
+  box.innerHTML=`<div class="dlg"><div class="pzh" style="align-items:center"><h2 style="margin:0">Agregar a la misma cama</h2><button class="btn link" data-x>Cerrar</button></div><p class="note">Órdenes pendientes de ${esc(tipoNombre(tipo))}.</p><input id="agQ" class="opin" placeholder="Buscar OP, artículo o pieza" style="margin-bottom:8px">
+   <div class="dlgb" style="border:0;padding:0">${ws.length?ws.slice(0,80).map(x=>`<button class="oprow" data-k="${esc(kStr([x.o.id,x.o.lineas.indexOf(x.l),x.w.seq]))}" data-q="${esc(nrm('OP '+x.o.numero+' '+x.o.articulo+' '+x.l.pieza))}"><b>OP ${esc(x.o.numero)}</b> ${esc(x.o.articulo)}<br><span>${esc(x.l.pieza)}, ${esc(x.w.op)}, faltan ${nf(x.falta)}</span></button>`).join(''):'<p class="note">No hay otras órdenes pendientes para esta máquina.</p>'}</div></div>`;
+  document.body.appendChild(box);box.onclick=e=>{if(e.target===box||e.target.hasAttribute('data-x'))box.remove()};
+  $('#agQ').oninput=()=>{const q=nrm($('#agQ').value);box.querySelectorAll('[data-k]').forEach(b=>b.classList.toggle('hide',!!q&&!b.dataset.q.includes(q)))};
+  box.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{const k=kParse(b.dataset.k);const nk=[...this.keys,k];box.remove();const cur=CUR.get();if(cur&&this.mismo(cur)){cur.keys=nk;cur.titulo+=' + OP';CUR.set(cur)}this.goKeys(nk)})},
+mano(c,yo){const {o,l,w}=c;$('#oManoF').innerHTML=`<div style="margin-top:12px"><div class="row"><label class="f">Inicio<input type="time" id="mIni" class="opin"></label><label class="f">Fin<input type="time" id="mFin" class="opin" value="${ahora()}"></label></div>
+   <div class="row" style="margin-top:8px"><label class="f">Cantidad buena<input id="mQty" type="number" inputmode="numeric" class="opin"></label><label class="f">Scrap<input id="mSc" type="number" inputmode="numeric" value="0" class="opin"></label></div><div class="err" id="mErr"></div><button class="opbig" id="mOk">Guardar</button></div>`;
+  $('#mOk').onclick=async()=>{const m0=$('#oMaq').value,ini=$('#mIni').value,fin=$('#mFin').value,q=parseInt($('#mQty').value,10);const E=$('#mErr');
+    if(!m0){E.textContent='Elegí la máquina.';return}const mm=diffMin(ini,fin);if(!mm){E.textContent='Revisá inicio y fin.';return}if(!(q>=0)){E.textContent='Poné la cantidad.';return}if(busy('#mOk'))return;const sc=parseInt($('#mSc').value,10)||0;
+    try{await writeParte(today(),a=>a.push({id:newId(),tipo:'prod',operario:yo,centro:m0,centro_tipo:centroTipo(m0),op_id:o.id,op_numero:o.numero,articulo:o.articulo,pieza:l.pieza,seq:w.seq,paso:w.op,ini,fin,min:mm,qty:q,scrap:sc,seg_std:w.seg||null,std_min:w.seg?q*w.seg/60:null,fuera_plan:false,obs:'',origen:'qr',ts:new Date().toISOString()}));lsSet('maq.'+w.tipo,m0);toast('Guardado');this.render()}
+    catch(e){E.textContent='No se pudo guardar. Tocá de nuevo.'}finally{done('#mOk')}}},
+inicio(){const T=S.M.centros?.tipos||{};const t=this.tipo??(lsGet('ot.tipo')||'');const q=nrm(this.q||'');const ws=workordersFor(t||null).filter(x=>!q||nrm('OP '+x.o.numero+' '+x.o.articulo+' '+x.l.pieza+' '+x.w.op).includes(q));
+  return `<div class="opcard"><h2>¿Qué vas a hacer?</h2><p class="note">Lo más rápido es escanear el QR de la hoja. Si no la tenés, elegí la orden abajo.</p>
+   <button class="opbig sec" id="oSinOrden" style="margin-top:6px">Parada o tarea sin orden (limpieza, mantenimiento…)</button></div>
+   <div class="opcard"><h2>Trabajar en una orden</h2><label class="f">Máquina<select id="oTipo" class="opin"><option value="">Todas</option>${Object.entries(T).map(([k,v])=>`<option value="${esc(k)}" ${k===t?'selected':''}>${esc(v.nombre)}</option>`).join('')}</select></label>
+   <input id="oQ" class="opin" placeholder="Buscar OP, artículo o pieza" value="${esc(this.q||'')}" style="margin-top:8px">
+   <div style="margin-top:10px">${ws.length?ws.slice(0,60).map(x=>`<button class="oprow" data-k="${esc(kStr([x.o.id,x.o.lineas.indexOf(x.l),x.w.seq]))}"><b>OP ${esc(x.o.numero)}</b> ${esc(x.o.articulo)} <span class="pill">${esc(tipoNombre(x.w.tipo))}</span><br><span>${esc(x.l.pieza)}, ${esc(x.w.op)}, faltan ${nf(x.falta)}</span></button>`).join('')+(ws.length>60?'<p class="note">Hay más: elegí la máquina o buscá.</p>':''):'<p class="note">No hay órdenes pendientes con ese filtro.</p>'}</div></div>`},
+bindInicio(yo){const s=$('#oTipo');s.onchange=()=>{this.tipo=s.value;lsSet('ot.tipo',s.value);this.render()};const q=$('#oQ');q.oninput=()=>{this.q=q.value;clearTimeout(this._t);this._t=setTimeout(()=>{this.render();const n=$('#oQ');if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length)}},300)};
+  document.querySelectorAll('.op1 [data-k]').forEach(b=>b.onclick=()=>this.goKeys([kParse(b.dataset.k)]));
+  $('#oSinOrden').onclick=()=>{const Mo=S.M.motivos?.items||[];const C=S.M.centros?.items||[];const box=document.createElement('div');box.className='modal';
+    box.innerHTML=`<div class="dlg"><div class="pzh" style="align-items:center"><h2 style="margin:0">Parada o tarea sin orden</h2><button class="btn link" data-x>Cerrar</button></div>
+     <label class="f" style="margin-top:8px">Máquina (opcional)<select id="soM" class="opin"><option value="">Ninguna</option>${C.map(c=>`<option>${esc(c.codigo)}</option>`).join('')}</select></label>
+     <p class="note" style="margin:10px 0 6px">¿Qué vas a hacer?</p><div class="dlgb" style="border:0;padding:0"><div class="opgrid">${Mo.map(m=>`<button class="opbig sec" data-m="${esc(m.id)}">${esc(m.nombre)}</button>`).join('')}</div></div></div>`;
+    document.body.appendChild(box);box.onclick=e=>{if(e.target===box||e.target.hasAttribute('data-x'))box.remove()};
+    box.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{CUR.set({yo,keys:[],titulo:motivo(b.dataset.m)?.nombre||'',maq:$('#soM').value,ini:ahora(),fecha:today(),tipo:'parada',motivo:b.dataset.m});box.remove();toast('Empezaste a las '+ahora());this.render()})}},
+volver(){return `<div class="opvolver"><a href="#general" class="btn link">Volver al panel</a></div>`},
+bindHead(){const n=$('#oNo');if(n)n.onclick=()=>{try{localStorage.removeItem('spl.yo')}catch(e){}this.render()};const h=$('#oHoy');if(h)h.onclick=()=>this.hoy()},
 diag(){const u=appURL();const gh=/github\.io/.test(location.host);
   if(S.supaErr)return `<div class="opcard warn" style="border-color:var(--bad)"><h2>No hay conexión con la base compartida</h2><p class="note">${esc(S.supaDet||'')}</p><p>${S.supaErr==='tabla'?'Falta crear la tabla <b>'+SUPA.tabla+'</b> en Supabase (una sola vez, con el script SQL).':'No se pudo conectar con Supabase. Revisá que el celular tenga internet (datos o wifi) y recargá.'}</p><p class="note">Mientras tanto no se puede cargar la producción desde este celular.</p></div>`;
   if(S.local)return `<div class="opcard warn" style="border-color:var(--bad)"><h2>Esta página no está conectada a la base compartida</h2><p class="note">Se abrió desde <b>${esc(u)}</b>. El QR tiene que abrir la dirección de GitHub: reimprimí la orden desde https://cbuceta.github.io/Panel-produccion/</p></div>`;
   if(!gh&&!/claude/.test(location.host))return '';return ''},
-render(){const M=$('#main');if(!M)return;const yo=this.yo();const P=(S.M.personal?.items||[]).filter(p=>p.activo!==false);
-  {const dg=this.diag();if(dg){M.innerHTML=`<div class="op1">${dg}</div>`;return}}
-  if(!S.M.productos){M.innerHTML='<div class="op1"><p class="note">Cargando…</p></div>';return}
-  if(!yo){M.innerHTML=`<div class="op1"><h1>¿Quién sos?</h1><p class="lead">Elegilo una vez: este celular lo recuerda.</p><input id="oBus" class="opin" placeholder="Buscá por nombre o legajo" style="margin-bottom:10px" inputmode="search"><div class="opgrid" id="oGr">${P.map(p=>`<button class="opbig sec" data-yo="${esc(p.id)}" data-q="${esc(nrm(p.nombre+' '+(p.legajo||'')))}">${esc(p.nombre)}${p.legajo?`<br><small class="note">Legajo ${esc(p.legajo)}</small>`:''}</button>`).join('')}</div></div>`;
-    M.querySelectorAll('[data-yo]').forEach(b=>b.onclick=()=>{lsSet('yo',b.dataset.yo);this.render()});
-    $('#oBus').oninput=()=>{const q=nrm($('#oBus').value);M.querySelectorAll('[data-yo]').forEach(b=>b.classList.toggle('hide',!!q&&!b.dataset.q.includes(q)))};return}
-  const cur=CUR.get();const c=this.ctx();
-  const leg=(S.M.personal?.items||[]).find(p=>p.id===yo)?.legajo;const head=`<div class="ophead"><span><b>${esc(persona(yo))}</b>${leg?` <span class="note">legajo ${esc(leg)}</span>`:''}</span><span class="row" style="gap:4px"><button class="btn link" id="oHoy">Mis registros de hoy</button><button class="btn link" id="oNo">No soy yo</button></span></div>`;
-  if(cur&&cur.yo===yo&&(!c||c.falta||cur.key.join('/')!==this.key.join('/'))){M.innerHTML=`<div class="op1">${head}<div class="opcard warn"><h2>Tenés una tarea sin terminar</h2><p>${esc(cur.titulo)}, desde las <b>${esc(cur.ini)}</b>.</p>
-     <button class="opbig" id="oVolver">Ir a terminarla</button><button class="opbig sec" id="oDescartar">Descartarla</button></div></div>`;this.bindHead();
-    $('#oVolver').onclick=()=>{location.hash='ot/'+cur.key.map(encodeURIComponent).join('/')};$('#oDescartar').onclick=()=>{if(confirm('¿Descartar la tarea sin guardar?')){CUR.set(null);this.render()}};return}
-  if(!c){M.innerHTML=`<div class="op1">${head}${this.lista()}</div>`;this.bindHead();this.bindLista();return}
-  if(c.falta){M.innerHTML=`<div class="op1">${head}<div class="opcard"><h2>No encuentro esta orden de trabajo</h2><p class="note">Buscada: <b>${esc(this.key[0])}</b>, pieza ${+this.key[1]+1}, paso ${esc(this.key[2])}. Puede estar cerrada o cancelada, o haberse lanzado en otra versión de la página (claude.ai o un archivo en la PC): en ese caso hay que lanzarla e imprimirla desde la dirección de GitHub. Hay ${S.ordenes.length} órdenes en la base.</p><button class="opbig sec" id="oLista">Elegir otra orden</button></div></div>`;this.bindHead();$('#oLista').onclick=()=>{location.hash='ot'};return}
-  const {o,l,w}=c;const maqs=(S.M.centros?.items||[]).filter(x=>x.tipo===w.tipo);const mq=lsGet('maq.'+w.tipo);const maq=maqs.some(x=>x.codigo===mq)?mq:(maqs.length===1?maqs[0].codigo:'');
-  const falta=Math.max(0,l.cant-c.hecho);const enc=cur&&cur.yo===yo&&cur.key.join('/')===this.key.join('/')?cur:null;
-  const info=`<div class="opcard"><div class="opt">${esc(tipoNombre(w.tipo))} <span>${esc(w.op)}</span></div><div class="ops">OP ${esc(o.numero)}, ${esc(o.articulo)}</div><div class="opp">${esc(l.pieza)} <span class="note">paso ${w.seq} de ${l.ops.length}</span></div>
-    <div class="opnums"><div><b>${nf(l.cant)}</b><span>pedidas</span></div><div><b>${nf(c.hecho)}</b><span>hechas</span></div><div><b class="${falta?'':'good'}">${nf(falta)}</b><span>faltan</span></div></div>
-    <p class="note" style="margin:6px 0 0">${w.seg?`Estándar ${nf(3600/w.seg)} por hora. `:''}Viene de ${c.prev?esc(c.prev.op):'materia prima'}, sigue en ${c.next?esc(c.next.op):'pintura'}.</p></div>`;
-  let act;
-  if(enc&&enc.tipo==='parada'){act=`<div class="opcard warn"><h2>En parada desde las ${esc(enc.ini)}</h2><p>${esc(motivo(enc.motivo)?.nombre||'')}</p><button class="opbig" id="oFinPar">Terminé la parada</button></div>`}
-  else if(enc){act=`<div class="opcard run"><h2>Trabajando desde las ${esc(enc.ini)}</h2><p class="note">${esc(enc.maq)}</p>
-     <label class="f">Cantidad buena<input id="oQty" type="number" inputmode="numeric" min="0" class="opin"></label><label class="f" style="margin-top:8px">Scrap<input id="oSc" type="number" inputmode="numeric" min="0" value="0" class="opin"></label>
-     <label class="f" style="margin-top:8px">Observaciones<input id="oObs" class="opin" placeholder="opcional"></label><div class="err" id="oErr"></div>
-     <button class="opbig" id="oFin">Terminé</button><div class="row" style="gap:6px;margin-top:8px"><button class="btn sec" id="oPar">Parada o cambio de matriz</button><button class="btn link" id="oCancel">Cancelar tarea</button></div></div>`}
-  else{act=`<div class="opcard"><label class="f">Máquina<select id="oMaq" class="opin"><option value="">Elegí la máquina</option>${maqs.map(x=>`<option ${x.codigo===maq?'selected':''}>${esc(x.codigo)}</option>`).join('')}</select></label><div class="err" id="oErr"></div>
-     <button class="opbig" id="oIni">Empecé</button><div class="row" style="gap:6px;margin-top:8px"><button class="btn sec" id="oPar">Parada o cambio de matriz</button><button class="btn sec" id="oMano">Cargar a mano</button></div><div id="oManoF"></div></div>`}
-  M.innerHTML=`<div class="op1">${head}${info}${act}</div>`;this.bindHead();
-  const titulo=`OP ${o.numero} ${o.articulo} ${l.pieza} ${w.op}`;
-  const bI=$('#oIni');if(bI)bI.onclick=()=>{const m=$('#oMaq').value;if(!m){$('#oErr').textContent='Elegí la máquina.';return}lsSet('maq.'+w.tipo,m);CUR.set({yo,key:this.key,titulo,maq:m,ini:ahora(),fecha:today(),tipo:'prod'});toast('Empezaste a las '+ahora());this.render()};
-  const bF=$('#oFin');if(bF)bF.onclick=async()=>{const q=parseInt($('#oQty').value,10);if(!(q>=0)){$('#oErr').textContent='Poné la cantidad buena que hiciste.';return}const sc=parseInt($('#oSc').value,10)||0;
-    const fin=ahora();const m=diffMin(enc.ini,fin)||1;if(busy('#oFin'))return;
-    try{await writeParte(enc.fecha,a=>a.push({id:newId(),tipo:'prod',operario:yo,centro:enc.maq,centro_tipo:centroTipo(enc.maq),op_id:o.id,op_numero:o.numero,articulo:o.articulo,pieza:l.pieza,seq:w.seq,paso:w.op,ini:enc.ini,fin,min:m,qty:q,scrap:sc,seg_std:w.seg||null,std_min:w.seg?q*w.seg/60:null,fuera_plan:false,obs:$('#oObs').value.trim(),origen:'qr',ts:new Date().toISOString()}));
-      CUR.set(null);toast('Guardado: '+nf(q)+' piezas');this.render()}catch(e){$('#oErr').textContent='No se pudo guardar. Revisá la conexión y tocá de nuevo.'}finally{done('#oFin')}};
-  const bC=$('#oCancel');if(bC)bC.onclick=()=>{if(confirm('¿Cancelar la tarea sin guardar?')){CUR.set(null);this.render()}};
-  const bP=$('#oPar');if(bP)bP.onclick=()=>this.parada(yo,titulo,enc||{maq:$('#oMaq')?.value||''});
-  const bFP=$('#oFinPar');if(bFP)bFP.onclick=async()=>{const fin=ahora();if(busy('#oFinPar'))return;
-    try{await writeParte(enc.fecha,a=>a.push({id:newId(),tipo:'parada',operario:yo,centro:enc.maq||null,centro_tipo:enc.maq?centroTipo(enc.maq):null,motivo:enc.motivo,ini:enc.ini,fin,min:diffMin(enc.ini,fin)||1,obs:titulo,origen:'qr',ts:new Date().toISOString()}));
-      if(enc.volver){CUR.set({...enc.volver,ini:fin});toast('Parada guardada. Seguís con la tarea desde las '+fin)}else{CUR.set(null);toast('Parada guardada')}this.render()}catch(e){toast('No se pudo guardar. Tocá de nuevo.')}finally{done('#oFinPar')}};
-  const bM=$('#oMano');if(bM)bM.onclick=()=>{$('#oManoF').innerHTML=`<div style="margin-top:12px"><div class="row"><label class="f">Inicio<input type="time" id="mIni" class="opin"></label><label class="f">Fin<input type="time" id="mFin" class="opin" value="${ahora()}"></label></div>
-     <div class="row" style="margin-top:8px"><label class="f">Cantidad buena<input id="mQty" type="number" inputmode="numeric" class="opin"></label><label class="f">Scrap<input id="mSc" type="number" inputmode="numeric" value="0" class="opin"></label></div><div class="err" id="mErr"></div><button class="opbig" id="mOk">Guardar</button></div>`;
-    $('#mOk').onclick=async()=>{const m0=$('#oMaq').value,ini=$('#mIni').value,fin=$('#mFin').value,q=parseInt($('#mQty').value,10);const E=$('#mErr');
-      if(!m0){E.textContent='Elegí la máquina.';return}const mm=diffMin(ini,fin);if(!mm){E.textContent='Revisá inicio y fin.';return}if(!(q>=0)){E.textContent='Poné la cantidad.';return}if(busy('#mOk'))return;const sc=parseInt($('#mSc').value,10)||0;
-      try{await writeParte(today(),a=>a.push({id:newId(),tipo:'prod',operario:yo,centro:m0,centro_tipo:centroTipo(m0),op_id:o.id,op_numero:o.numero,articulo:o.articulo,pieza:l.pieza,seq:w.seq,paso:w.op,ini,fin,min:mm,qty:q,scrap:sc,seg_std:w.seg||null,std_min:w.seg?q*w.seg/60:null,fuera_plan:false,obs:'',origen:'qr',ts:new Date().toISOString()}));lsSet('maq.'+w.tipo,m0);toast('Guardado');this.render()}
-      catch(e){E.textContent='No se pudo guardar. Tocá de nuevo.'}finally{done('#mOk')}}}},
-parada(yo,titulo,enc){const M=S.M.motivos?.items||[];const box=document.createElement('div');box.className='modal';
-  box.innerHTML=`<div class="dlg"><div class="pzh" style="align-items:center"><h2 style="margin:0">¿Qué pasó?</h2><button class="btn link" data-x>Cerrar</button></div><div class="dlgb" style="border:0;padding:0;margin-top:10px"><div class="opgrid">${M.map(m=>`<button class="opbig sec" data-m="${esc(m.id)}">${esc(m.nombre)}</button>`).join('')}</div></div></div>`;
-  document.body.appendChild(box);box.onclick=e=>{if(e.target===box||e.target.hasAttribute('data-x'))box.remove()};
-  box.querySelectorAll('[data-m]').forEach(b=>b.onclick=async()=>{const cur=CUR.get();const vol=cur&&cur.tipo==='prod'&&cur.yo===yo?cur:null;const t0=ahora();
-    if(vol){const r=prompt('Antes de la parada: ¿cuántas piezas buenas hiciste desde las '+vol.ini+'?','0');if(r===null)return;const q=parseInt(r,10)||0;const c=this.ctx();
-      if(c&&!c.falta){const m=diffMin(vol.ini,t0);if(m){try{await writeParte(vol.fecha,a=>a.push({id:newId(),tipo:'prod',operario:yo,centro:vol.maq,centro_tipo:centroTipo(vol.maq),op_id:c.o.id,op_numero:c.o.numero,articulo:c.o.articulo,pieza:c.l.pieza,seq:c.w.seq,paso:c.w.op,ini:vol.ini,fin:t0,min:m,qty:q,scrap:0,seg_std:c.w.seg||null,std_min:c.w.seg?q*c.w.seg/60:null,fuera_plan:false,obs:'',origen:'qr',ts:new Date().toISOString()}))}catch(e){toast('No se pudo guardar lo producido. Tocá de nuevo.');return}}}}
-    CUR.set({yo,key:this.key,titulo,maq:(vol&&vol.maq)||enc.maq||'',ini:t0,fecha:today(),tipo:'parada',motivo:b.dataset.m,volver:vol});box.remove();toast('Parada desde las '+t0);this.render()})},
-lista(){const T=S.M.centros?.tipos||{};const t=this.tipo||'';const ws=t?workordersFor(t):[];
-  return `<div class="opcard"><h2>Elegí tu orden de trabajo</h2><p class="note">Lo más rápido es escanear el QR de la hoja con la cámara del celular.</p>
-   <label class="f">Máquina<select id="oTipo" class="opin"><option value="">Elegí el tipo de máquina</option>${Object.entries(T).map(([k,v])=>`<option value="${esc(k)}" ${k===t?'selected':''}>${esc(v.nombre)}</option>`).join('')}</select></label>
-   <div style="margin-top:10px">${t?(ws.length?ws.slice(0,40).map(x=>`<button class="oprow" data-k="${esc(x.o.id)}|${x.o.lineas.indexOf(x.l)}|${x.w.seq}"><b>OP ${esc(x.o.numero)}</b> ${esc(x.o.articulo)}<br><span>${esc(x.l.pieza)}, ${esc(x.w.op)}, faltan ${nf(x.falta)}</span></button>`).join(''):'<p class="note">No hay órdenes pendientes para esa máquina.</p>'):''}</div></div>`},
-bindLista(){const s=$('#oTipo');if(s)s.onchange=()=>{this.tipo=s.value;this.render()};document.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{location.hash='ot/'+b.dataset.k.split('|').map(encodeURIComponent).join('/')})},
-bindHead(){const n=$('#oNo');if(n)n.onclick=()=>{try{localStorage.removeItem('spl.yo')}catch(e){}this.render()};const h=$('#oHoy');if(h)h.onclick=()=>this.hoy()},
 hoy(){const yo=this.yo();const es=entries().filter(e=>e.fecha===today()&&e.operario===yo).sort((a,b)=>(toMin(a.ini)||0)-(toMin(b.ini)||0));const box=document.createElement('div');box.className='modal';
   box.innerHTML=`<div class="dlg"><div class="pzh" style="align-items:center"><h2 style="margin:0">Mis registros de hoy</h2><button class="btn link" data-x>Cerrar</button></div><div class="dlgb" style="margin-top:10px">${es.length?es.map(e=>`<div class="oprow" style="cursor:default"><b>${esc(e.ini)}–${esc(e.fin)}</b> ${e.tipo==='prod'?`${esc(e.centro)} ${esc(e.pieza)} ${esc(e.paso)}<br><span>${nf(e.qty)} piezas${e.scrap?`, ${nf(e.scrap)} scrap`:''}</span>`:`<br><span>${esc(motivo(e.motivo)?.nombre||'Parada')}</span>`}</div>`).join(''):'<p class="note">Todavía no cargaste nada hoy.</p>'}</div></div>`;
   document.body.appendChild(box);box.onclick=e=>{if(e.target===box||e.target.hasAttribute('data-x'))box.remove()}},
 update(){if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)&&$('#main').contains(document.activeElement))return;if(!document.querySelector('.modal'))this.render()}};
+
 function qrPDF(d,text,x,y,size){if(typeof qrcode==='undefined')return;const q=qrcode(0,'M');q.addData(text);q.make();const n=q.getModuleCount();const c=size/(n+4);
   d.setFillColor(255,255,255);d.rect(x,y,size,size,'F');d.setFillColor(0,0,0);for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))d.rect(x+(k+2)*c,y+(r+2)*c,c*1.02,c*1.02,'F')}
 
@@ -1600,8 +1663,8 @@ new MutationObserver(()=>{document.querySelectorAll('table').forEach(t=>{if(t.da
 
 /* ---------- trabajando ahora (tareas iniciadas desde el celular) ---------- */
 function ctxKey(key){if(!key)return null;const [oid,li,seq]=key;const o=S.ordenes.find(x=>x.id===oid);const l=o?.lineas[+li];const w=l?.ops.find(x=>x.seq==seq);return w?{o,l,w}:null}
-function setActiva(cur){if(!S.db)return;const c=ctxKey(cur.key);const d={activo:true,yo:cur.yo,maq:cur.maq||'',ini:cur.ini,fecha:cur.fecha,tipo:cur.tipo,motivo:cur.motivo||null,key:cur.key,ts:new Date().toISOString()};
-  if(c)Object.assign(d,{op_id:c.o.id,op_numero:c.o.numero,articulo:c.o.articulo,pieza:c.l.pieza,seq:c.w.seq,paso:c.w.op});S.db.collection('activas').doc(uidShort()).set(d).catch(()=>{})}
+function setActiva(cur){if(!S.db)return;const c=ctxKey((cur.keys&&cur.keys[0])||cur.key);const d={activo:true,yo:cur.yo,maq:cur.maq||'',ini:cur.ini,fecha:cur.fecha,tipo:cur.tipo,motivo:cur.motivo||null,key:cur.key,ts:new Date().toISOString()};
+  if(c)Object.assign(d,{op_id:c.o.id,op_numero:c.o.numero,articulo:c.o.articulo,pieza:c.l.pieza,seq:c.w.seq,paso:c.w.op});if(cur.keys&&cur.keys.length>1){d.extra=cur.keys.slice(1).map(k=>{const x=ctxKey(k);return x?{op_id:x.o.id,op_numero:x.o.numero,pieza:x.l.pieza,seq:x.w.seq}:null}).filter(Boolean)}S.db.collection('activas').doc(uidShort()).set(d).catch(()=>{})}
 function clearActiva(id){if(!S.db)return;S.db.collection('activas').doc(id||uidShort()).set({activo:false,ts:new Date().toISOString()}).catch(()=>{})}
 function activasVivas(){return (S.activas||[]).filter(a=>a.activo&&a.fecha&&a.fecha>=addDays(today(),-1))}
 function transcurrido(a){const now=new Date();const [h,m]=String(a.ini||'0:0').split(':').map(Number);const st=new Date(a.fecha+'T00:00:00');st.setHours(h,m,0,0);const min=Math.max(0,Math.round((now-st)/60000));return min}
