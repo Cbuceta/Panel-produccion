@@ -1,0 +1,2171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Situación Patrimonial · SPL / Spotsline</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.5.0/tabler-icons.min.css" onerror="this.remove()">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f0f0f;--bg2:#1a1a1a;--bg3:#242424;--bg4:#2e2e2e;
+  --border:#333;--border2:#444;--text:#f0f0f0;--text2:#aaa;--text3:#666;
+  --yellow:#f5c400;--yellow2:#ffd740;--yellow-dim:#2a2200;
+  --red:#e74c3c;--red-bg:#2a0f0d;--orange:#e67e22;--orange-bg:#2a1a08;
+  --green:#2ecc71;--green-bg:#0a2010;--blue:#3498db;--blue-bg:#0a1e2e;
+  --spl:#3498db;--spl-bg:#0a1e2e;--spots:#a78bfa;--spots-bg:#1a1040;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  --radius:8px;--radius-lg:12px;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:60px}
+a{color:inherit}
+
+/* header */
+.header{padding:0 24px;max-width:1180px;margin:0 auto;border-bottom:1px solid var(--yellow);min-height:70px;display:flex;flex-direction:column;justify-content:center}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);display:flex;align-items:center;gap:8px;padding-top:14px}
+.eyebrow .pulse{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(46,204,113,.6);animation:pulse 2.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,204,113,.5)}70%{box-shadow:0 0 0 8px rgba(46,204,113,0)}100%{box-shadow:0 0 0 0 rgba(46,204,113,0)}}
+h1{font-size:22px;font-weight:600;letter-spacing:.2px;margin-top:4px;color:var(--text)}
+.sub{color:var(--text2);font-size:13px;margin-top:4px;padding-bottom:14px}
+
+.main{max-width:1180px;margin:0 auto;padding:20px 24px}
+
+/* controls */
+.controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:16px}
+.entity-filter{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:4px;gap:2px}
+.entity-btn{border:none;background:transparent;color:var(--text2);font-family:var(--sans);font-size:13px;font-weight:600;padding:9px 16px;border-radius:8px;cursor:pointer;transition:background .15s,color .15s}
+.entity-btn:hover{color:var(--text)}
+.entity-btn.active[data-e="spl"]{background:var(--spl-bg);color:var(--spl)}
+.entity-btn.active[data-e="spotsline"]{background:var(--spots-bg);color:var(--spots)}
+.entity-btn.active[data-e="conjunto"]{background:var(--yellow-dim);color:var(--yellow)}
+.year-nav{display:flex;align-items:center;gap:2px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:4px}
+.year-nav button{background:transparent;border:none;color:var(--text2);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px}
+.year-nav button:hover{background:var(--bg4);color:var(--yellow)}
+.year-nav .year-lbl{font-family:var(--mono);font-weight:700;font-size:14px;padding:0 10px;min-width:52px;text-align:center}
+
+/* legend */
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:11.5px;color:var(--text2)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+
+/* grid table */
+.tablewrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:auto;max-width:100%}
+table.grid{border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+table.grid th, table.grid td{padding:6px 10px;border-bottom:1px solid var(--border)}
+table.grid thead th{position:sticky;top:0;background:var(--bg2);z-index:2;font-family:var(--mono);font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;text-align:right;font-weight:600;padding-top:10px;padding-bottom:10px}
+table.grid thead th.rubro-hd{text-align:left;position:sticky;left:0;z-index:3;background:var(--bg2)}
+table.grid td.rubro-cell{position:sticky;left:0;background:var(--bg2);z-index:1;text-align:left;min-width:190px;max-width:220px;white-space:normal}
+table.grid tr.section-hd td{padding:10px 10px 4px;font-family:var(--mono);font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;border-bottom:none;background:var(--bg2)}
+table.grid tr.total-row td{font-weight:700;background:var(--bg3)}
+table.grid tr.total-row.grand td{background:var(--bg4);font-size:13px}
+table.grid tr.ratio-row td{color:var(--yellow)}
+table.grid td.numcell.frozen-cell{background:rgba(245,196,0,.06)}
+.month-hd{display:flex;align-items:center;justify-content:flex-end;gap:5px}
+.freeze-btn{background:none;border:none;cursor:pointer;font-size:11px;opacity:.55;padding:0;line-height:1}
+.freeze-btn:hover{opacity:1}
+.freeze-btn.is-frozen{opacity:.9}
+.del-item-btn{background:none;border:none;cursor:pointer;font-size:12px;opacity:.6}
+.del-item-btn:hover{opacity:1}
+.unlock-btn{background:none;border:none;cursor:pointer;font-size:11px;margin-right:3px;opacity:.5;vertical-align:middle}
+.unlock-btn:hover{opacity:1;color:var(--yellow)}
+table.grid td.numcell{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+table.grid input.val-input{width:88px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--mono);font-size:12px;text-align:right;padding:4px 6px}
+table.grid input.val-input:focus{outline:none;border-color:var(--yellow)}
+table.grid input.val-input:disabled{background:transparent;border-color:transparent;color:var(--text2)}
+table.grid input.val-input.seeded{border-color:var(--blue)}
+table.grid input.val-input.warn{border-color:var(--orange)}
+.rubro-lbl-row{display:flex;align-items:center;gap:6px;justify-content:space-between}
+.rubro-lbl-row .nm{display:flex;align-items:center;gap:6px}
+.comment-cell{vertical-align:top;padding:6px!important}
+.comment-input{width:180px;min-width:150px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--sans);font-size:11.5px;padding:6px;resize:vertical}
+.comment-input:focus{outline:none;border-color:var(--yellow)}
+.comment-view{width:220px;min-width:180px;font-size:11.5px;color:var(--text2);white-space:pre-wrap;line-height:1.4}
+tr.comments-toggle-row td{background:var(--bg3)}
+tr.comments-toggle-row:hover td{background:var(--bg4)}
+.mini-upload{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);border-radius:5px;width:22px;height:22px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px}
+.mini-upload:hover{color:var(--yellow);border-color:var(--yellow)}
+.drill-btn{background:none;border:none;cursor:pointer;font-size:11px;margin-right:3px;opacity:.7;vertical-align:middle}
+.drill-btn:hover{opacity:1}
+
+.badge{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.03em;padding:2px 5px;border-radius:4px;display:inline-block;flex-shrink:0}
+.badge.manual{background:var(--bg4);color:var(--text2)}
+.badge.archivo{background:var(--green-bg);color:var(--green)}
+.badge.pendiente{background:var(--orange-bg);color:var(--orange)}
+.badge.auto{background:var(--yellow-dim);color:var(--yellow)}
+.badge.cashflow{background:var(--blue-bg);color:var(--blue)}
+.badge.fijo{background:var(--spots-bg);color:var(--spots)}
+.badge.panel{background:var(--green-bg);color:var(--green)}
+.badge.usd{background:var(--orange-bg);color:var(--orange)}
+.badge.convertido{background:var(--green-bg);color:var(--green)}
+.badge.referencia{background:var(--bg4);color:var(--text2)}
+.badge.historico{background:var(--yellow-dim);color:var(--yellow2)}
+tr.rate-row td{background:rgba(255,255,255,.02)}
+tr.rate-row .rubro-cell{font-style:italic;color:var(--text2);font-size:12px}
+
+.footer-note{max-width:1180px;margin:14px auto 0;padding:0 24px;color:var(--text3);font-size:11.5px;font-family:var(--mono)}
+.callout{max-width:1180px;margin:0 auto 16px;padding:12px 16px;background:var(--orange-bg);border:1px solid var(--orange);border-radius:var(--radius-lg);font-size:12.5px;color:var(--text2);line-height:1.5}
+.callout b{color:var(--orange)}
+
+/* ============ IMPRESIÓN / PDF: apaisado, una hoja, colores para papel ============ */
+.print-title{display:none}
+@media print{
+  @page{ size: landscape; margin: 8mm; }
+  .no-print{ display:none !important; }
+  body{ background:#fff !important; color:#000 !important; padding-bottom:0 }
+  .header{ display:none !important; }
+  .print-title{ display:block; font-family:var(--sans); font-weight:700; font-size:14px; color:#000; margin-bottom:6px; }
+  .main{ padding:0 !important; max-width:none !important; }
+  .tablewrap{ border:none !important; overflow:visible !important; max-width:none !important; }
+  table.grid{ font-size:7px !important; width:100%; }
+  table.grid th, table.grid td{ padding:1.5px 3px !important; border-color:#ccc !important; }
+  table.grid thead th{ color:#000 !important; background:#fff !important; }
+  table.grid td.rubro-cell, table.grid th.rubro-hd{ background:#fff !important; color:#000 !important; min-width:0 !important; }
+  table.grid tr.section-hd td{ background:#eee !important; color:#000 !important; }
+  table.grid tr.total-row td{ background:#f2f2f2 !important; color:#000 !important; }
+  table.grid tr.ratio-row td{ color:#000 !important; }
+  table.grid td.numcell{ color:#000 !important; }
+  table.grid input.val-input{ border:none !important; background:transparent !important; color:#000 !important; padding:0 !important; }
+  tr.comments-toggle-row{ display:none !important; }
+  .comment-input{ border:none !important; background:transparent !important; color:#000 !important; font-size:7px !important; width:auto !important; }
+  .comment-view{ color:#000 !important; font-size:7px !important; width:auto !important; }
+  .badge{ border:1px solid #999 !important; color:#000 !important; background:#fff !important; font-size:6px !important; padding:1px 3px !important; }
+  .rubro-lbl-row{ gap:2px !important; }
+}
+
+/* upload modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+.overlay.show{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);width:520px;max-width:92vw;max-height:80vh;overflow:auto;padding:18px}
+.modal h3{font-size:14px;margin-bottom:4px}
+.modal .desc{font-size:12px;color:var(--text2);margin-bottom:12px}
+.modal select{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:8px;border-radius:6px;font-size:13px;margin-bottom:10px}
+.modal table{margin-top:8px;font-size:11.5px}
+.modal th,.modal td{padding:4px 6px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.btn{padding:8px 14px;border-radius:6px;border:1px solid var(--border2);background:var(--bg4);color:var(--text);font-size:13px;cursor:pointer;font-weight:600}
+.btn.primary{background:var(--yellow);color:#1a1400;border-color:var(--yellow)}
+.btn:hover{opacity:.9}
+.close-x{position:absolute;top:14px;right:16px;cursor:pointer;color:var(--text3);font-size:18px}
+.modal{position:relative}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="eyebrow"><span class="pulse"></span> SPL / SPOTSLINE · SISTEMAS DE GESTIÓN</div>
+  <h1>Situación Patrimonial</h1>
+  <div class="sub">Activo, Pasivo y ratios, mes a mes y por empresa. <span id="sync-status" style="opacity:.8"></span></div>
+</div>
+
+<div class="main">
+  <div class="controls no-print">
+    <div class="entity-filter" id="entityFilter"></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="year-nav" id="yearNav"></div>
+      <button class="btn" id="btnImportCF"><i class="ti ti-upload"></i> Importar Cash Flow</button>
+      <button class="btn" id="btnSyncPanels"><i class="ti ti-refresh"></i> Sincronizar Paneles</button>
+      <button class="btn" id="btnSyncDolar"><i class="ti ti-currency-dollar"></i> TC oficial de hoy</button>
+      <button class="btn" id="btnExportExcel"><i class="ti ti-file-spreadsheet"></i> Excel</button>
+      <button class="btn" id="btnExportPdf"><i class="ti ti-file-type-pdf"></i> PDF</button>
+      <button class="btn" id="btnExport"><i class="ti ti-download"></i> Backup (JSON)</button>
+      <button class="btn" id="btnImportBackup"><i class="ti ti-upload"></i> Restaurar backup</button>
+      <button class="btn" id="btnMeta"><i class="ti ti-info-circle"></i> Cómo se genera</button>
+    </div>
+  </div>
+  <div class="legend no-print">
+    <span><span class="badge manual">Manual</span> cargado a mano</span>
+    <span><span class="badge archivo">Archivo</span> desde un reporte subido</span>
+    <span><span class="badge cashflow">Cash Flow</span> calculado del cash flow, a confirmar</span>
+    <span><span class="badge fijo">Activo Fijo</span> tomado de tu planilla, a confirmar</span>
+    <span><span class="badge panel">Panel (auto)</span> en vivo desde Supabase</span>
+    <span><span class="badge convertido">Convertido TC</span> USD × Tipo de Cambio</span>
+    <span><span class="badge usd">USD sin convertir</span> falta cotización de ese mes</span>
+    <span><span class="badge historico">Histórico (Excel)</span> cargado de tu Situación Patrimonial anterior</span>
+    <span><span class="badge pendiente">En definición</span> falta definir la fuente</span>
+    <span>🔒 = mes congelado (no editable) · 🔓 = click para congelar</span>
+  </div>
+  <div id="calloutBox" class="no-print"></div>
+  <div class="tablewrap" id="tableWrapEl"><table class="grid" id="gridTable"></table></div>
+</div>
+<div class="print-title" id="printTitle"></div>
+<div class="footer-note no-print" id="footerNote">—</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+/* ============ CONFIG ============ */
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const YEARS = [2024,2025,2026];
+const ENTITIES = [
+  {id:'spl', label:'SPL'},
+  {id:'spotsline', label:'Spotsline'},
+  {id:'conjunto', label:'Conjunto'}
+];
+
+// tag: manual | archivo | pendiente  (pendiente = fuente todavía en definición, "mundo deuda")
+const ACTIVO_CTE = [
+  {id:'caja_bancos', label:'Caja y Bancos', tag:'archivo', note:'Cash Flow · hoja Caja y Bancos'},
+  {id:'valores_cartera', label:'Valores en cartera', tag:'archivo', note:'Cash Flow · hoja Caja y Bancos'},
+  {id:'deudores_venta', label:'Deudores por venta', tag:'panel', note:'Panel de Cobranzas (Supabase, en vivo)'},
+  {id:'producto_terminado', label:'Producto terminado', tag:'archivo'},
+  {id:'materia_prima', label:'Materia prima', tag:'archivo'},
+  {id:'dolares_comex', label:'Dólares Comex', tag:'archivo', note:'En USD · convertido con Tipo de Cambio'},
+  {id:'moneda_extranjera', label:'Moneda Extranjera', tag:'archivo', note:'Cash Flow · hoja Caja y Bancos'}
+];
+const ACTIVO_NOCTE = [
+  {id:'inmuebles', label:'Inmuebles', tag:'manual', note:'valor fijo, se actualiza rara vez'},
+  {id:'maquinarias', label:'Maquinarias', tag:'manual', note:'valor fijo, se actualiza rara vez'},
+  {id:'rodados', label:'Rodados', tag:'manual', note:'valor fijo, se actualiza rara vez'}
+];
+const PASIVO_CTE = [
+  {id:'cheques_emitidos', label:'Cheques emitidos', tag:'archivo', note:'Cash Flow · hoja Ch Propios'},
+  {id:'oblig_impositivas', label:'Obligaciones Impositivas', tag:'archivo', note:'Cash Flow · hoja Deudas ARCA'},
+  {id:'proveedores_ext', label:'Proveedores Exterior', tag:'archivo', note:'Cash Flow · hoja DEUDA EXT (Saldo AR$)'},
+  {id:'proveedores_loc', label:'Proveedores Locales', tag:'panel', note:'Panel de Proveedores (Supabase, en vivo)'},
+  {id:'deudas_fiscales_cte', label:'Deudas fiscales AFIP', tag:'archivo', note:'Cash Flow · hoja Deudas ARCA'},
+  {id:'deudas_bancarias_cte', label:'Deudas bancarias', tag:'archivo', note:'Cash Flow · hoja Créditos Bancarios'},
+  {id:'sueldos', label:'Sueldos y Jornales', tag:'archivo', note:'Cash Flow · hoja Sueldos y CCSS'},
+  {id:'desvinculaciones_cte', label:'Desvinculaciones', tag:'archivo', note:'Cash Flow · hoja Desvinculaciones'},
+  {id:'otras_deudas_cte', label:'Otras deudas', tag:'archivo', note:'Cash Flow · hoja Planes de Pago'}
+];
+const PASIVO_NOCTE = [
+  {id:'demandas', label:'Demandas', tag:'pendiente'},
+  {id:'deudas_fiscales_nocte', label:'Deudas fiscales AFIP', tag:'archivo', note:'Cash Flow · hoja Deudas ARCA'},
+  {id:'deudas_bancarias_nocte', label:'Deudas bancarias', tag:'archivo', note:'Cash Flow · hoja Créditos Bancarios'},
+  {id:'otras_deudas_fiscales', label:'Otras deudas fiscales', tag:'pendiente'},
+  {id:'desvinculaciones_nocte', label:'Desvinculaciones', tag:'archivo', note:'Cash Flow · hoja Desvinculaciones'},
+  {id:'otras_deudas_nocte', label:'Otras deudas', tag:'archivo', note:'Cash Flow · hoja Planes de Pago'}
+];
+const ALL_FIELDS = [...ACTIVO_CTE, ...ACTIVO_NOCTE, ...PASIVO_CTE, ...PASIVO_NOCTE];
+const FILE_FIELDS = new Set(['producto_terminado','materia_prima']);
+const DRILL_FIELDS = new Set(['oblig_impositivas','deudas_fiscales_cte','deudas_fiscales_nocte','deudas_bancarias_cte','deudas_bancarias_nocte','sueldos','desvinculaciones_cte','desvinculaciones_nocte','otras_deudas_cte','otras_deudas_nocte','proveedores_ext']); // tienen detalle desplegable
+let lastMonthData = null; // referencia al último render, para abrir el detalle
+
+/* ============ SEED DATA (reconstruido desde tus archivos) ============ */
+// Inmuebles/Maquinarias/Rodados: valores corregidos y confirmados por vos, por empresa (2026).
+const SEED_FIXED = {
+  spotsline: { inmuebles:1092975117, maquinarias:1115841692, rodados:108746082 },
+  spl:       { inmuebles:0, maquinarias:1343838, rodados:0 }
+};
+// Caja y Bancos / Valores en cartera: calculados desde la hoja "Caja y Bancos" del Cash Flow (saldo
+// al último día de cada mes, arrastrando el último valor cargado en los días sin movimiento) -> a
+// confirmar el criterio de arrastre y el signo de Caja y Bancos, que dio negativo varios meses.
+// Moneda Extranjera sale de la misma hoja pero está en DÓLARES -> se guarda aparte (SEED_USD) y se
+// convierte a pesos con el Tipo de Cambio Oficial (BNA) de ese mes (ver SEED_DOLAR más abajo).
+const SEED_CASHFLOW = {
+  spotsline: {
+    5: {caja_bancos:-41107131.16, valores_cartera:38233451.00},
+    6: {caja_bancos:-52741334.54, valores_cartera:6147433.00},
+    7: {caja_bancos:-65018913.83, valores_cartera:5782996.75},
+    8: {caja_bancos:48543979.50,  valores_cartera:576143.66}
+  },
+  spl: {
+    5: {caja_bancos:-57443293.42, valores_cartera:7028138.00},
+    6: {caja_bancos:-46799384.34, valores_cartera:12075861.00},
+    7: {caja_bancos:-63353122.02, valores_cartera:402076.51},
+    8: {caja_bancos:-47697484.87, valores_cartera:750076.70}
+  }
+};
+const SEED_USD = { // Moneda Extranjera, en dólares, tal como está en la hoja Caja y Bancos
+  spotsline: { 5:37522.87, 6:31454.16, 7:75998.81, 8:65952.43 },
+  spl:       { 5:6900.00,  6:6900.00,  7:6900.00,  8:6900.00  }
+};
+// Dólares Comex: en USD, confirmado a mano (foto de set-2026).
+const SEED_USD_COMEX = { spotsline: { 8:106070 }, spl: { 8:94775 } };
+// Campos que están en dólares y se convierten a pesos con el Tipo de Cambio Oficial (BNA) del mes.
+// (Proveedores Exterior salió de acá: ahora viene ya en pesos desde la hoja "DEUDA EXT" del Cash Flow.)
+const USD_FIELDS = { moneda_extranjera: SEED_USD, dolares_comex: SEED_USD_COMEX };
+// Tipo de Cambio Oficial (BNA), fin de cada mes -> de tu hoja "COT. DOLAR". No hay dato cargado ahí
+// para 2026 (se corta en nov-2025) ni para dos fechas intermedias de 2024 que eran ambiguas -> esos
+// meses quedan sin cotización de referencia hasta que los cargues a mano o traigas la de hoy.
+const SEED_DOLAR = {
+  2024: {0:875.65, 1:888.70, 2:901.63, 3:920.57, 4:934.94, 6:930.75, 8:1004.94, 9:1015, 10:1031, 11:1052.5},
+  2025: {0:1079.63, 1:1094.20, 2:1103.73, 3:1194.45, 4:1209.35, 5:1217.87, 6:1217.87, 7:1217.87, 8:1400, 9:1370, 10:1425},
+  2026: {5:1475, 6:1487.35, 7:1507.05}
+};
+// Producto Terminado / Materia Prima: cruzado de los reportes de stock por empresa que subiste (set. 2026).
+// SPL es distribuidora (compra y revende) -> no tiene línea de Materia Prima, todo el stock entra como
+// Producto Terminado (incluye Componente/Insumo SPL, Accesorios SPL, y el stock de cinta/sunchos).
+// Spotsline fabrica -> Materia Prima = Materia prima + Componente/Insumo + Parte/Pieza.
+const SEED_STOCK = {
+  spotsline: { 8: {producto_terminado:40172875.10, materia_prima:116694833.05} },
+  spl:       { 8: {producto_terminado:316228103.85} }
+};
+// Histórico 2024/2025: extraído de tu Situación Patrimonial existente (Excel mes a mes), por empresa.
+// Cordobés se descartó (dijiste que no se usa). Dólares Comex y Moneda Extranjera ya vienen en pesos
+// (convertidos históricamente con dólar oficial/blue respectivamente), no se re-convierten con el TC.
+const SEED_HISTORICAL = {"2024":{"spotsline":{"0":{"caja_bancos":8064133.57,"valores_cartera":27594825.76,"deudores_venta":305538942.95,"producto_terminado":236551423,"materia_prima":170000000,"dolares_comex":103590270.65,"moneda_extranjera":94283862.45,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":34325754.59,"proveedores_ext":217275034.5,"proveedores_loc":119278606,"deudas_fiscales_cte":269671080.11,"deudas_bancarias_cte":681090450.5,"otras_deudas_cte":19655679.87,"deudas_fiscales_nocte":85231063,"deudas_bancarias_nocte":545945161,"otras_deudas_fiscales":4007002},"1":{"caja_bancos":12588637.19,"valores_cartera":81825544.62,"deudores_venta":264857523.97,"producto_terminado":379597209.64,"materia_prima":169259080.56,"dolares_comex":121399086.1,"moneda_extranjera":93400592.6,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":34325754.59,"proveedores_ext":184965131,"proveedores_loc":161844156,"deudas_fiscales_cte":261966067,"deudas_bancarias_cte":668530314,"otras_deudas_cte":16083259,"deudas_fiscales_nocte":71546231,"deudas_bancarias_nocte":501862731,"otras_deudas_fiscales":3287175},"2":{"caja_bancos":22695554.79,"valores_cartera":36844033,"deudores_venta":174086028.56,"producto_terminado":490298925.59,"materia_prima":115638939.94,"dolares_comex":123165362.89,"moneda_extranjera":95030900.37,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":34325754.59,"proveedores_ext":235824933.02,"proveedores_loc":138158101.38,"deudas_fiscales_cte":245966913,"deudas_bancarias_cte":635934720,"otras_deudas_cte":12496341,"deudas_fiscales_nocte":63743057,"deudas_bancarias_nocte":459379434,"otras_deudas_fiscales":2562878},"3":{"caja_bancos":8552844.82,"valores_cartera":21172099,"deudores_venta":188321739.54,"producto_terminado":547903138.99,"materia_prima":97970098,"dolares_comex":125752623.71,"moneda_extranjera":100496785.76,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":34325754.59,"proveedores_ext":222367365.78,"proveedores_loc":144645255.26,"deudas_fiscales_cte":233864879,"deudas_bancarias_cte":639202035,"otras_deudas_cte":11732211,"deudas_fiscales_nocte":60260114,"deudas_bancarias_nocte":420307169,"otras_deudas_fiscales":1838642},"4":{"caja_bancos":-3378159,"valores_cartera":28112545,"deudores_venta":174064922,"producto_terminado":379544360,"materia_prima":92798862.2,"dolares_comex":127715608.82,"moneda_extranjera":134073200.82,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":34325754.59,"proveedores_ext":255878118.96,"proveedores_loc":128017309,"deudas_fiscales_cte":216149025,"deudas_bancarias_cte":630588382,"otras_deudas_cte":11095612,"deudas_fiscales_nocte":56777380,"deudas_bancarias_nocte":388049640,"otras_deudas_fiscales":1114376},"5":{"caja_bancos":786852.25,"valores_cartera":42943833,"deudores_venta":217048272.89,"producto_terminado":278383123,"materia_prima":109660890,"dolares_comex":127382297.5,"moneda_extranjera":112168560,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":34325754.59,"proveedores_ext":310099145,"proveedores_loc":117965589,"deudas_fiscales_cte":193429420,"deudas_bancarias_cte":610421623,"otras_deudas_cte":10395257,"deudas_fiscales_nocte":55791382.5,"deudas_bancarias_nocte":360900869,"otras_deudas_fiscales":390109.83},"6":{"caja_bancos":101729388.53,"valores_cartera":43544882,"deudores_venta":217048272.89,"producto_terminado":219720763.91,"materia_prima":164293164.12,"dolares_comex":139871341.58,"moneda_extranjera":156015600,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":38817004.7,"proveedores_ext":266194500,"proveedores_loc":121894602.17,"deudas_fiscales_cte":168004490,"deudas_bancarias_cte":598865960,"otras_deudas_cte":9051817,"demandas":57244763.24,"deudas_fiscales_nocte":54805596,"deudas_bancarias_nocte":334764783,"otras_deudas_fiscales":290729},"7":{"caja_bancos":-6571021.03,"valores_cartera":55121705.55,"deudores_venta":212406136.22,"producto_terminado":163243557.07,"materia_prima":177928753,"dolares_comex":135430946.26,"moneda_extranjera":166591080,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":32923979.46,"proveedores_ext":242395051.78,"proveedores_loc":144015276.93,"deudas_fiscales_cte":111462955.83,"deudas_bancarias_cte":851719118.81,"otras_deudas_cte":8136801,"demandas":57244763.24,"deudas_fiscales_nocte":3516225.17,"deudas_bancarias_nocte":702902502.22,"otras_deudas_fiscales":242274},"8":{"caja_bancos":1691319.04,"valores_cartera":48846760.19,"deudores_venta":309907932.38,"producto_terminado":165816846.7,"materia_prima":153916466,"dolares_comex":137277818.82,"moneda_extranjera":141760710,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":69497452.88,"proveedores_ext":263313775.84,"proveedores_loc":171427029.16,"deudas_fiscales_cte":144481000,"deudas_bancarias_cte":678621607,"otras_deudas_cte":7225771,"demandas":57244763.24,"deudas_fiscales_nocte":52834657,"deudas_bancarias_nocte":349859475,"otras_deudas_fiscales":193820},"9":{"caja_bancos":137499,"valores_cartera":116636390.82,"deudores_venta":275429870.99,"producto_terminado":145871762.26,"materia_prima":152623302,"dolares_comex":0,"moneda_extranjera":0,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":48699056.67,"proveedores_ext":0,"proveedores_loc":209786041.72,"deudas_fiscales_cte":47255534.12,"deudas_bancarias_cte":816997697.97,"otras_deudas_cte":9226379.38,"demandas":57244763.24,"deudas_fiscales_nocte":2829989.62,"deudas_bancarias_nocte":604128574.68,"otras_deudas_fiscales":145364},"10":{"caja_bancos":9840393.89,"valores_cartera":54865226.85,"deudores_venta":395657949.91,"producto_terminado":119771573,"materia_prima":195901051,"dolares_comex":107661050,"moneda_extranjera":133000000,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":81992836.89,"proveedores_ext":105094366.4,"proveedores_loc":173619878.39,"deudas_fiscales_cte":39386133.45,"deudas_bancarias_cte":840919894.3,"otras_deudas_cte":1151166.01,"demandas":57244763.24,"deudas_fiscales_nocte":7192921.02,"deudas_bancarias_nocte":595793686.21,"otras_deudas_fiscales":96909.78},"11":{"caja_bancos":10121744.13,"valores_cartera":50094523.35,"deudores_venta":404897041.35,"producto_terminado":213935148.99,"materia_prima":165786902.84,"dolares_comex":111638675,"moneda_extranjera":142683880,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":221365541.09,"proveedores_ext":107285535,"proveedores_loc":204726802.91,"deudas_fiscales_cte":37889638.52,"deudas_bancarias_cte":886114954.06,"otras_deudas_cte":846889.53,"demandas":57244763.24,"deudas_fiscales_nocte":1849504.74,"deudas_bancarias_nocte":553614610.78,"otras_deudas_fiscales":48454.89}},"spl":{"0":{"caja_bancos":1360500,"valores_cartera":26180000,"deudores_venta":122846545,"producto_terminado":429312996,"materia_prima":0,"moneda_extranjera":19495100,"inmuebles":0,"maquinarias":0,"rodados":0,"oblig_impositivas":2668890.78,"proveedores_ext":0,"proveedores_loc":54448000,"deudas_fiscales_cte":31310537.28,"deudas_bancarias_cte":0,"otras_deudas_cte":0,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"1":{"caja_bancos":5662000,"valores_cartera":27800,"deudores_venta":93311557,"producto_terminado":511829012,"materia_prima":0,"dolares_comex":17384549,"moneda_extranjera":15791790,"inmuebles":0,"maquinarias":0,"rodados":0,"proveedores_loc":51060730,"deudas_fiscales_cte":28857226.81,"deudas_bancarias_cte":0,"otras_deudas_cte":0,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"2":{"caja_bancos":10580000,"valores_cartera":26813000,"deudores_venta":166813570,"producto_terminado":464716871,"dolares_comex":17384549,"moneda_extranjera":15791790,"inmuebles":0,"maquinarias":0,"rodados":0,"proveedores_loc":83281820},"3":{"caja_bancos":16590000,"valores_cartera":56550000,"deudores_venta":200466304,"producto_terminado":715599561,"dolares_comex":29018850,"moneda_extranjera":1936000,"inmuebles":0,"maquinarias":0,"rodados":0,"proveedores_ext":246840083,"proveedores_loc":54034314,"deudas_fiscales_cte":32257588.44,"deudas_fiscales_nocte":48001732.13},"4":{"caja_bancos":70195000,"valores_cartera":38795000,"deudores_venta":193238461,"producto_terminado":680223990,"dolares_comex":34593900,"moneda_extranjera":4166400,"inmuebles":0,"maquinarias":0,"rodados":0,"proveedores_ext":250731158.2,"proveedores_loc":46669056,"deudas_fiscales_cte":26604888.86,"deudas_fiscales_nocte":47242762.55},"5":{"caja_bancos":53737000,"valores_cartera":62310000,"deudores_venta":127995037,"producto_terminado":661917857,"dolares_comex":34879800,"moneda_extranjera":17836400,"inmuebles":0,"maquinarias":0,"rodados":0,"proveedores_ext":324907360.45,"proveedores_loc":54139668,"deudas_fiscales_nocte":782732.63},"6":{},"7":{},"8":{},"9":{},"10":{},"11":{}}},"2025":{"spotsline":{"0":{"caja_bancos":31153984,"valores_cartera":38440989,"deudores_venta":288706222,"producto_terminado":217838784,"materia_prima":159332335,"dolares_comex":114516354.1,"moneda_extranjera":141927480,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":231356743.64,"proveedores_ext":110051436.27,"proveedores_loc":153687821.37,"deudas_fiscales_cte":233295242.24,"deudas_bancarias_cte":770065215.74,"otras_deudas_cte":12033414.58,"demandas":57244763.24,"deudas_fiscales_nocte":66471710.25,"deudas_bancarias_nocte":607113287.56,"otras_deudas_fiscales":0,"otras_deudas_nocte":13534130},"1":{"caja_bancos":-6160011.32,"valores_cartera":41557914.53,"deudores_venta":278358815.99,"producto_terminado":463784095.29,"materia_prima":160196859.83,"dolares_comex":116061794,"moneda_extranjera":133990500,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":186039946.04,"proveedores_ext":111536620.48,"proveedores_loc":194418970,"deudas_fiscales_cte":230791243.2,"deudas_bancarias_cte":723991770.37,"otras_deudas_cte":13026046.59,"demandas":57244763.24,"deudas_fiscales_nocte":63812841.72,"deudas_bancarias_nocte":571626885.94,"otras_deudas_fiscales":0,"otras_deudas_nocte":12493043},"2":{"caja_bancos":-6174691.24,"valores_cartera":90420370.08,"deudores_venta":255652411.06,"producto_terminado":420929050.3,"materia_prima":129832134.42,"dolares_comex":137891000,"moneda_extranjera":118534000,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":90584333.62,"proveedores_ext":167747534.35,"proveedores_loc":208290457.19,"deudas_fiscales_cte":225627875.97,"deudas_bancarias_cte":679690736.08,"otras_deudas_cte":12977591.7,"demandas":57244763.24,"deudas_fiscales_nocte":61153973.19,"deudas_bancarias_nocte":538035362.97,"otras_deudas_fiscales":0,"otras_deudas_nocte":11451955.9},"3":{"caja_bancos":-6524740.37,"valores_cartera":63260789.27,"deudores_venta":247055587.38,"producto_terminado":342432033.15,"materia_prima":151709302,"dolares_comex":139482050,"moneda_extranjera":122794700,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":98410192.53,"proveedores_ext":161229727.68,"proveedores_loc":157024162.28,"deudas_fiscales_cte":233842631.83,"deudas_bancarias_cte":635713847.43,"otras_deudas_cte":13738824.15,"demandas":57244763.24,"deudas_fiscales_nocte":58495104.66,"deudas_bancarias_nocte":504210941.87,"otras_deudas_fiscales":0,"otras_deudas_nocte":10410869},"4":{"caja_bancos":-10908501.11,"valores_cartera":17445520.99,"deudores_venta":283093627.43,"producto_terminado":279794073.86,"materia_prima":156099562,"dolares_comex":124101900,"moneda_extranjera":109254600,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":94111416.52,"proveedores_ext":163240965.44,"proveedores_loc":137865366.02,"deudas_fiscales_cte":264129457.77,"deudas_bancarias_cte":592198363.2,"otras_deudas_cte":15352055.94,"deudas_fiscales_nocte":55836236.13,"deudas_bancarias_nocte":471372720.08,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"5":{"caja_bancos":27692611.6,"valores_cartera":30502580.54,"deudores_venta":264827681.77,"producto_terminado":266849414,"materia_prima":170018881,"dolares_comex":108244285.6,"moneda_extranjera":128875050,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":99054880.35,"proveedores_ext":164391015.49,"proveedores_loc":186619237.07,"deudas_fiscales_cte":272678316.58,"deudas_bancarias_cte":499231920.68,"otras_deudas_cte":15188674.23,"deudas_fiscales_nocte":53177367.6,"deudas_bancarias_nocte":438654169.44,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"6":{"caja_bancos":-37453219.29,"valores_cartera":17117027.05,"deudores_venta":288501146.61,"producto_terminado":197729484.34,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":128661329.55,"deudas_fiscales_cte":302084906.46,"deudas_bancarias_cte":568280893.99,"otras_deudas_cte":79566434.12,"deudas_fiscales_nocte":50518499.07,"deudas_bancarias_nocte":407568602.87},"7":{},"8":{},"9":{"caja_bancos":-37653951.61,"valores_cartera":19067058.92,"deudores_venta":306989061.78,"producto_terminado":198953285.63,"materia_prima":139750352.72,"dolares_comex":148498000,"moneda_extranjera":20643000,"inmuebles":596950916,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":146814804.09,"proveedores_ext":184925888,"proveedores_loc":205011165.8,"deudas_fiscales_cte":382511837.68,"deudas_bancarias_cte":457193555.44,"otras_deudas_cte":77043061.39,"deudas_fiscales_nocte":74448315.84,"deudas_bancarias_nocte":317558275.07,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"10":{"caja_bancos":-43874749.51,"valores_cartera":823666.35,"deudores_venta":355283131.45,"producto_terminado":180019323,"materia_prima":208127369,"dolares_comex":151149750,"moneda_extranjera":265500000,"inmuebles":593786652,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":142456781,"proveedores_ext":73564485,"proveedores_loc":247115933.01,"deudas_fiscales_cte":400834982.6,"deudas_bancarias_cte":425373920.52,"otras_deudas_cte":69858734.38,"deudas_fiscales_nocte":144108320.55,"deudas_bancarias_nocte":288952961.31,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"11":{"caja_bancos":510800,"valores_cartera":3143800.12,"deudores_venta":370035945.44,"producto_terminado":171277798.95,"materia_prima":200123364.48,"inmuebles":593786652,"maquinarias":261604476,"rodados":145314000,"oblig_impositivas":147652996.93,"proveedores_loc":251539276.14,"deudas_fiscales_cte":378184379.5,"deudas_bancarias_cte":417809689.36,"otras_deudas_cte":60143448.57,"deudas_fiscales_nocte":270099711.86,"deudas_bancarias_nocte":326342861.53,"otras_deudas_fiscales":0,"otras_deudas_nocte":2082173.8}},"spl":{"0":{"caja_bancos":39500000,"valores_cartera":40300000,"deudas_fiscales_cte":16210947.68,"deudas_bancarias_cte":837044.73,"otras_deudas_cte":0,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"1":{"caja_bancos":22990000,"valores_cartera":26260000,"deudas_fiscales_cte":12503778.49,"deudas_bancarias_cte":834590.19,"otras_deudas_cte":0,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"2":{"deudas_fiscales_cte":8991453.45,"deudas_bancarias_cte":779442.75,"otras_deudas_cte":0,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"3":{"deudas_fiscales_cte":5479128.41,"deudas_bancarias_cte":829066.84,"otras_deudas_cte":0,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"4":{"caja_bancos":-5349037,"valores_cartera":58374000,"deudores_venta":161973335,"producto_terminado":486532621,"materia_prima":0,"dolares_comex":21098610,"moneda_extranjera":20475000,"inmuebles":0,"maquinarias":0,"rodados":0,"proveedores_ext":410025280,"proveedores_loc":80981770,"deudas_fiscales_cte":4696395.78,"deudas_bancarias_cte":827533.65,"otras_deudas_cte":0,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"5":{"caja_bancos":-3366773,"valores_cartera":36571000,"deudores_venta":129684419,"producto_terminado":467819862,"dolares_comex":22760595,"moneda_extranjera":21262500,"proveedores_ext":412914816.71,"proveedores_loc":89705253.14,"deudas_fiscales_cte":766358.11,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"6":{"caja_bancos":0,"valores_cartera":0,"deudores_venta":0,"producto_terminado":0,"materia_prima":0,"dolares_comex":0,"moneda_extranjera":0,"proveedores_ext":0,"proveedores_loc":0,"deudas_fiscales_cte":0,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"7":{"caja_bancos":0,"valores_cartera":0,"deudores_venta":0,"producto_terminado":0,"materia_prima":0,"dolares_comex":0,"moneda_extranjera":0,"proveedores_ext":0,"proveedores_loc":0,"deudas_fiscales_cte":0,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"8":{"caja_bancos":0,"valores_cartera":0,"deudores_venta":0,"producto_terminado":0,"materia_prima":0,"dolares_comex":0,"moneda_extranjera":0,"proveedores_ext":0,"proveedores_loc":0,"deudas_fiscales_cte":0,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"9":{"caja_bancos":0,"valores_cartera":0,"deudores_venta":0,"producto_terminado":0,"materia_prima":0,"dolares_comex":0,"moneda_extranjera":0,"oblig_impositivas":10770646.82,"proveedores_ext":0,"proveedores_loc":0,"deudas_fiscales_cte":2208639.9,"deudas_bancarias_cte":2347420.28,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"10":{"caja_bancos":-10941196,"valores_cartera":26184588,"deudores_venta":238095330,"producto_terminado":398415200,"materia_prima":100086863,"dolares_comex":135054375,"moneda_extranjera":2850000,"inmuebles":0,"maquinarias":0,"rodados":0,"oblig_impositivas":8078000.68,"proveedores_ext":495959900,"proveedores_loc":77128627,"deudas_fiscales_cte":3500900,"deudas_bancarias_cte":0,"otras_deudas_cte":0,"deudas_fiscales_nocte":0,"deudas_bancarias_nocte":0,"otras_deudas_fiscales":0,"otras_deudas_nocte":0},"11":{"inmuebles":0,"maquinarias":0,"rodados":0}}},"2026":{"spotsline":{"7":{"caja_bancos":-59731072,"valores_cartera":21595664.03,"deudores_venta":244322134,"producto_terminado":330942933,"moneda_extranjera":115516960,"inmuebles":837513599,"maquinarias":502073371,"rodados":55767257,"cheques_emitidos":290238712,"proveedores_loc":205622826,"deudas_fiscales_cte":573946472,"deudas_bancarias_cte":580303684,"sueldos":100286584,"desvinculaciones_cte":156060248,"otras_deudas_cte":7231929,"deudas_fiscales_nocte":373039018,"deudas_bancarias_nocte":264722772,"desvinculaciones_nocte":66498000}},"spl":{"7":{"caja_bancos":-52754675,"valores_cartera":4592547.46,"deudores_venta":80215337,"moneda_extranjera":2888000,"inmuebles":0,"maquinarias":1075071,"rodados":0,"proveedores_ext":380000000,"proveedores_loc":44077715,"deudas_fiscales_cte":32668799,"deudas_bancarias_cte":130000000,"sueldos":13826301,"desvinculaciones_cte":0,"deudas_bancarias_nocte":60000000}}}};
+function getSeedDolar(year, month){
+  return SEED_DOLAR[year] ? SEED_DOLAR[year][month] : undefined;
+}
+function getSeedHistorical(entity, year, month, fieldId){
+  const y = SEED_HISTORICAL[year];
+  const e = y && y[entity];
+  const m = e && e[month];
+  return m ? m[fieldId] : undefined;
+}
+function getSeed(entity, year, month, fieldId){
+  if(fieldId==='tipo_cambio') return getSeedDolar(year, month);
+  if(entity==='conjunto') return undefined;
+  if(year===2026){
+    if(['inmuebles','maquinarias','rodados'].includes(fieldId)) return SEED_FIXED[entity] ? SEED_FIXED[entity][fieldId] : undefined;
+    if(['caja_bancos','valores_cartera'].includes(fieldId)){
+      const m = SEED_CASHFLOW[entity] && SEED_CASHFLOW[entity][month];
+      if(m && m[fieldId]!==undefined) return m[fieldId];
+    }
+    if(['producto_terminado','materia_prima'].includes(fieldId)){
+      const m = SEED_STOCK[entity] && SEED_STOCK[entity][month];
+      if(m && m[fieldId]!==undefined) return m[fieldId];
+    }
+  }
+  const h = getSeedHistorical(entity, year, month, fieldId);
+  if(h!==undefined) return h;
+  return undefined;
+}
+function getSeedUsd(entity, month){
+  return SEED_USD[entity] ? SEED_USD[entity][month] : undefined;
+}
+function getSeedUsdFor(fieldId, entity, month){
+  const t = USD_FIELDS[fieldId];
+  return (t && t[entity]) ? t[entity][month] : undefined;
+}
+function seedBadgeFor(fieldId, year){
+  if(year && year!==2026) return 'historico';
+  if(['inmuebles','maquinarias','rodados'].includes(fieldId)) return 'fijo';
+  if(['caja_bancos','valores_cartera'].includes(fieldId)) return 'cashflow';
+  if(['producto_terminado','materia_prima'].includes(fieldId)) return 'archivo';
+  return 'manual';
+}
+
+/* ============ STATE ============ */
+let state = { entity:'spl', year:2026 };
+let commentsExpanded = false;
+let cache = {}; // key -> {values:{}, meta:{}}
+
+function periodKey(entity, year, month){ return `sitpat:${entity}:${year}:${month}`; }
+
+/* ============ ALMACENAMIENTO: Supabase compartido (todo el equipo ve lo mismo,
+   y además alimenta el resumen que lee el Panel General) ============ */
+const SUPABASE_URL = 'https://ozbynorwhkmevjmftpmy.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_sBhFezk4bg0OPbSGG59jwA_bt1I1kpp';
+const SUPABASE_TABLE = 'patrimonial';
+const SUPABASE_ROW_ID = 'datos_v1';
+
+let remoteCache = {}; // key -> valor JSON (string), igual a lo que guardaba localStorage
+let remoteLoaded = false;
+let remoteLoadPromise = null;
+async function ensureRemoteLoaded(){
+  if(remoteLoaded) return;
+  if(!remoteLoadPromise){
+    remoteLoadPromise = (async ()=>{
+      try{
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?id=eq.${SUPABASE_ROW_ID}&select=valor`, {
+          headers:{ 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+SUPABASE_KEY }
+        });
+        if(res.ok){
+          const rows = await res.json();
+          const v = rows && rows[0] ? rows[0].valor : null;
+          if(v && v.datos) remoteCache = v.datos;
+        }
+      }catch(e){ console.error('Error cargando datos patrimoniales compartidos:', e); }
+      remoteLoaded = true;
+    })();
+  }
+  return remoteLoadPromise;
+}
+
+async function computeResumenActual(){
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const spl = computeTotals((await effectiveMonthData('spl', year, month)).values);
+  const spotsline = computeTotals((await effectiveMonthData('spotsline', year, month)).values);
+  const todas = computeTotals((await effectiveMonthDataConjunto(year, month)).values);
+  return { anio:year, mes:month, spl, spotsline, todas };
+}
+
+let syncTimer = null;
+function scheduleSyncSupabase(){
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncSupabaseNow, 800);
+}
+async function syncSupabaseNow(){
+  const statusEl = document.getElementById('sync-status');
+  if(statusEl) statusEl.textContent = '⏳ Sincronizando…';
+  try{
+    const resumen = await computeResumenActual();
+    const payload = { resumen, datos: remoteCache };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?on_conflict=id`, {
+      method:'POST',
+      headers:{
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer '+SUPABASE_KEY,
+        'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify({ id: SUPABASE_ROW_ID, valor: payload, updated_at: new Date().toISOString() })
+    });
+    if(!res.ok){
+      const bodyText = await res.text().catch(()=> '');
+      throw new Error('HTTP '+res.status+' — '+bodyText);
+    }
+    if(statusEl) statusEl.textContent = '✓ Sincronizado con el equipo';
+  }catch(e){
+    console.error('Error sincronizando con Supabase:', e);
+    if(statusEl) statusEl.textContent = '⚠ No se pudo sincronizar';
+  }
+}
+
+const Store = {
+  async get(key){
+    await ensureRemoteLoaded();
+    return remoteCache[key]!==undefined ? {value: remoteCache[key]} : null;
+  },
+  async set(key, value){
+    await ensureRemoteLoaded();
+    remoteCache[key] = value;
+    scheduleSyncSupabase();
+    return true;
+  },
+  async list(prefix){
+    await ensureRemoteLoaded();
+    return { keys: Object.keys(remoteCache).filter(k=>k.startsWith(prefix)) };
+  }
+};
+
+async function loadPeriod(entity, year, month){
+  const k = periodKey(entity, year, month);
+  if(cache[k]) return cache[k];
+  try{
+    const r = await Store.get(k);
+    cache[k] = r ? JSON.parse(r.value) : {values:{}, meta:{}, frozen:false};
+  }catch(e){
+    cache[k] = {values:{}, meta:{}, frozen:false};
+  }
+  if(cache[k].frozen === undefined) cache[k].frozen = false;
+  if(cache[k].comentario === undefined) cache[k].comentario = '';
+  return cache[k];
+}
+
+async function savePeriod(entity, year, month, data){
+  const k = periodKey(entity, year, month);
+  cache[k] = data;
+  try{ await Store.set(k, JSON.stringify(data)); }
+  catch(e){ console.error('No se pudo guardar', e); }
+}
+
+function fmtMoney(n){
+  if(n===undefined || n===null || isNaN(n)) n=0;
+  const neg = n<0;
+  const s = '$'+Math.round(Math.abs(n)).toLocaleString('es-AR');
+  return neg ? '('+s+')' : s;
+}
+function fmtInput(n){
+  if(n===undefined || n===null || n==='' || isNaN(n)) return '';
+  return Math.round(Number(n)).toLocaleString('es-AR');
+}
+function parseInput(s){
+  if(s===undefined || s===null) return '';
+  s = String(s).trim();
+  if(s==='') return '';
+  const cleaned = s.replace(/\./g,'').replace(',', '.').replace(/[^0-9.-]/g,'');
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? '' : Math.round(n);
+}
+function fmtRatio(n){
+  if(!isFinite(n) || isNaN(n)) return '—';
+  return n.toFixed(2)+'x';
+}
+function sum(vals, ids){ return ids.reduce((a,id)=>a+(Number(vals[id])||0),0); }
+
+/* ============ RENDER: filters ============ */
+function renderEntityFilter(){
+  document.getElementById('entityFilter').innerHTML = ENTITIES.map(e=>
+    `<button class="entity-btn ${e.id===state.entity?'active':''}" data-e="${e.id}">${e.label}</button>`
+  ).join('');
+  document.querySelectorAll('.entity-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ state.entity = btn.dataset.e; renderAll(); });
+  });
+}
+function renderYearNav(){
+  document.getElementById('yearNav').innerHTML = `
+    <button id="prevYear" ${state.year<=YEARS[0]?'disabled':''}>‹</button>
+    <span class="year-lbl">${state.year}</span>
+    <button id="nextYear" ${state.year>=YEARS[YEARS.length-1]?'disabled':''}>›</button>`;
+  document.getElementById('prevYear').addEventListener('click', ()=>{ state.year--; renderAll(); });
+  document.getElementById('nextYear').addEventListener('click', ()=>{ state.year++; renderAll(); });
+}
+
+/* ============ DATA: effective values (stored, falling back to seed) per month ============ */
+async function effectiveMonthData(entity, year, month){
+  const stored = await loadPeriod(entity, year, month);
+  const values = {}, sources = {};
+  const usdFieldIds = Object.keys(USD_FIELDS);
+  ALL_FIELDS.forEach(f=>{
+    if(usdFieldIds.includes(f.id)) return; // se calculan aparte (USD x Tipo de Cambio)
+    const raw = stored.values[f.id];
+    if(raw !== undefined && raw !== '' && raw !== null){
+      values[f.id] = Number(raw);
+      sources[f.id] = (stored.meta[f.id] && stored.meta[f.id].source) ? stored.meta[f.id].source : (f.tag==='panel'?'panel':'manual');
+    } else {
+      const seed = getSeed(entity, year, month, f.id);
+      if(seed !== undefined){ values[f.id] = seed; sources[f.id] = seedBadgeFor(f.id, year); }
+      else { values[f.id] = 0; sources[f.id] = f.tag; }
+    }
+  });
+
+  // Tipo de Cambio Oficial (BNA): manual > referencia histórica > sin dato
+  const rawRate = stored.values.tipo_cambio;
+  if(rawRate !== undefined && rawRate !== '' && rawRate !== null){
+    values.tipo_cambio = Number(rawRate); sources.tipo_cambio = 'manual';
+  } else {
+    const seedRate = getSeedDolar(year, month);
+    if(seedRate !== undefined){ values.tipo_cambio = seedRate; sources.tipo_cambio = 'referencia'; }
+    else { values.tipo_cambio = 0; sources.tipo_cambio = 'pendiente'; }
+  }
+
+  // Campos en USD (Moneda Extranjera, Dólares Comex, Proveedores Exterior): si hay un monto en USD
+  // (de archivo/seed), SIEMPRE se calcula como USD x Tipo de Cambio (pisa cualquier valor manual viejo
+  // que haya quedado en esa celda). Solo se respeta un valor manual cuando no hay ningún dato en USD.
+  usdFieldIds.forEach(fid=>{
+    const override = stored.meta[fid] && stored.meta[fid].override;
+    const usdMeta = stored.meta[fid] && stored.meta[fid].usd;
+    const usd = (usdMeta !== undefined && usdMeta !== null) ? usdMeta : getSeedUsdFor(fid, entity, month);
+    if(!override && usd !== undefined){
+      if(values.tipo_cambio){ values[fid] = usd * values.tipo_cambio; sources[fid] = 'convertido'; }
+      else { values[fid] = usd; sources[fid] = 'usd'; }
+    } else {
+      const raw = stored.values[fid];
+      if(raw !== undefined && raw !== '' && raw !== null){
+        values[fid] = Number(raw); sources[fid] = 'manual';
+      } else {
+        const hist = getSeedHistorical(entity, year, month, fid);
+        if(hist !== undefined){ values[fid] = hist; sources[fid] = 'historico'; }
+        else { values[fid] = 0; sources[fid] = 'archivo'; }
+      }
+    }
+  });
+
+  return {values, sources, meta: stored.meta, frozen: !!stored.frozen, comentario: stored.comentario||''};
+}
+
+async function effectiveMonthDataConjunto(year, month){
+  const a = await effectiveMonthData('spl', year, month);
+  const b = await effectiveMonthData('spotsline', year, month);
+  const values = {};
+  ALL_FIELDS.forEach(f=>{ values[f.id] = (a.values[f.id]||0) + (b.values[f.id]||0); });
+  // El Tipo de Cambio es el mismo para las dos empresas: mostramos el que haya cargado (SPL o, si no, Spotsline).
+  values.tipo_cambio = a.values.tipo_cambio || b.values.tipo_cambio || 0;
+  const parts = [];
+  if(a.comentario) parts.push('SPL: '+a.comentario);
+  if(b.comentario) parts.push('Spotsline: '+b.comentario);
+  return {values, sources:{}, meta:{}, frozen:false, comentario: parts.join('\n')};
+}
+
+/* ============ RENDER: grid ============ */
+function tagBadge(tag){
+  const map = {manual:'Manual', archivo:'Archivo', pendiente:'En definición', cashflow:'Cash Flow', fijo:'Activo Fijo', panel:'Panel (auto)', usd:'USD sin convertir', convertido:'Convertido TC', referencia:'TC histórico', historico:'Histórico (Excel)'};
+  return `<span class="badge ${tag}">${map[tag]||tag}</span>`;
+}
+
+function computeTotals(values){
+  const totActCte = sum(values, ACTIVO_CTE.map(f=>f.id));
+  const totActNoCte = sum(values, ACTIVO_NOCTE.map(f=>f.id));
+  const totActivo = totActCte + totActNoCte;
+  const totPasCte = sum(values, PASIVO_CTE.map(f=>f.id));
+  const totPasNoCte = sum(values, PASIVO_NOCTE.map(f=>f.id));
+  const totPasivo = totPasCte + totPasNoCte;
+  const patrimonioNeto = totActivo - totPasivo;
+  const stock = (Number(values.producto_terminado)||0) + (Number(values.materia_prima)||0);
+  const liquidez = totPasCte ? totActCte/totPasCte : NaN;
+  const pruebaAcida = totPasCte ? (totActCte-stock)/totPasCte : NaN;
+  const endeudamiento = patrimonioNeto ? totPasivo/patrimonioNeto : NaN;
+  const solvencia = totPasivo ? totActivo/totPasivo : NaN;
+  const coberturaPasPatrimonio = totPasivo ? patrimonioNeto/totPasivo : NaN;
+  const pctPasCte = totPasivo ? totPasCte/totPasivo : NaN;
+  const pctPasNoCte = totPasivo ? totPasNoCte/totPasivo : NaN;
+  const capitalTrabajo = totActCte - totPasCte;
+  return {totActCte,totActNoCte,totActivo,totPasCte,totPasNoCte,totPasivo,patrimonioNeto,liquidez,pruebaAcida,endeudamiento,solvencia,coberturaPasPatrimonio,pctPasCte,pctPasNoCte,capitalTrabajo};
+}
+
+// Pares Corriente/No Corriente del mismo rubro, para detectar reclasificaciones (algo que "pasó" de uno al otro).
+const PAIR_GROUPS = [
+  {label:'Deudas fiscales AFIP', cte:'deudas_fiscales_cte', nocte:'deudas_fiscales_nocte'},
+  {label:'Deudas bancarias', cte:'deudas_bancarias_cte', nocte:'deudas_bancarias_nocte'},
+  {label:'Desvinculaciones', cte:'desvinculaciones_cte', nocte:'desvinculaciones_nocte'},
+  {label:'Otras deudas', cte:'otras_deudas_cte', nocte:'otras_deudas_nocte'}
+];
+const DIFF_NOISE_FLOOR = 10000; // por debajo de esto, no se considera un cambio relevante
+
+function computeDiffSummary(currValues, prevValues, currTotals, prevTotals){
+  const lines = [];
+  const pairFieldIds = new Set();
+  PAIR_GROUPS.forEach(g=>{ pairFieldIds.add(g.cte); pairFieldIds.add(g.nocte); });
+
+  // 1) Patrimonio Neto, si cambió de forma relevante — siempre primero, es el resumen de resumen.
+  if(currTotals && prevTotals){
+    const dPN = currTotals.patrimonioNeto - prevTotals.patrimonioNeto;
+    if(Math.abs(dPN) > DIFF_NOISE_FLOOR){
+      lines.push(`${dPN>0?'📈':'📉'} <b>Patrimonio Neto</b> ${dPN>0?'subió':'bajó'} ${fmtMoney(Math.abs(dPN))} respecto al mes anterior.`);
+    }
+  }
+
+  // 2) Rubros con Corriente/No Corriente: una sola línea por rubro que dice TOTAL (subió/bajó cuánto)
+  //    y, si además hubo un pase entre Corriente y No Corriente, lo agrega aparte bien explícito.
+  PAIR_GROUPS.forEach(g=>{
+    const prevCte = Number(prevValues[g.cte])||0, currCte = Number(currValues[g.cte])||0;
+    const prevNo = Number(prevValues[g.nocte])||0, currNo = Number(currValues[g.nocte])||0;
+    const prevTotal = prevCte+prevNo, currTotal = currCte+currNo;
+    const dTotal = currTotal - prevTotal;
+    const dCte = currCte - prevCte, dNo = currNo - prevNo;
+    const hayReclasif = Math.abs(dCte)>DIFF_NOISE_FLOOR && Math.abs(dNo)>DIFF_NOISE_FLOOR && Math.sign(dCte)!==Math.sign(dNo);
+
+    if(Math.abs(dTotal) <= DIFF_NOISE_FLOOR && !hayReclasif) return; // sin cambios relevantes en este rubro
+
+    let msg = `<b>${g.label}</b>: `;
+    if(prevTotal===0 && currTotal!==0){
+      msg += `se incorporó una deuda nueva de ${fmtMoney(currTotal)}`;
+    } else if(prevTotal!==0 && currTotal===0){
+      msg += `se saldó por completo (antes ${fmtMoney(prevTotal)})`;
+    } else if(Math.abs(dTotal) > DIFF_NOISE_FLOOR){
+      const pct = prevTotal ? ` (${Math.abs(dTotal/prevTotal*100).toFixed(0)}%)` : '';
+      msg += `la deuda total ${dTotal>0?'subió':'bajó'} ${fmtMoney(Math.abs(dTotal))}${pct} — de ${fmtMoney(prevTotal)} a ${fmtMoney(currTotal)}`;
+    } else {
+      msg += `el total se mantuvo en ${fmtMoney(currTotal)}`;
+    }
+    lines.push(`${dTotal>0?'📈':(dTotal<0?'📉':'➡️')} ${msg}.`);
+
+    if(hayReclasif){
+      const moved = Math.min(Math.abs(dCte), Math.abs(dNo));
+      lines.push(dCte>0
+        ? `&nbsp;&nbsp;🔁 De eso, ${fmtMoney(moved)} pasaron de <b>No Corriente a Corriente</b> (vence antes).`
+        : `&nbsp;&nbsp;🔁 De eso, ${fmtMoney(moved)} pasaron de <b>Corriente a No Corriente</b> (se extendió el plazo).`);
+    }
+  });
+
+  // 3) Resto de los rubros (sin Cte/No Cte), los cambios más grandes: altas, bajas, nuevas deudas, saldadas.
+  const deltas = [];
+  ALL_FIELDS.forEach(f=>{
+    if(pairFieldIds.has(f.id)) return; // esos ya se cubrieron arriba, agrupados por rubro
+    const prev = Number(prevValues[f.id])||0;
+    const curr = Number(currValues[f.id])||0;
+    const delta = curr - prev;
+    if(Math.abs(delta) < DIFF_NOISE_FLOOR) return;
+    deltas.push({f, prev, curr, delta});
+  });
+  deltas.sort((a,b)=> Math.abs(b.delta) - Math.abs(a.delta));
+  deltas.slice(0,8).forEach(d=>{
+    if(d.prev===0 && d.curr!==0){
+      lines.push(`🆕 Se incorporó <b>${d.f.label}</b>: ${fmtMoney(d.curr)}.`);
+    } else if(d.prev!==0 && d.curr===0){
+      lines.push(`✅ Se saldó/eliminó <b>${d.f.label}</b> (antes ${fmtMoney(d.prev)}).`);
+    } else {
+      const pct = d.prev ? ` (${Math.abs(d.delta/d.prev*100).toFixed(0)}%)` : '';
+      lines.push(`${d.delta>0?'📈':'📉'} <b>${d.f.label}</b> ${d.delta>0?'subió':'bajó'} ${fmtMoney(Math.abs(d.delta))}${pct}.`);
+    }
+  });
+
+  return lines;
+}
+
+function rubroLabelCell(f, readonly, sourceTag){
+  const showUpload = FILE_FIELDS.has(f.id) && !readonly;
+  return `<td class="rubro-cell">
+    <div class="rubro-lbl-row">
+      <div class="nm">
+        <span>${f.label}</span>
+        ${tagBadge(readonly?'':sourceTag)}
+      </div>
+      ${showUpload?`<button class="mini-upload" data-upload="${f.id}" title="Subir archivo"><i class="ti ti-upload"></i></button>`:''}
+    </div>
+  </td>`;
+}
+
+// Sólo mostramos los meses de los que hay datos por defecto: desde junio-2026 en adelante. Otros años, año completo.
+const MONTH_START = { 2026: 5 };
+function defaultVisibleMonths(year){
+  const startMonth = MONTH_START[year] !== undefined ? MONTH_START[year] : 0;
+  const arr = []; for(let m=startMonth; m<12; m++) arr.push(m); return arr;
+}
+
+async function renderGrid(monthsOverride){
+  const readonly = state.entity === 'conjunto';
+  const entLabel = ENTITIES.find(e=>e.id===state.entity).label;
+  const visibleMonths = monthsOverride || defaultVisibleMonths(state.year);
+
+  // load visible months for the year
+  const monthData = {};
+  for(const m of visibleMonths){
+    monthData[m] = readonly ? await effectiveMonthDataConjunto(state.year, m) : await effectiveMonthData(state.entity, state.year, m);
+  }
+  const totalsByMonth = {};
+  visibleMonths.forEach(m=> totalsByMonth[m] = computeTotals(monthData[m].values));
+  lastMonthData = monthData;
+  const firstM = visibleMonths[0];
+
+  // Resumen automático: compara cada mes contra el anterior (aunque no esté visible) y arma los cambios relevantes.
+  const summaryTexts = {};
+  for(const m of visibleMonths){
+    const prevKey = m===0 ? {year: state.year-1, month: 11} : {year: state.year, month: m-1};
+    let prevData;
+    if(prevKey.year===state.year && monthData[prevKey.month]){
+      prevData = monthData[prevKey.month];
+    } else {
+      prevData = readonly ? await effectiveMonthDataConjunto(prevKey.year, prevKey.month) : await effectiveMonthData(state.entity, prevKey.year, prevKey.month);
+    }
+    const prevTotals = computeTotals(prevData.values);
+    summaryTexts[m] = computeDiffSummary(monthData[m].values, prevData.values, totalsByMonth[m], prevTotals);
+  }
+
+  const headRow = `<tr><th class="rubro-hd">Rubro</th>${visibleMonths.map(m=>{
+    if(readonly) return `<th>${MESES[m].slice(0,3)}</th>`;
+    const frozen = monthData[m].frozen;
+    return `<th><div class="month-hd"><span>${MESES[m].slice(0,3)}</span><button class="freeze-btn ${frozen?'is-frozen':''}" data-freeze-month="${m}" title="${frozen?'Mes congelado — click para descongelar':'Congelar este mes'}">${frozen?'🔒':'🔓'}</button></div></th>`;
+  }).join('')}</tr>`;
+
+  function fieldRow(f){
+    const sourceTag = readonly ? '' : (monthData[firstM].sources[f.id] || f.tag); // badge shown once per row, basado en el primer mes visible
+    let cells = '';
+    for(const m of visibleMonths){
+      const v = monthData[m].values[f.id];
+      const src = monthData[m].sources ? monthData[m].sources[f.id] : '';
+      const seeded = (src==='cashflow'||src==='fijo'||src==='convertido'||src==='referencia'||src==='historico');
+      const warn = (src==='usd');
+      const frozen = !readonly && monthData[m].frozen;
+      const lockedCalc = (USD_FIELDS[f.id] && (src==='convertido'||src==='usd')); // se calcula solo, no se edita a mano
+      const drillItems = (DRILL_FIELDS.has(f.id) && monthData[m].meta && monthData[m].meta[f.id] && monthData[m].meta[f.id].items);
+      const drillBtn = drillItems ? `<button class="drill-btn" data-drill="${f.id}" data-month="${m}" title="Ver detalle">🔎</button>` : '';
+      const unlockBtn = (lockedCalc && !frozen) ? `<button class="unlock-btn" data-unlock="${f.id}" data-month="${m}" title="Editar manualmente (deja de calcularse con USD × TC)">✎</button>` : '';
+      const isOverride = (USD_FIELDS[f.id] && src==='manual' && !frozen);
+      const relockBtn = isOverride ? `<button class="unlock-btn" data-relock="${f.id}" data-month="${m}" title="Volver a calcular con USD × Tipo de Cambio">↺</button>` : '';
+      if(readonly || lockedCalc || frozen){
+        const color = warn ? 'var(--orange)' : (seeded ? 'var(--blue)' : '');
+        const title = lockedCalc?'Calculado: USD × Tipo de Cambio. Click en ✎ para editar a mano.':(frozen?'Mes congelado':'');
+        cells += `<td class="numcell ${frozen?'frozen-cell':''}">${drillBtn}${unlockBtn}<span style="${color?`color:${color}`:''}" title="${title}">${v?fmtMoney(v):'—'}</span></td>`;
+      } else {
+        cells += `<td class="numcell">${drillBtn}${relockBtn}<input class="val-input ${seeded?'seeded':''} ${warn?'warn':''}" type="text" inputmode="decimal" data-field="${f.id}" data-month="${m}" value="${fmtInput(v)}" placeholder="0" title="${warn?'Sin cotización para convertir a pesos':''}"></td>`;
+      }
+    }
+    return `<tr class="rubro-row">${rubroLabelCell(f, readonly, sourceTag)}${cells}</tr>`;
+  }
+
+  function labelCell(label, formula){
+    return formula
+      ? `<td class="rubro-cell"><span title="${formula}" style="border-bottom:1px dotted var(--text3);cursor:help">${label}</span></td>`
+      : `<td class="rubro-cell">${label}</td>`;
+  }
+  function totalRow(label, key, grand, formula){
+    const cells = visibleMonths.map(m=>`<td class="numcell ${(!readonly&&monthData[m].frozen)?'frozen-cell':''}">${fmtMoney(totalsByMonth[m][key])}</td>`).join('');
+    return `<tr class="total-row ${grand?'grand':''}">${labelCell(label, formula)}${cells}</tr>`;
+  }
+  function ratioRow(label, key, formula){
+    const cells = visibleMonths.map(m=>`<td class="numcell ${(!readonly&&monthData[m].frozen)?'frozen-cell':''}">${fmtRatio(totalsByMonth[m][key])}</td>`).join('');
+    return `<tr class="ratio-row">${labelCell(label, formula)}${cells}</tr>`;
+  }
+  function pctRow(label, key, formula){
+    const cells = visibleMonths.map(m=>{
+      const v = totalsByMonth[m][key];
+      const txt = isFinite(v) ? (v*100).toFixed(1)+'%' : '—';
+      return `<td class="numcell ${(!readonly&&monthData[m].frozen)?'frozen-cell':''}">${txt}</td>`;
+    }).join('');
+    return `<tr class="ratio-row">${labelCell(label, formula)}${cells}</tr>`;
+  }
+  function sectionHd(label){
+    return `<tr class="section-hd"><td colspan="${visibleMonths.length+1}">${label}</td></tr>`;
+  }
+
+  function rateRow(compact){
+    let cells = '';
+    for(const m of visibleMonths){
+      const v = monthData[m].values.tipo_cambio;
+      const src = monthData[m].sources.tipo_cambio;
+      const frozen = !readonly && monthData[m].frozen;
+      if(readonly || frozen){
+        cells += `<td class="numcell ${frozen?'frozen-cell':''}"><span title="${frozen?'Mes congelado':''}">${v?v.toLocaleString('es-AR'):'—'}</span></td>`;
+      } else {
+        cells += `<td class="numcell"><input class="val-input ${src==='referencia'?'seeded':''}" type="number" step="any" data-field="tipo_cambio" data-month="${m}" value="${v||''}" placeholder="0"></td>`;
+      }
+    }
+    const badge = readonly ? '' : tagBadge(monthData[firstM].sources.tipo_cambio || 'referencia');
+    const label = compact ? 'Tipo de Cambio (igual que en Activo)' : 'Tipo de Cambio Oficial (BNA)';
+    return `<tr class="rubro-row rate-row"><td class="rubro-cell"><div class="rubro-lbl-row"><div class="nm"><span>${label}</span>${badge}</div></div></td>${cells}</tr>`;
+  }
+
+  function commentsToggleRow(){
+    return `<tr class="rubro-row comments-toggle-row" id="commentsToggleRow" style="cursor:pointer"><td class="rubro-cell" colspan="${visibleMonths.length+1}"><div class="rubro-lbl-row"><div class="nm"><span style="font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--yellow)">${commentsExpanded?'▾':'▸'} Comentarios / Análisis del mes</span></div></div></td></tr>`;
+  }
+  function autoSummaryRow(){
+    if(!commentsExpanded) return '';
+    const cells = visibleMonths.map(m=>{
+      const lines = summaryTexts[m] || [];
+      const html = lines.length
+        ? `<ul style="margin:0;padding-left:16px">${lines.map(l=>`<li style="margin-bottom:4px">${l}</li>`).join('')}</ul>`
+        : `<span style="color:var(--text3)">Sin cambios relevantes vs. el mes anterior.</span>`;
+      return `<td class="comment-cell"><div class="comment-view">${html}</div></td>`;
+    }).join('');
+    return `<tr class="rubro-row comments-data-row"><td class="rubro-cell" style="vertical-align:top">Resumen automático <span style="color:var(--text3);font-weight:400">(vs. mes anterior)</span></td>${cells}</tr>`;
+  }
+  function commentsRow(){
+    if(!commentsExpanded) return '';
+    const cells = visibleMonths.map(m=>{
+      const val = monthData[m].comentario || '';
+      if(readonly){
+        return `<td class="comment-cell"><div class="comment-view">${val ? val.replace(/</g,'&lt;').replace(/\n/g,'<br>') : '—'}</div></td>`;
+      }
+      return `<td class="comment-cell"><textarea class="comment-input" data-month="${m}" rows="5" placeholder="Análisis de ${MESES[m]}…">${val.replace(/</g,'&lt;')}</textarea></td>`;
+    }).join('');
+    return `<tr class="rubro-row comments-data-row"><td class="rubro-cell" style="vertical-align:top">Notas</td>${cells}</tr>`;
+  }
+
+  const rows = [
+    sectionHd('Activo Corriente'),
+    ...ACTIVO_CTE.map(fieldRow),
+    rateRow(),
+    totalRow('Total Activo Corriente','totActCte'),
+    sectionHd('Activo No Corriente'),
+    ...ACTIVO_NOCTE.map(fieldRow),
+    totalRow('Total Activo No Corriente','totActNoCte'),
+    totalRow('Total Activo','totActivo',true),
+    sectionHd('Pasivo Corriente'),
+    ...PASIVO_CTE.map(fieldRow),
+    rateRow(true),
+    totalRow('Total Pasivo Corriente','totPasCte'),
+    sectionHd('Pasivo No Corriente'),
+    ...PASIVO_NOCTE.map(fieldRow),
+    totalRow('Total Pasivo No Corriente','totPasNoCte'),
+    totalRow('Total Pasivo','totPasivo',true),
+    totalRow('Patrimonio Neto','patrimonioNeto',true),
+    sectionHd('Ratios'),
+    ratioRow('Liquidez Corriente','liquidez', 'AC / PC'),
+    ratioRow('Prueba Ácida','pruebaAcida', '(AC − Bienes de Cambio) / PC'),
+    ratioRow('Endeudamiento','endeudamiento', 'Pasivo Total / Patrimonio Neto'),
+    ratioRow('Solvencia','solvencia', 'Activo Total / Pasivo Total'),
+    ratioRow('Cobertura del Pasivo con Patrimonio','coberturaPasPatrimonio', 'Patrimonio Neto / Pasivo Total'),
+    pctRow('% Pasivo Corriente s/ Pasivo Total','pctPasCte', 'PC / Pasivo Total'),
+    pctRow('% Pasivo No Corriente s/ Pasivo Total','pctPasNoCte', 'PNC / Pasivo Total'),
+    totalRow('Capital de Trabajo','capitalTrabajo', false, 'AC − PC'),
+    commentsToggleRow(),
+    autoSummaryRow(),
+    commentsRow()
+  ].join('');
+
+  document.getElementById('gridTable').innerHTML = `<thead>${headRow}</thead><tbody>${rows}</tbody>`;
+
+  document.getElementById('commentsToggleRow').addEventListener('click', ()=>{
+    commentsExpanded = !commentsExpanded;
+    renderGrid(monthsOverride);
+  });
+  if(!readonly){
+    document.querySelectorAll('textarea.comment-input').forEach(ta=>{
+      ta.addEventListener('click', e=> e.stopPropagation());
+      ta.addEventListener('change', async ()=>{
+        const m = Number(ta.dataset.month);
+        const d = await loadPeriod(state.entity, state.year, m);
+        d.comentario = ta.value;
+        await savePeriod(state.entity, state.year, m, d);
+      });
+    });
+  }
+
+  if(!readonly){
+    document.querySelectorAll('input[data-field]').forEach(inp=>{
+      inp.addEventListener('change', async ()=>{
+        const m = Number(inp.dataset.month);
+        const d = await loadPeriod(state.entity, state.year, m);
+        d.values[inp.dataset.field] = inp.type==='number' ? (inp.value===''?'':Number(inp.value)) : parseInput(inp.value);
+        await savePeriod(state.entity, state.year, m, d);
+        renderGrid();
+      });
+    });
+    document.querySelectorAll('button[data-upload]').forEach(btn=>{
+      btn.addEventListener('click', ()=> openUploadModal(btn.dataset.upload));
+    });
+    document.querySelectorAll('button[data-freeze-month]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const m = Number(btn.dataset.freezeMonth);
+        const d = await loadPeriod(state.entity, state.year, m);
+        d.frozen = !d.frozen;
+        await savePeriod(state.entity, state.year, m, d);
+        renderGrid();
+      });
+    });
+    document.querySelectorAll('button[data-unlock]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const fid = btn.dataset.unlock;
+        const m = Number(btn.dataset.month);
+        const d = await loadPeriod(state.entity, state.year, m);
+        d.meta[fid] = d.meta[fid] || {};
+        d.meta[fid].override = true;
+        // arranca la edición manual desde el valor calculado que se estaba mostrando, para no perder el número
+        if(d.values[fid] === undefined || d.values[fid] === ''){
+          const current = (lastMonthData && lastMonthData[m]) ? lastMonthData[m].values[fid] : undefined;
+          if(current !== undefined) d.values[fid] = current;
+        }
+        await savePeriod(state.entity, state.year, m, d);
+        renderGrid();
+      });
+    });
+    document.querySelectorAll('button[data-relock]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const fid = btn.dataset.relock;
+        const m = Number(btn.dataset.month);
+        const d = await loadPeriod(state.entity, state.year, m);
+        if(d.meta[fid]) d.meta[fid].override = false;
+        delete d.values[fid]; // vuelve a calcularse solo con USD × TC
+        await savePeriod(state.entity, state.year, m, d);
+        renderGrid();
+      });
+    });
+  }
+  document.querySelectorAll('button[data-drill]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openDrillModal(btn.dataset.drill, Number(btn.dataset.month)));
+  });
+
+  document.getElementById('calloutBox').innerHTML = readonly ? `
+    <div class="callout"><b>Vista Conjunto:</b> es de solo lectura, suma SPL + Spotsline mes a mes.</div>` : '';
+
+  document.getElementById('footerNote').textContent =
+    `${entLabel} · ${state.year} · Guardado localmente en este navegador · celdas con borde azul = valor estimado, a confirmar`;
+}
+
+async function renderAll(){
+  renderEntityFilter();
+  renderYearNav();
+  await renderGrid();
+}
+
+/* ============ FILE UPLOAD MODAL ============ */
+let uploadCtx = null;
+
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); uploadCtx = null; }
+
+function openUploadModal(fieldId){
+  uploadCtx = {fieldId, rows:null, columns:null, month:new Date().getMonth()};
+  const f = ALL_FIELDS.find(x=>x.id===fieldId);
+  document.getElementById('modal').innerHTML = `
+    <span class="close-x" id="closeX">&times;</span>
+    <h3>Subir archivo — ${f.label}</h3>
+    <div class="desc">Subí el reporte del sistema (.xlsx, .xls o .csv). Después elegís qué columna sumar y a qué mes de ${state.year} se lo aplico.</div>
+    <select id="monthTarget">${MESES.map((m,i)=>`<option value="${i}" ${i===uploadCtx.month?'selected':''}>${m}</option>`).join('')}</select>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+    <div id="uploadBody"></div>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('closeX').addEventListener('click', closeModal);
+  document.getElementById('monthTarget').addEventListener('change', e=>{ uploadCtx.month = Number(e.target.value); });
+  document.getElementById('fileInput').addEventListener('change', handleFile);
+}
+
+function handleFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt)=>{
+    let rows = [];
+    try{
+      if(file.name.toLowerCase().endsWith('.csv')){
+        const text = evt.target.result;
+        const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+        const headers = lines[0].split(/[;,]/).map(h=>h.trim());
+        rows = lines.slice(1).map(line=>{
+          const cells = line.split(/[;,]/);
+          const obj = {};
+          headers.forEach((h,i)=> obj[h] = cells[i] !== undefined ? cells[i].trim() : '');
+          return obj;
+        });
+      } else {
+        const wb = XLSX.read(evt.target.result, {type:'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      }
+    }catch(err){
+      document.getElementById('uploadBody').innerHTML = `<div class="desc" style="color:var(--red)">No se pudo leer el archivo: ${err.message}</div>`;
+      return;
+    }
+    if(!rows.length){
+      document.getElementById('uploadBody').innerHTML = `<div class="desc" style="color:var(--red)">El archivo no tiene filas de datos.</div>`;
+      return;
+    }
+    uploadCtx.rows = rows;
+    uploadCtx.filename = file.name;
+    const cols = Object.keys(rows[0]);
+    uploadCtx.columns = cols;
+    const numericCols = cols.filter(c => rows.some(r => r[c]!=='' && !isNaN(parseFloat(String(r[c]).replace(/\./g,'').replace(',','.')))));
+
+    document.getElementById('uploadBody').innerHTML = `
+      <div class="desc">Encontré ${rows.length} filas. Elegí la columna que tiene el importe a sumar:</div>
+      <select id="colSel">${(numericCols.length?numericCols:cols).map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+      <div id="previewTotal" style="font-family:var(--mono);font-size:15px;color:var(--yellow);margin-bottom:8px"></div>
+      <table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+        <tbody>${rows.slice(0,6).map(r=>`<tr>${cols.map(c=>`<td>${r[c]}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+      <div class="modal-actions">
+        <button class="btn" id="cancelUp">Cancelar</button>
+        <button class="btn primary" id="confirmUp">Usar este total</button>
+      </div>
+    `;
+    const colSel = document.getElementById('colSel');
+    const updatePreview = ()=>{
+      const col = colSel.value;
+      const total = rows.reduce((acc,r)=>{
+        const raw = r[col];
+        let n;
+        if(typeof raw === 'number'){
+          n = raw; // ya es un número real (típico cuando viene de un .xlsx) -> no tocar
+        } else {
+          const cleaned = String(raw||'').trim().replace(/\./g,'').replace(',','.');
+          n = parseFloat(cleaned);
+        }
+        return acc + (isNaN(n)?0:n);
+      },0);
+      document.getElementById('previewTotal').textContent = 'Total = ' + fmtMoney(total);
+      uploadCtx.total = total;
+    };
+    colSel.addEventListener('change', updatePreview);
+    updatePreview();
+    document.getElementById('cancelUp').addEventListener('click', closeModal);
+    document.getElementById('confirmUp').addEventListener('click', confirmUpload);
+  };
+  if(file.name.toLowerCase().endsWith('.csv')) reader.readAsText(file);
+  else reader.readAsArrayBuffer(file);
+}
+
+async function confirmUpload(){
+  const d = await loadPeriod(state.entity, state.year, uploadCtx.month);
+  if(d.frozen){
+    closeModal();
+    alert(`${MESES[uploadCtx.month]} ${state.year} está congelado 🔒 para ${state.entity==='spl'?'SPL':'Spotsline'} — no se cargó el archivo. Descongelalo primero si necesitás actualizar este mes.`);
+    return;
+  }
+  d.values[uploadCtx.fieldId] = uploadCtx.total;
+  d.meta[uploadCtx.fieldId] = {source:'archivo', filename: uploadCtx.filename, updatedAt: new Date().toISOString()};
+  await savePeriod(state.entity, state.year, uploadCtx.month, d);
+  closeModal();
+  renderGrid();
+}
+
+document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') closeModal(); });
+
+/* ============ METODOLOGÍA ("Cómo se genera") ============ */
+const METODOLOGIA = [
+  {group:'Activo Corriente', items:[
+    ['Caja y Bancos', 'Se importa desde la hoja "Caja y Bancos" del Cash Flow: para cada mes se toma el saldo del último día con datos, arrastrando hacia adelante el último valor cargado en los días sin movimiento (fines de semana, etc).'],
+    ['Valores en cartera', 'Igual método que Caja y Bancos, sumando las filas de tipo "Cheques de terceros" de esa misma hoja.'],
+    ['Deudores por venta', 'Se consulta en vivo el panel de Cobranzas (tabla "clientes" en Supabase) al apretar "Sincronizar Paneles": suma el campo deuda de las filas de la empresa correspondiente más las marcadas "Ambas".'],
+    ['Producto terminado', 'Se sube el reporte de stock del sistema (Variante de producto) por empresa. Para SPL se suma todo lo categorizado "Producto Terminado SPL", más Componente/Insumo SPL, Accesorios SPL e insumos de embalaje (SPL es distribuidora: compra y revende, todo el stock es producto terminado). Para Spotsline se suma "Producto Terminado / ..." (fabrica productos propios).'],
+    ['Materia prima', 'Mismo reporte de stock. Solo aplica a Spotsline (fabricante): suma Materia prima + Componente/Insumo + Parte/Pieza. No aplica a SPL por ser distribuidora.'],
+    ['Dólares Comex', 'Monto en dólares confirmado a mano (foto set-2026). Se convierte a pesos multiplicando por el Tipo de Cambio del mes, igual que Moneda Extranjera.'],
+    ['Moneda Extranjera', 'Se importa desde la hoja "Caja y Bancos" del Cash Flow (fila "Moneda Extranjera"), en dólares. Se convierte a pesos multiplicando por el Tipo de Cambio Oficial (BNA) del mes, que es una fila editable aparte — si no hay cotización cargada para ese mes, el valor queda en dólares sin convertir (marcado en naranja) hasta que cargues el tipo de cambio.']
+  ]},
+  {group:'Activo No Corriente', items:[
+    ['Inmuebles / Maquinarias / Rodados', 'Valores fijos por empresa, confirmados a mano (2026): Spotsline tiene Inmuebles, Maquinarias y Rodados propios; SPL solo tiene Maquinaria ($1.343.838) y no tiene Inmuebles ni Rodados. Se actualiza raramente.']
+  ]},
+  {group:'Pasivo', items:[
+    ['Cheques emitidos', 'Se importa desde la hoja "Ch Propios" del Cash Flow con "Importar Cash Flow": suma el Importe de los cheques cuya Fecha de Pago es posterior al cierre de cada mes (es decir, todavía no cobrados a esa fecha).'],
+    ['Sueldos y Jornales', 'Se importa junto con todo lo demás (hoja "Sueldos y CCSS"): para cada mes, suma solo el Importe de las filas cuyo Mes Devengado es ese mes y que no están pagadas (Estado en pago ≠ SI) — no es un acumulado de meses anteriores. Detalle desplegable con la lupa 🔎.'],
+    ['Desvinculaciones (Corriente / No Corriente)', 'Se importa junto con todo lo demás (hoja "Desvinculaciones"): son cuotas de indemnizaciones a ex-empleados. Para cada mes, quedan las cuotas cuya Fecha de Pago es posterior al cierre de ese mes (todavía no pagadas a esa fecha), separadas en Corriente/No Corriente según si el Vencimiento cae dentro de los 12 meses siguientes a ESE mes. Detalle desplegable con la lupa 🔎.'],
+    ['Deudas bancarias (Corriente / No Corriente)', 'Se importa junto con todo lo demás (hoja "Créditos Bancarios"): excluye filas que no son de SPL/Spotsline (ej. préstamos a nombre de una persona). Capital = Capital, Intereses = Int. Financiero + Int. Resarcitorio, Total = Cuota. Para cada mes, quedan las cuotas con Fecha de Pago posterior al cierre de ese mes, separadas en Corriente/No Corriente por Vencimiento (12 meses desde ese mismo mes). Se recalcula mes a mes, no es una foto única. Detalle desplegable con la lupa 🔎.'],
+    ['Proveedores Locales', 'Se consulta en vivo el panel de Proveedores (tabla "proveedores" en Supabase) al apretar "Sincronizar Paneles": suma el campo deuda de las filas de la empresa correspondiente más las marcadas "Ambas".'],
+    ['Proveedores Exterior', 'Se importa junto con todo lo demás (hoja "DEUDA EXT"): ya viene en pesos (columna Saldo AR$, calculada con el TC que corresponde a cada cuota), no se re-convierte con la fila de Tipo de Cambio del dashboard. Para cada mes, queda lo que tiene Fecha de Pago desde el inicio de ese mes en adelante (todavía no pagado). Detalle desplegable con la lupa 🔎 (incluye proveedor, factura y monto original en USD).'],
+    ['Obligaciones Impositivas', 'Se importa junto con todo lo demás al apretar "Importar Cash Flow" (hoja "Deudas ARCA"): Capital = Saldo, Intereses = IntResarcitorio + IntPunitorio. Como esta hoja no tiene Fecha de Pago, para cada mes se toma como "todavía pendiente" lo que tiene Vencimiento posterior al cierre de ese mes. Se recalcula mes a mes. Detalle desplegable con la lupa 🔎.'],
+    ['Deudas fiscales AFIP (Corriente / No Corriente)', 'Se importa junto con todo lo demás (hoja "Planes ARCA"): son planes de pago en cuotas, cada una con Capital + Interés Financiero + Interés Resarcitorio. Para cada mes, quedan las cuotas con Fecha de Pago posterior al cierre de ese mes (todavía no pagadas a esa fecha), separadas en Corriente/No Corriente según si el Vencimiento cae dentro de los 12 meses siguientes a ESE mismo mes — no a hoy. Se recalcula mes a mes, así que junio, julio y agosto pueden traer números distintos entre sí. Detalle desplegable con la lupa 🔎.'],
+    ['Otras deudas (Corriente / No Corriente)', 'Se importa junto con todo lo demás (hoja "Planes de Pago" — planes con Rentas/ARBA y similares, fuera de AFIP/ARCA). Para cada mes, quedan las cuotas con Fecha de Pago posterior al cierre de ese mes, separadas en Corriente/No Corriente por Vencimiento (12 meses desde ese mismo mes). Detalle desplegable con la lupa 🔎.'],
+    ['Otras deudas fiscales (No Corriente), Demandas', '"Mundo deuda" — todavía en definición.']
+  ]}
+];
+function openMetaModal(){
+  document.getElementById('modal').innerHTML = `
+    <span class="close-x" id="closeXMeta">&times;</span>
+    <h3>Cómo se genera cada rubro</h3>
+    <div class="desc">Metodología actual — se va a ir actualizando a medida que cerremos fuentes nuevas.</div>
+    ${METODOLOGIA.map(g=>`
+      <div style="margin-top:10px">
+        <div style="font-family:var(--mono);font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${g.group}</div>
+        ${g.items.map(([lbl,desc])=>`<div style="margin-bottom:8px"><b style="font-size:12.5px">${lbl}</b><div style="font-size:12px;color:var(--text2);line-height:1.4">${desc}</div></div>`).join('')}
+      </div>
+    `).join('')}
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('closeXMeta').addEventListener('click', closeModal);
+}
+
+/* ============ IMPORTAR CASH FLOW (hoja Caja y Bancos) ============ */
+function normEmpresa(s){
+  if(!s) return null;
+  const t = String(s).trim().toLowerCase();
+  if(t==='spl') return 'spl';
+  if(t==='spotsline') return 'spotsline';
+  return null;
+}
+function fieldForTipo(tipo){
+  if(!tipo) return null;
+  const t = String(tipo).trim().toLowerCase();
+  if(t==='efectivo' || t==='bancos') return 'caja_bancos';
+  if(t==='cheques de terceros') return 'valores_cartera';
+  if(t==='moneda extranjera') return 'moneda_extranjera';
+  return null;
+}
+function parseCashFlowSheet(workbook){
+  let sheetName = workbook.SheetNames.find(n=>/caja/i.test(n) && /banc/i.test(n));
+  if(!sheetName) sheetName = workbook.SheetNames[0];
+  const ws = workbook.Sheets[sheetName];
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  let headerRow = -1;
+  for(let r=range.s.r; r<=range.e.r; r++){
+    const cell = ws[XLSX.utils.encode_cell({r, c:range.s.c})];
+    if(cell && String(cell.v).trim().toUpperCase()==='EMPRESA'){ headerRow=r; break; }
+  }
+  if(headerRow===-1) throw new Error('No encontré la fila de encabezado (EMPRESA) en la hoja "'+sheetName+'".');
+  const dateCols = [];
+  for(let c=range.s.c+3; c<=range.e.c; c++){
+    const cell = ws[XLSX.utils.encode_cell({r:headerRow, c})];
+    if(cell && cell.v instanceof Date) dateCols.push({c, date:cell.v});
+  }
+  if(!dateCols.length) throw new Error('No encontré columnas de fecha en la hoja "'+sheetName+'".');
+  dateCols.sort((a,b)=>a.date-b.date);
+
+  const dataRows = [];
+  for(let r=headerRow+1; r<=range.e.r; r++){
+    const empresaCell = ws[XLSX.utils.encode_cell({r, c:range.s.c})];
+    const tipoCell = ws[XLSX.utils.encode_cell({r, c:range.s.c+1})];
+    const empresa = normEmpresa(empresaCell ? empresaCell.v : null);
+    const field = fieldForTipo(tipoCell ? tipoCell.v : null);
+    if(!empresa || !field) continue;
+    const seq = dateCols.map(dc=>{
+      const cell = ws[XLSX.utils.encode_cell({r, c:dc.c})];
+      const v = cell ? cell.v : null;
+      return (typeof v === 'number') ? v : null;
+    });
+    dataRows.push({empresa, field, seq});
+  }
+  if(!dataRows.length) throw new Error('No encontré filas de Efectivo/Bancos/Cheques de terceros/Moneda Extranjera con una empresa reconocida (SPL o Spotsline).');
+
+  // forward-fill and bucket by month-end
+  const monthKeys = []; // {idx, year, month}
+  dateCols.forEach((dc,idx)=>{
+    const y = dc.date.getFullYear(), m = dc.date.getMonth();
+    const existing = monthKeys.find(k=>k.year===y && k.month===m);
+    if(existing) existing.idx = idx; // keep last idx of that month
+    else monthKeys.push({idx, year:y, month:m});
+  });
+
+  const results = {}; // entity -> year -> month -> {caja_bancos,valores_cartera,moneda_extranjera}
+  ['spl','spotsline'].forEach(e=>{ results[e]={}; });
+
+  dataRows.forEach(row=>{
+    // forward fill sequence
+    const filled = [];
+    let last = 0;
+    row.seq.forEach(v=>{ if(v!==null && !isNaN(v)) last=v; filled.push(last); });
+    monthKeys.forEach(mk=>{
+      const val = filled[mk.idx] || 0;
+      results[row.empresa][mk.year] = results[row.empresa][mk.year] || {};
+      results[row.empresa][mk.year][mk.month] = results[row.empresa][mk.year][mk.month] || {caja_bancos:0, valores_cartera:0, moneda_extranjera:0};
+      results[row.empresa][mk.year][mk.month][row.field] += val;
+    });
+  });
+
+  // ---- Ch Propios: Cheques emitidos aún no pagados a fin de cada mes ----
+  const chPropiosSheet = workbook.SheetNames.find(n=>/ch/i.test(n) && /propio/i.test(n));
+  if(chPropiosSheet){
+    const ws2 = workbook.Sheets[chPropiosSheet];
+    const range2 = XLSX.utils.decode_range(ws2['!ref']);
+    let hr2=-1, colEmpresa=-1, colFechaPago=-1, colImporte=-1;
+    for(let r=range2.s.r; r<=range2.e.r && hr2===-1; r++){
+      for(let c=range2.s.c; c<=range2.e.c; c++){
+        const cell = ws2[XLSX.utils.encode_cell({r,c})];
+        if(cell && String(cell.v).trim().toUpperCase()==='EMPRESA'){ hr2=r; break; }
+      }
+    }
+    if(hr2!==-1){
+      for(let c=range2.s.c; c<=range2.e.c; c++){
+        const cell = ws2[XLSX.utils.encode_cell({r:hr2,c})];
+        if(!cell) continue;
+        const t = String(cell.v).trim().toUpperCase();
+        if(t==='EMPRESA') colEmpresa=c;
+        else if(t==='FECHA DE PAGO') colFechaPago=c;
+        else if(t==='IMPORTE') colImporte=c;
+      }
+    }
+    if(hr2!==-1 && colEmpresa>-1 && colFechaPago>-1 && colImporte>-1){
+      for(let r=hr2+1; r<=range2.e.r; r++){
+        const eCell = ws2[XLSX.utils.encode_cell({r,c:colEmpresa})];
+        const empresa = normEmpresa(eCell ? eCell.v : null);
+        if(!empresa) continue;
+        const fpCell = ws2[XLSX.utils.encode_cell({r,c:colFechaPago})];
+        const fp = (fpCell && fpCell.v instanceof Date) ? fpCell.v : null;
+        if(!fp) continue;
+        const impCell = ws2[XLSX.utils.encode_cell({r,c:colImporte})];
+        const importe = (impCell && typeof impCell.v === 'number') ? impCell.v : 0;
+        monthKeys.forEach(mk=>{
+          const cutoff = new Date(mk.year, mk.month+1, 0, 23,59,59); // último día del mes
+          if(fp > cutoff){ // todavía no pagado a esa fecha -> pasivo pendiente
+            results[empresa][mk.year] = results[empresa][mk.year] || {};
+            results[empresa][mk.year][mk.month] = results[empresa][mk.year][mk.month] || {caja_bancos:0, valores_cartera:0, moneda_extranjera:0};
+            results[empresa][mk.year][mk.month].cheques_emitidos = (results[empresa][mk.year][mk.month].cheques_emitidos||0) + importe;
+          }
+        });
+      }
+    }
+  }
+
+  return {sheetName, chPropiosSheet, monthKeys, results};
+}
+
+let cfImportCtx = null;
+
+function openImportCFModal(){
+  cfImportCtx = null;
+  const now = new Date();
+  document.getElementById('modal').innerHTML = `
+    <span class="close-x" id="closeXCF">&times;</span>
+    <h3>Importar Cash Flow</h3>
+    <div class="desc">Subí el Excel completo del Cash Flow una sola vez. Leo todas las hojas que ya cruzamos: Caja y Bancos, Ch Propios (Cheques Emitidos) y Deudas ARCA (Deudas fiscales AFIP).</div>
+    <input type="file" id="cfFileInput" accept=".xlsx,.xls">
+    <div id="cfBody"></div>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('closeXCF').addEventListener('click', closeModal);
+  document.getElementById('cfFileInput').addEventListener('change', handleCFFile);
+}
+
+function handleCFFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt)=>{
+    let parsed, arcaParsed=null, arcaError=null, planesParsed=null, planesError=null, creditosParsed=null, creditosError=null, sueldosParsed=null, sueldosError=null, desvincParsed=null, desvincError=null, otrasParsed=null, otrasError=null, deudaExtParsed=null, deudaExtError=null;
+    let wb;
+    try{
+      wb = XLSX.read(evt.target.result, {type:'array', cellDates:true});
+      parsed = parseCashFlowSheet(wb);
+    }catch(err){
+      document.getElementById('cfBody').innerHTML = `<div class="desc" style="color:var(--red)">${err.message}</div>`;
+      return;
+    }
+    const monthKeys = parsed.monthKeys;
+    try{ arcaParsed = parseDeudasArcaSheet(wb, monthKeys); }
+    catch(err){ arcaError = err.message; }
+    try{ planesParsed = parsePlanesArcaSheet(wb, monthKeys); }
+    catch(err){ planesError = err.message; }
+    try{ creditosParsed = parseCreditosBancariosSheet(wb, monthKeys); }
+    catch(err){ creditosError = err.message; }
+    try{ sueldosParsed = parseSueldosSheet(wb, monthKeys); }
+    catch(err){ sueldosError = err.message; }
+    try{ desvincParsed = parseDesvinculacionesSheet(wb, monthKeys); }
+    catch(err){ desvincError = err.message; }
+    try{ otrasParsed = parsePlanesDePagoSheet(wb, monthKeys); }
+    catch(err){ otrasError = err.message; }
+    try{ deudaExtParsed = parseDeudaExtSheet(wb, monthKeys); }
+    catch(err){ deudaExtError = err.message; }
+
+    cfImportCtx = {parsed, arcaParsed, planesParsed, creditosParsed, sueldosParsed, desvincParsed, otrasParsed, deudaExtParsed, filename: file.name};
+    const monthsSorted = monthKeys.slice().sort((a,b)=> a.year-b.year || a.month-b.month);
+    const rowsHtml = monthsSorted.map(mk=>{
+      const spl = (parsed.results.spl[mk.year]||{})[mk.month] || {};
+      const spo = (parsed.results.spotsline[mk.year]||{})[mk.month] || {};
+      return `<tr>
+        <td>${MESES[mk.month]} ${mk.year}</td>
+        <td>${fmtMoney(spl.caja_bancos)}</td><td>${fmtMoney(spl.valores_cartera)}</td><td>US$${Math.round(spl.moneda_extranjera||0).toLocaleString('es-AR')}</td><td>${spl.cheques_emitidos!==undefined?fmtMoney(spl.cheques_emitidos):'—'}</td>
+        <td>${fmtMoney(spo.caja_bancos)}</td><td>${fmtMoney(spo.valores_cartera)}</td><td>US$${Math.round(spo.moneda_extranjera||0).toLocaleString('es-AR')}</td><td>${spo.cheques_emitidos!==undefined?fmtMoney(spo.cheques_emitidos):'—'}</td>
+      </tr>`;
+    }).join('');
+
+    // ---- previews genéricos mes a mes para las hojas de deuda ----
+    function debtPreview(title, sheetInfo, sheetErr, sheetLabel, splitCteNocte, getTotalFn){
+      if(!sheetInfo) return `<div class="desc" style="margin-top:14px;color:var(--text3)">${title}: no encontré la hoja "${sheetLabel}" en este archivo (${sheetErr}). Ese rubro no se actualiza.</div>`;
+      const rows = monthsSorted.map(mk=>{
+        const spl = sheetInfo.results.spl[mk.year][mk.month];
+        const spo = sheetInfo.results.spotsline[mk.year][mk.month];
+        if(splitCteNocte){
+          return `<tr><td>${MESES[mk.month]} ${mk.year}</td>
+            <td>${fmtMoney(getTotalFn(spl.cte))}</td><td>${fmtMoney(getTotalFn(spl.nocte))}</td>
+            <td>${fmtMoney(getTotalFn(spo.cte))}</td><td>${fmtMoney(getTotalFn(spo.nocte))}</td></tr>`;
+        } else {
+          return `<tr><td>${MESES[mk.month]} ${mk.year}</td><td>${fmtMoney(getTotalFn(spl))}</td><td>${fmtMoney(getTotalFn(spo))}</td></tr>`;
+        }
+      }).join('');
+      const head = splitCteNocte
+        ? `<tr><th>Mes</th><th colspan="2">SPL</th><th colspan="2">Spotsline</th></tr><tr><th></th><th>Corriente</th><th>No Cte.</th><th>Corriente</th><th>No Cte.</th></tr>`
+        : `<tr><th>Mes</th><th>SPL</th><th>Spotsline</th></tr>`;
+      return `<div class="desc" style="margin-top:14px"><b>${title}</b> — hoja <b>${sheetInfo.sheetName}</b>, mes a mes (pendiente a fin de cada mes).</div>
+        <table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+    }
+    const sumTotal = (arr)=> arr.reduce((a,i)=>a+i.total,0);
+
+    let arcaHtml;
+    if(arcaParsed){
+      const rows = ['spl','spotsline'].map(ent=>`<tr><td>${ent==='spl'?'SPL':'Spotsline'}</td><td>${fmtMoney(sumTotal(arcaParsed.items[ent]))}</td></tr>`).join('');
+      arcaHtml = `<div class="desc" style="margin-top:14px"><b>Obligaciones Impositivas</b> — hoja <b>${arcaParsed.sheetName}</b>. Es un dato puntual (no tiene Fecha de Pago para reconstruir meses pasados) — se aplica solo a <b>${MESES[arcaParsed.lastMonth.month]} ${arcaParsed.lastMonth.year}</b>, el mes más reciente. Los meses anteriores de este rubro se cargan a mano.</div>
+        <table><thead><tr><th></th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>`;
+    } else {
+      arcaHtml = `<div class="desc" style="margin-top:14px;color:var(--text3)">Obligaciones Impositivas: no encontré la hoja "Deudas ARCA" en este archivo (${arcaError}). Ese rubro no se actualiza.</div>`;
+    }
+    const planesHtml = debtPreview('Deudas fiscales AFIP', planesParsed, planesError, 'Planes ARCA', true, sumTotal);
+    const creditosHtml = debtPreview('Deudas bancarias', creditosParsed, creditosError, 'Créditos Bancarios', true, sumTotal);
+    const desvincHtml = debtPreview('Desvinculaciones', desvincParsed, desvincError, 'Desvinculaciones', true, sumTotal);
+    const otrasHtml = debtPreview('Otras deudas', otrasParsed, otrasError, 'Planes de Pago', true, sumTotal);
+    const sueldosHtml = debtPreview('Sueldos y Jornales (solo lo devengado de cada mes)', sueldosParsed, sueldosError, 'Sueldos y CCSS', false, sumTotal);
+    const deudaExtHtml = debtPreview('Proveedores Exterior', deudaExtParsed, deudaExtError, 'DEUDA EXT', false, sumTotal);
+
+    document.getElementById('cfBody').innerHTML = `
+      <div class="desc">Hoja usada: <b>${parsed.sheetName}</b>${parsed.chPropiosSheet?` + <b>${parsed.chPropiosSheet}</b> (cheques emitidos)`:' · no encontré la hoja "Ch Propios", ese rubro no se va a actualizar'} · ${monthsSorted.length} meses encontrados. Esto va a reemplazar todos estos rubros, mes a mes, para las dos empresas (salvo Obligaciones Impositivas, que es puntual — ver abajo). Moneda Extranjera queda en <b>dólares</b> — se convierte a pesos con la fila de Tipo de Cambio. Proveedores Exterior ya viene en pesos (Saldo AR$). Las hojas de deuda en cuotas se recalculan para cada mes tomando lo que queda "de ese mes en adelante" (Fecha de Pago desde el inicio del mes), con Corriente/No Corriente según si el Vencimiento cae dentro de los 12 meses siguientes a ese mismo mes.</div>
+      <table><thead><tr><th>Mes</th><th colspan="4">SPL</th><th colspan="4">Spotsline</th></tr>
+      <tr><th></th><th>Caja/Bancos</th><th>Valores cart.</th><th>Mon.Extr.(USD)</th><th>Cheq.Emit.</th><th>Caja/Bancos</th><th>Valores cart.</th><th>Mon.Extr.(USD)</th><th>Cheq.Emit.</th></tr></thead>
+      <tbody>${rowsHtml}</tbody></table>
+      ${arcaHtml}
+      ${planesHtml}
+      ${creditosHtml}
+      ${sueldosHtml}
+      ${desvincHtml}
+      ${otrasHtml}
+      ${deudaExtHtml}
+      <div class="modal-actions">
+        <button class="btn" id="cancelCF">Cancelar</button>
+        <button class="btn primary" id="confirmCF">Aplicar todo</button>
+      </div>`;
+    document.getElementById('cancelCF').addEventListener('click', closeModal);
+    document.getElementById('confirmCF').addEventListener('click', confirmCFImport);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function confirmCFImport(){
+  const {parsed, arcaParsed, planesParsed, creditosParsed, sueldosParsed, desvincParsed, otrasParsed, deudaExtParsed, filename} = cfImportCtx;
+  const monthKeys = parsed.monthKeys;
+  const skippedFrozen = [];
+  for(const entity of ['spl','spotsline']){
+    for(const mk of monthKeys){
+      const year = mk.year, month = mk.month;
+      const d = await loadPeriod(entity, year, month);
+      if(d.frozen){
+        skippedFrozen.push(`${entity==='spl'?'SPL':'Spotsline'} ${MESES[month]} ${year}`);
+        continue; // mes congelado: no se toca
+      }
+      const vals = (parsed.results[entity][year]||{})[month] || {};
+      ['caja_bancos','valores_cartera','cheques_emitidos'].forEach(f=>{
+        if(vals[f]===undefined) return;
+        d.values[f] = vals[f];
+        d.meta[f] = {source:'archivo', filename, updatedAt: new Date().toISOString()};
+      });
+      // Moneda Extranjera queda en USD dentro de meta; el valor en $ se calcula solo con el Tipo de Cambio
+      delete d.values.moneda_extranjera;
+      d.meta.moneda_extranjera = {source:'archivo', usd: vals.moneda_extranjera, filename, updatedAt: new Date().toISOString()};
+
+      if(arcaParsed && year===arcaParsed.lastMonth.year && month===arcaParsed.lastMonth.month){
+        const items = arcaParsed.items[entity];
+        d.values.oblig_impositivas = items.reduce((a,i)=>a+i.total,0);
+        d.meta.oblig_impositivas = {source:'archivo', filename, updatedAt:new Date().toISOString(), items};
+      }
+      if(planesParsed){
+        const b = planesParsed.results[entity][year][month];
+        d.values.deudas_fiscales_cte = b.cte.reduce((a,i)=>a+i.total,0);
+        d.values.deudas_fiscales_nocte = b.nocte.reduce((a,i)=>a+i.total,0);
+        d.meta.deudas_fiscales_cte = {source:'archivo', filename, updatedAt:new Date().toISOString(), items:b.cte};
+        d.meta.deudas_fiscales_nocte = {source:'archivo', filename, updatedAt:new Date().toISOString(), items:b.nocte};
+      }
+      if(creditosParsed){
+        const b = creditosParsed.results[entity][year][month];
+        d.values.deudas_bancarias_cte = b.cte.reduce((a,i)=>a+i.total,0);
+        d.values.deudas_bancarias_nocte = b.nocte.reduce((a,i)=>a+i.total,0);
+        d.meta.deudas_bancarias_cte = {source:'archivo', filename, updatedAt:new Date().toISOString(), items:b.cte};
+        d.meta.deudas_bancarias_nocte = {source:'archivo', filename, updatedAt:new Date().toISOString(), items:b.nocte};
+      }
+      if(sueldosParsed){
+        const items = sueldosParsed.results[entity][year][month];
+        d.values.sueldos = items.reduce((a,i)=>a+i.total,0);
+        d.meta.sueldos = {source:'archivo', filename, updatedAt:new Date().toISOString(), items};
+      }
+      if(desvincParsed){
+        const b = desvincParsed.results[entity][year][month];
+        d.values.desvinculaciones_cte = b.cte.reduce((a,i)=>a+i.total,0);
+        d.values.desvinculaciones_nocte = b.nocte.reduce((a,i)=>a+i.total,0);
+        d.meta.desvinculaciones_cte = {source:'archivo', filename, updatedAt:new Date().toISOString(), items:b.cte};
+        d.meta.desvinculaciones_nocte = {source:'archivo', filename, updatedAt:new Date().toISOString(), items:b.nocte};
+      }
+      if(otrasParsed){
+        const b = otrasParsed.results[entity][year][month];
+        d.values.otras_deudas_cte = b.cte.reduce((a,i)=>a+i.total,0);
+        d.values.otras_deudas_nocte = b.nocte.reduce((a,i)=>a+i.total,0);
+        d.meta.otras_deudas_cte = {source:'archivo', filename, updatedAt:new Date().toISOString(), items:b.cte};
+        d.meta.otras_deudas_nocte = {source:'archivo', filename, updatedAt:new Date().toISOString(), items:b.nocte};
+      }
+      if(deudaExtParsed){
+        const items = deudaExtParsed.results[entity][year][month];
+        d.values.proveedores_ext = items.reduce((a,i)=>a+i.total,0);
+        d.meta.proveedores_ext = {source:'archivo', filename, updatedAt:new Date().toISOString(), items};
+      }
+      await savePeriod(entity, year, month, d);
+    }
+  }
+  closeModal();
+  renderAll();
+  if(skippedFrozen.length){
+    setTimeout(()=> alert('No toqué estos meses porque están congelados 🔒:\n' + skippedFrozen.join('\n')), 200);
+  }
+}
+
+/* ============ SINCRONIZAR PANELES (Supabase, en vivo) ============ */
+const SUPA = { url:'https://ozbynorwhkmevjmftpmy.supabase.co', key:'sb_publishable_sBhFezk4bg0OPbSGG59jwA_bt1I1kpp' };
+async function fetchPanelTable(table){
+  // Traigo en páginas de 1000 (límite típico de PostgREST) hasta que no queden más filas,
+  // para no cortar el total si la tabla tiene muchos registros. select=* para traer también
+  // el nombre del cliente/proveedor (no sé de antemano cómo se llama esa columna).
+  const pageSize = 1000;
+  let all = [];
+  let from = 0;
+  let lastStatus = null;
+  while(true){
+    const res = await fetch(`${SUPA.url}/rest/v1/${table}?select=*`, {
+      headers:{
+        apikey:SUPA.key, Authorization:`Bearer ${SUPA.key}`,
+        Range: `${from}-${from+pageSize-1}`
+      }
+    });
+    lastStatus = res.status;
+    if(!res.ok && res.status!==206) throw new Error(`HTTP ${res.status} al consultar "${table}"`);
+    const page = await res.json();
+    all = all.concat(page);
+    if(page.length < pageSize) break;
+    from += pageSize;
+    if(from > 50000) break; // salvavidas por si algo sale mal
+  }
+  // Si con paginación no trajo nada, reintento con la consulta simple (igual a la que usa el panel
+  // propio), por si el header Range es el que está causando el problema en esta tabla puntual.
+  if(all.length===0){
+    const res2 = await fetch(`${SUPA.url}/rest/v1/${table}?select=*`, {
+      headers:{apikey:SUPA.key, Authorization:`Bearer ${SUPA.key}`}
+    });
+    lastStatus = res2.status;
+    if(res2.ok){
+      const plain = await res2.json();
+      if(Array.isArray(plain) && plain.length>0) return plain;
+    }
+  }
+  if(all.length===0) all._diagStatus = lastStatus; // para mostrar en el modal si sigue vacío
+  return all;
+}
+function guessNameField(row){
+  const candidates = ['cliente','nombre','razon_social','proveedor','nombre_cliente','nombre_proveedor','name'];
+  for(const c of candidates){ if(row[c]!==undefined) return row[c]; }
+  return null;
+}
+
+function sumPanelByEmpresa(rows){
+  const out = {spl:0, spotsline:0, ambas:0};
+  const unmatched = {total:0, count:0, labels:new Set()};
+  const ambasRows = [];
+  rows.forEach(r=>{
+    const d = parseFloat(r.deuda)||0;
+    const e = (r.empresa||'').trim().toUpperCase();
+    // Reconoce variantes como "SPL", "SPL DIST.", "SPL DISTRIBUIDORA", "SPOTSLINE", "SPOTSLINE S.A.", etc.
+    if(e.startsWith('AMBAS')){ out.ambas += d; ambasRows.push({nombre: guessNameField(r) || '(sin nombre)', deuda: d}); }
+    else if(e.startsWith('SPL')) out.spl += d;
+    else if(e.startsWith('SPOTSLINE')) out.spotsline += d;
+    else { unmatched.total += d; unmatched.count++; unmatched.labels.add(r.empresa===''||r.empresa==null?'(vacío)':r.empresa); }
+  });
+  ambasRows.sort((a,b)=> b.deuda - a.deuda);
+  // "Ambas" se reparte a la mitad entre las dos empresas por defecto, para que SPL + Spotsline sume
+  // exactamente el total real de la cartera — es una aproximación (ver ambasRows para ajustar a mano).
+  return {
+    spl: out.spl + out.ambas/2,
+    spotsline: out.spotsline + out.ambas/2,
+    ambasTotal: out.ambas,
+    ambasRows,
+    rowCount: rows.length,
+    unmatched
+  };
+}
+
+function openSyncPanelsModal(){
+  const now = new Date();
+  document.getElementById('modal').innerHTML = `
+    <span class="close-x" id="closeXSync">&times;</span>
+    <h3>Sincronizar Paneles</h3>
+    <div class="desc">Consulta en vivo el panel de Cobranzas y el de Proveedores (Supabase) y trae el total de deuda por empresa, a la fecha de hoy. Elegí a qué mes lo aplico.</div>
+    <select id="syncMonthTarget">
+      ${YEARS.map(y=>MESES.map((m,i)=>`<option value="${y}-${i}" ${y===now.getFullYear()&&i===now.getMonth()?'selected':''}>${m} ${y}</option>`).join('')).join('')}
+    </select>
+    <div id="syncBody"><div class="desc" style="margin-top:10px">Consultando…</div></div>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('closeXSync').addEventListener('click', closeModal);
+  runSync();
+}
+
+let syncCtx = null;
+
+function ambasBreakdownHtml(prefix, r){
+  if(!r.ambasRows.length) return '';
+  const rows = r.ambasRows.map((row,i)=>`
+    <tr>
+      <td>${row.nombre}</td>
+      <td style="text-align:right">${fmtMoney(row.deuda)}</td>
+      <td>
+        <select class="amb-assign" data-prefix="${prefix}" data-idx="${i}">
+          <option value="half">Mitad y mitad</option>
+          <option value="spl">Todo a SPL</option>
+          <option value="spotsline">Todo a Spotsline</option>
+        </select>
+      </td>
+    </tr>`).join('');
+  return `
+    <details style="margin-top:8px">
+      <summary style="cursor:pointer;color:var(--text2);font-size:12.5px">Ver ${r.ambasRows.length} cliente(s)/proveedor(es) marcados "Ambas" (${fmtMoney(r.ambasTotal)}) — por defecto se reparten a la mitad</summary>
+      <table style="margin-top:6px"><thead><tr><th>Nombre</th><th>Deuda</th><th>Asignar a</th></tr></thead><tbody>${rows}</tbody></table>
+    </details>`;
+}
+
+function recomputeAmbasAssignment(prefix, r){
+  let splExtra = 0, spoExtra = 0;
+  document.querySelectorAll(`select.amb-assign[data-prefix="${prefix}"]`).forEach(sel=>{
+    const idx = Number(sel.dataset.idx);
+    const deuda = r.ambasRows[idx].deuda;
+    const val = sel.value;
+    if(val==='spl') splExtra += deuda;
+    else if(val==='spotsline') spoExtra += deuda;
+    else { splExtra += deuda/2; spoExtra += deuda/2; }
+  });
+  r.splFinal = (r.spl - r.ambasTotal/2) + splExtra;
+  r.spotslineFinal = (r.spotsline - r.ambasTotal/2) + spoExtra;
+  document.getElementById(`${prefix}-spl-total`).textContent = fmtMoney(r.splFinal);
+  document.getElementById(`${prefix}-spo-total`).textContent = fmtMoney(r.spotslineFinal);
+}
+
+async function runSync(){
+  try{
+    const [clientes, proveedores] = await Promise.all([fetchPanelTable('clientes'), fetchPanelTable('proveedores')]);
+    const deudores = sumPanelByEmpresa(clientes);
+    const provLoc = sumPanelByEmpresa(proveedores);
+    deudores.splFinal = deudores.spl; deudores.spotslineFinal = deudores.spotsline;
+    provLoc.splFinal = provLoc.spl; provLoc.spotslineFinal = provLoc.spotsline;
+    syncCtx = {deudores, provLoc};
+    const warn = (label, r)=> r.unmatched.count>0 ? `<div class="desc" style="color:var(--orange);margin-top:4px">${label}: ${r.unmatched.count} fila(s) por ${fmtMoney(r.unmatched.total)} con "empresa" que no reconozco (${[...r.unmatched.labels].slice(0,5).join(', ')}) — no están sumadas en ningún lado.</div>` : '';
+    const emptyDiag = (label, rows, r)=> (r.rowCount===0 && rows._diagStatus!==undefined) ? `<div class="desc" style="color:var(--red);margin-top:4px">${label}: trajo 0 filas — código de respuesta HTTP: ${rows._diagStatus}.</div>` : '';
+    document.getElementById('syncBody').innerHTML = `
+      <div class="desc">Clientes: ${deudores.rowCount} filas traídas · Proveedores: ${provLoc.rowCount} filas traídas.</div>
+      ${emptyDiag('Clientes', clientes, deudores)}
+      ${emptyDiag('Proveedores', proveedores, provLoc)}
+      <table style="margin-top:10px">
+        <thead><tr><th></th><th>SPL</th><th>Spotsline</th></tr></thead>
+        <tbody>
+          <tr><td>Deudores por venta</td><td id="deu-spl-total">${fmtMoney(deudores.spl)}</td><td id="deu-spo-total">${fmtMoney(deudores.spotsline)}</td></tr>
+          <tr><td>Proveedores Locales</td><td id="prov-spl-total">${fmtMoney(provLoc.spl)}</td><td id="prov-spo-total">${fmtMoney(provLoc.spotsline)}</td></tr>
+        </tbody>
+      </table>
+      ${ambasBreakdownHtml('deu', deudores)}
+      ${ambasBreakdownHtml('prov', provLoc)}
+      ${warn('Deudores por venta', deudores)}
+      ${warn('Proveedores Locales', provLoc)}
+      <div class="modal-actions">
+        <button class="btn" id="cancelSync">Cancelar</button>
+        <button class="btn primary" id="confirmSync">Aplicar</button>
+      </div>`;
+    document.querySelectorAll('select.amb-assign[data-prefix="deu"]').forEach(sel=> sel.addEventListener('change', ()=> recomputeAmbasAssignment('deu', deudores)));
+    document.querySelectorAll('select.amb-assign[data-prefix="prov"]').forEach(sel=> sel.addEventListener('change', ()=> recomputeAmbasAssignment('prov', provLoc)));
+    document.getElementById('cancelSync').addEventListener('click', closeModal);
+    document.getElementById('confirmSync').addEventListener('click', confirmSync);
+  }catch(err){
+    document.getElementById('syncBody').innerHTML = `<div class="desc" style="color:var(--red)">No pude conectar con los paneles: ${err.message}. Revisá tu conexión, o cargá estos dos rubros a mano por ahora.</div>`;
+  }
+}
+
+async function confirmSync(){
+  const [yearStr, monthStr] = document.getElementById('syncMonthTarget').value.split('-');
+  const year = Number(yearStr), month = Number(monthStr);
+  const pick = (r, entity)=> entity==='spl' ? r.splFinal : r.spotslineFinal;
+  const skippedFrozen = [];
+  for(const entity of ['spl','spotsline']){
+    const d = await loadPeriod(entity, year, month);
+    if(d.frozen){ skippedFrozen.push(`${entity==='spl'?'SPL':'Spotsline'} ${MESES[month]} ${year}`); continue; }
+    d.values['deudores_venta'] = pick(syncCtx.deudores, entity);
+    d.meta['deudores_venta'] = {source:'panel', filename:'Panel de Cobranzas (Supabase)', updatedAt:new Date().toISOString()};
+    d.values['proveedores_loc'] = pick(syncCtx.provLoc, entity);
+    d.meta['proveedores_loc'] = {source:'panel', filename:'Panel de Proveedores (Supabase)', updatedAt:new Date().toISOString()};
+    await savePeriod(entity, year, month, d);
+  }
+  closeModal();
+  renderAll();
+  if(skippedFrozen.length){
+    setTimeout(()=> alert('No toqué estos meses porque están congelados 🔒:\n' + skippedFrozen.join('\n')), 200);
+  }
+}
+
+/* ============ TIPO DE CAMBIO OFICIAL DE HOY (API pública) ============ */
+function openSyncDolarModal(){
+  const now = new Date();
+  document.getElementById('modal').innerHTML = `
+    <span class="close-x" id="closeXDolar">&times;</span>
+    <h3>Tipo de Cambio Oficial de hoy</h3>
+    <div class="desc">Trae la cotización oficial del día (fuente: dolarapi.com, Banco Nación) y la aplica a la fila de Tipo de Cambio del mes que elijas — para SPL y Spotsline por igual (es el mismo tipo de cambio para las dos).</div>
+    <select id="dolarMonthTarget">
+      ${YEARS.map(y=>MESES.map((m,i)=>`<option value="${y}-${i}" ${y===now.getFullYear()&&i===now.getMonth()?'selected':''}>${m} ${y}</option>`).join('')).join('')}
+    </select>
+    <div id="dolarBody"><div class="desc" style="margin-top:10px">Consultando…</div></div>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('closeXDolar').addEventListener('click', closeModal);
+  runDolarFetch();
+}
+let dolarCtx = null;
+async function runDolarFetch(){
+  try{
+    const res = await fetch('https://dolarapi.com/v1/dolares/oficial');
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    const rate = ((Number(data.compra)||0) + (Number(data.venta)||0)) / 2;
+    dolarCtx = {rate, raw:data};
+    document.getElementById('dolarBody').innerHTML = `
+      <div style="font-family:var(--mono);font-size:18px;color:var(--yellow);margin:10px 0">$${rate.toFixed(2)}</div>
+      <div class="desc">Compra $${data.compra} / Venta $${data.venta} · actualizado ${data.fechaActualizacion||''}</div>
+      <div class="modal-actions">
+        <button class="btn" id="cancelDolar">Cancelar</button>
+        <button class="btn primary" id="confirmDolar">Aplicar</button>
+      </div>`;
+    document.getElementById('cancelDolar').addEventListener('click', closeModal);
+    document.getElementById('confirmDolar').addEventListener('click', confirmDolar);
+  }catch(err){
+    document.getElementById('dolarBody').innerHTML = `<div class="desc" style="color:var(--red)">No pude traer la cotización (${err.message}). Cargala a mano en la fila de Tipo de Cambio.</div>`;
+  }
+}
+async function confirmDolar(){
+  const [yearStr, monthStr] = document.getElementById('dolarMonthTarget').value.split('-');
+  const year = Number(yearStr), month = Number(monthStr);
+  const skippedFrozen = [];
+  for(const entity of ['spl','spotsline']){
+    const d = await loadPeriod(entity, year, month);
+    if(d.frozen){ skippedFrozen.push(`${entity==='spl'?'SPL':'Spotsline'} ${MESES[month]} ${year}`); continue; }
+    d.values.tipo_cambio = dolarCtx.rate;
+    await savePeriod(entity, year, month, d);
+  }
+  closeModal();
+  renderAll();
+  if(skippedFrozen.length){
+    setTimeout(()=> alert('No toqué estos meses porque están congelados 🔒:\n' + skippedFrozen.join('\n')), 200);
+  }
+}
+
+/* ============ IMPORTAR DEUDAS ARCA (impositivas, con detalle de intereses) ============ */
+function normalizeHeader(v){
+  return String(v).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+/* ============ HELPERS COMUNES PARA HOJAS DE "CUOTAS" (Planes ARCA, Créditos Bancarios, ============ */
+/* ============ Desvinculaciones, Planes de Pago) — reconstrucción mes a mes                    ============ */
+function monthStartCutoff(mk){ return new Date(mk.year, mk.month, 1, 0,0,0); }
+function plusOneYear(d){ const d2 = new Date(d); d2.setFullYear(d2.getFullYear()+1); return d2; }
+
+function readQuotaSheet(workbook, sheetMatcher, sheetLabel, labelFn){
+  const sheetName = workbook.SheetNames.find(sheetMatcher);
+  if(!sheetName) throw new Error('No encontré una hoja "'+sheetLabel+'" en este archivo.');
+  const ws = workbook.Sheets[sheetName];
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  let headerRow=-1;
+  for(let r=range.s.r; r<=range.e.r; r++){
+    const cell = ws[XLSX.utils.encode_cell({r, c:range.s.c})];
+    if(cell && normalizeHeader(cell.v)==='EMPRESA'){ headerRow=r; break; }
+  }
+  if(headerRow===-1) throw new Error('No encontré la fila de encabezado (EMPRESA) en la hoja "'+sheetName+'".');
+  const col = {};
+  for(let c=range.s.c; c<=range.e.c; c++){
+    const cell = ws[XLSX.utils.encode_cell({r:headerRow,c})];
+    if(!cell || cell.v===undefined || cell.v===null) continue;
+    const h = normalizeHeader(cell.v);
+    if(h==='EMPRESA') col.empresa=c;
+    else if(h==='TIPO') col.tipo=c;
+    else if(h.includes('BANCO')) col.banco=c;
+    else if(h==='NPLAN' || (h.includes('PLAN') && !h.includes('FECHA'))) col.plan=c;
+    else if(h.includes('PAGO')) col.fechaPago=c;
+    else if(h.includes('VTO') || h.includes('VENCIMIENTO')) col.venc=c;
+    else if(h.includes('CAPITAL')) col.capital=c;
+    else if(h.includes('FINANCIERO')) col.intfin=c;
+    else if(h.includes('RESARCITORIO')) col.intres=c;
+    else if(h==='CUOTA') col.cuota=c;
+    else if(h.includes('N') && h.includes('CUOTA')) col.ncuota=c;
+    else if(h.includes('TOTAL')) col.total=c;
+    else if(h.includes('CANCELADO')) col.cancelado=c;
+    else if(h==='ESTADO') col.estado=c;
+  }
+  const amountCol = col.total!==undefined ? col.total : col.cuota;
+  if(col.empresa===undefined || amountCol===undefined) throw new Error('No encontré las columnas esperadas (EMPRESA/CUOTA-TOTAL) en "'+sheetName+'".');
+
+  const rows = [];
+  const num = (v)=>{ const n=Number(v); return isNaN(n)?0:n; };
+  for(let r=headerRow+1; r<=range.e.r; r++){
+    const eCell = ws[XLSX.utils.encode_cell({r,c:col.empresa})];
+    const empresa = normEmpresa(eCell ? eCell.v : null);
+    if(!empresa) continue;
+    const g = (c)=> (c===undefined) ? null : (ws[XLSX.utils.encode_cell({r,c})]||{}).v;
+    // "Estado" es a nivel del plan completo (Vigente / Cancelado-caduco), distinto de si ESTA cuota puntual
+    // ya se pagó. Si el plan entero está caduco/cancelado, ninguna de sus cuotas cuenta como deuda real.
+    const estado = String(g(col.estado) || '').trim().toUpperCase();
+    if(estado && estado!=='VIGENTE') continue;
+    const vencRaw = g(col.venc);
+    const venc = (vencRaw instanceof Date) ? vencRaw : null;
+    const fpRaw = g(col.fechaPago);
+    const fechaPago = (fpRaw instanceof Date) ? fpRaw : null;
+    const capital = num(g(col.capital));
+    const intfin = num(g(col.intfin));
+    const intres = num(g(col.intres));
+    const total = num(g(amountCol));
+    if(!total && !capital) continue;
+    rows.push({
+      empresa, venc, fechaPago, saldo:capital, intereses: intfin+intres, total,
+      impuesto: labelFn(g, col), concepto: `Cuota ${g(col.ncuota)||''}`.trim()
+    });
+  }
+  return {sheetName, rows};
+}
+
+// Para cada mes (monthKeys), arma qué cuotas quedan "de ese mes en adelante": todavía no pagadas antes
+// de que empiece ese mes (Fecha de Pago >= primer día del mes), separando Corriente/No Corriente según
+// si el Vencimiento cae dentro de los 12 meses siguientes AL INICIO de ese mismo mes (no a "hoy"), para
+// que la reconstrucción histórica sea consistente mes a mes.
+function buildQuotaSnapshots(rows, monthKeys){
+  const results = {spl:{}, spotsline:{}};
+  ['spl','spotsline'].forEach(e=>{
+    monthKeys.forEach(mk=>{
+      results[e][mk.year] = results[e][mk.year] || {};
+      results[e][mk.year][mk.month] = {cte:[], nocte:[]};
+    });
+  });
+  rows.forEach(row=>{
+    monthKeys.forEach(mk=>{
+      const cutoff = monthStartCutoff(mk);
+      const outstanding = row.fechaPago ? (row.fechaPago >= cutoff) : (row.venc ? row.venc >= cutoff : true);
+      if(!outstanding) return;
+      const corriente = !row.venc || row.venc <= plusOneYear(cutoff);
+      results[row.empresa][mk.year][mk.month][corriente?'cte':'nocte'].push(row);
+    });
+  });
+  return results;
+}
+
+/* ============ IMPORTAR DEUDAS ARCA (Obligaciones Impositivas — dato puntual, no se reconstruye por mes) ============ */
+function parseDeudasArcaSheet(workbook, monthKeys){
+  const sheetName = workbook.SheetNames.find(n=>/deuda/i.test(n) && /arca/i.test(n));
+  if(!sheetName) throw new Error('No encontré una hoja "Deudas ARCA" en este archivo.');
+  const ws = workbook.Sheets[sheetName];
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  let headerRow=-1;
+  for(let r=range.s.r; r<=range.e.r; r++){
+    const cell = ws[XLSX.utils.encode_cell({r, c:range.s.c})];
+    if(cell && String(cell.v).trim().toUpperCase()==='EMPRESA'){ headerRow=r; break; }
+  }
+  if(headerRow===-1) throw new Error('No encontré la fila de encabezado (EMPRESA) en la hoja "'+sheetName+'".');
+  const col = {};
+  for(let c=range.s.c; c<=range.e.c; c++){
+    const cell = ws[XLSX.utils.encode_cell({r:headerRow,c})];
+    if(!cell || cell.v===undefined || cell.v===null) continue;
+    const t = String(cell.v).trim().toUpperCase();
+    if(t==='EMPRESA') col.empresa=c;
+    else if(t==='IMPUESTO') col.impuesto=c;
+    else if(t==='CONCEPTO') col.concepto=c;
+    else if(t==='VENCIMIENTO') col.venc=c;
+    else if(t==='SALDO') col.saldo=c;
+    else if(t==='INTRESARCITORIO') col.intres=c;
+    else if(t==='INTPUNITORIO') col.intpun=c;
+    else if(t==='TOTAL') col.total=c;
+    else if(t==='CANCELADO') col.cancelado=c;
+  }
+  if(col.empresa===undefined || col.total===undefined) throw new Error('No encontré las columnas esperadas (EMPRESA/TOTAL) en "'+sheetName+'".');
+
+  const items = {spl:[], spotsline:[]};
+  for(let r=headerRow+1; r<=range.e.r; r++){
+    const eCell = ws[XLSX.utils.encode_cell({r,c:col.empresa})];
+    const empresa = normEmpresa(eCell ? eCell.v : null);
+    if(!empresa) continue;
+    const g = (c)=> (c===undefined) ? null : (ws[XLSX.utils.encode_cell({r,c})]||{}).v;
+    const cancelado = String(g(col.cancelado) || '').trim().toUpperCase();
+    if(cancelado==='SI') continue; // ya pagada, no es deuda pendiente
+    const vencRaw = g(col.venc);
+    const venc = (vencRaw instanceof Date) ? vencRaw : null;
+    const saldo = Number(g(col.saldo)) || 0;
+    const intres = Number(g(col.intres)) || 0;
+    const intpun = Number(g(col.intpun)) || 0;
+    const total = Number(g(col.total)) || 0;
+    items[empresa].push({empresa, venc, saldo, intereses: intres+intpun, total, impuesto: g(col.impuesto)||'', concepto: g(col.concepto)||''});
+  }
+  // Es una foto de "hoy": no hay Fecha de Pago para reconstruir meses pasados, así que se aplica
+  // solo al mes más reciente del Cash Flow (el último de monthKeys) — los anteriores quedan a cargar a mano.
+  const sorted = monthKeys.slice().sort((a,b)=> a.year-b.year || a.month-b.month);
+  const lastMonth = sorted[sorted.length-1];
+  return {sheetName, items, lastMonth};
+}
+
+/* ============ IMPORTAR SUELDOS Y CCSS (solo lo devengado de cada mes, sin pagar) ============ */
+function parseSueldosSheet(workbook, monthKeys){
+  const sheetName = workbook.SheetNames.find(n=>/sueldo/i.test(n) && /ccss/i.test(n));
+  if(!sheetName) throw new Error('No encontré una hoja "Sueldos y CCSS" en este archivo.');
+  const ws = workbook.Sheets[sheetName];
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  let headerRow=-1;
+  for(let r=range.s.r; r<=range.e.r; r++){
+    const cell = ws[XLSX.utils.encode_cell({r, c:range.s.c})];
+    if(cell && normalizeHeader(cell.v)==='EMPRESA'){ headerRow=r; break; }
+  }
+  if(headerRow===-1) throw new Error('No encontré la fila de encabezado (EMPRESA) en la hoja "'+sheetName+'".');
+  const col = {};
+  for(let c=range.s.c; c<=range.e.c; c++){
+    const cell = ws[XLSX.utils.encode_cell({r:headerRow,c})];
+    if(!cell || cell.v===undefined || cell.v===null) continue;
+    const h = normalizeHeader(cell.v);
+    if(h==='EMPRESA') col.empresa=c;
+    else if(h==='CONCEPTO') col.concepto=c;
+    else if(h.includes('MES DEVENGADO')) col.mesDeveng=c;
+    else if(h==='REFERENCIA') col.ref=c;
+    else if(h==='IMPORTE') col.importe=c;
+    else if(h.includes('ESTADO')) col.estado=c;
+  }
+  if(col.empresa===undefined || col.importe===undefined) throw new Error('No encontré las columnas esperadas (EMPRESA/IMPORTE) en "'+sheetName+'".');
+
+  const rows = [];
+  for(let r=headerRow+1; r<=range.e.r; r++){
+    const eCell = ws[XLSX.utils.encode_cell({r,c:col.empresa})];
+    const empresa = normEmpresa(eCell ? eCell.v : null);
+    if(!empresa) continue;
+    const g = (c)=> (c===undefined) ? null : (ws[XLSX.utils.encode_cell({r,c})]||{}).v;
+    const estado = String(g(col.estado) || '').trim().toUpperCase();
+    if(estado==='SI') continue; // ya pagado
+    const mdRaw = g(col.mesDeveng);
+    const mesDeveng = (mdRaw instanceof Date) ? mdRaw : null;
+    const importe = Number(g(col.importe)) || 0;
+    rows.push({empresa, mesDeveng, importe, impuesto: g(col.concepto)||'', concepto: g(col.ref)||''});
+  }
+  const results = {spl:{}, spotsline:{}};
+  ['spl','spotsline'].forEach(e=>{
+    monthKeys.forEach(mk=>{
+      results[e][mk.year] = results[e][mk.year] || {};
+      const items = rows.filter(row=> row.empresa===e && row.mesDeveng && row.mesDeveng.getFullYear()===mk.year && row.mesDeveng.getMonth()===mk.month);
+      results[e][mk.year][mk.month] = items.map(i=>({...i, saldo:i.importe, intereses:0, total:i.importe, vencimiento:i.mesDeveng}));
+    });
+  });
+  return {sheetName, results};
+}
+
+/* ============ IMPORTAR DEUDA EXT (Proveedores Exterior, ya en pesos, mes a mes) ============ */
+function parseDeudaExtSheet(workbook, monthKeys){
+  const sheetName = workbook.SheetNames.find(n=>/deuda/i.test(n) && /ext/i.test(n));
+  if(!sheetName) throw new Error('No encontré una hoja "DEUDA EXT" en este archivo.');
+  const ws = workbook.Sheets[sheetName];
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  let headerRow=-1;
+  for(let r=range.s.r; r<=range.e.r; r++){
+    const cell = ws[XLSX.utils.encode_cell({r, c:range.s.c})];
+    if(cell && normalizeHeader(cell.v)==='EMPRESA'){ headerRow=r; break; }
+  }
+  if(headerRow===-1) throw new Error('No encontré la fila de encabezado (EMPRESA) en la hoja "'+sheetName+'".');
+  const col = {};
+  for(let c=range.s.c; c<=range.e.c; c++){
+    const cell = ws[XLSX.utils.encode_cell({r:headerRow,c})];
+    if(!cell || cell.v===undefined || cell.v===null) continue;
+    const h = normalizeHeader(cell.v);
+    if(h==='EMPRESA') col.empresa=c;
+    else if(h==='FACTURA') col.factura=c;
+    else if(h==='PROVEEDOR') col.proveedor=c;
+    else if(h.includes('VENCIMIENTO')) col.venc=c;
+    else if(h.includes('PAGO')) col.fechaPago=c;
+    else if(h.includes('MONTO') && h.includes('USD')) col.montoUsd=c;
+    else if(h==='TC') col.tc=c;
+    else if(h.includes('SALDO') && h.includes('AR')) col.saldoArs=c;
+  }
+  if(col.empresa===undefined || col.saldoArs===undefined) throw new Error('No encontré las columnas esperadas (EMPRESA/SALDO AR$) en "'+sheetName+'".');
+
+  const rows = [];
+  for(let r=headerRow+1; r<=range.e.r; r++){
+    const eCell = ws[XLSX.utils.encode_cell({r,c:col.empresa})];
+    const empresa = normEmpresa(eCell ? eCell.v : null);
+    if(!empresa) continue;
+    const g = (c)=> (c===undefined) ? null : (ws[XLSX.utils.encode_cell({r,c})]||{}).v;
+    const vencRaw = g(col.venc);
+    const venc = (vencRaw instanceof Date) ? vencRaw : null;
+    const fpRaw = g(col.fechaPago);
+    const fechaPago = (fpRaw instanceof Date) ? fpRaw : null;
+    const saldoArs = Number(g(col.saldoArs)) || 0;
+    const montoUsd = Number(g(col.montoUsd)) || 0;
+    if(!saldoArs) continue;
+    rows.push({
+      empresa, venc, fechaPago, saldo:0, intereses:0, total:saldoArs,
+      impuesto: g(col.proveedor)||'', concepto: `Fact. ${g(col.factura)||''} · US$${montoUsd.toLocaleString('es-AR')}`
+    });
+  }
+  const results = {spl:{}, spotsline:{}};
+  ['spl','spotsline'].forEach(e=>{
+    monthKeys.forEach(mk=>{
+      results[e][mk.year] = results[e][mk.year] || {};
+      const cutoff = monthStartCutoff(mk);
+      // "de ese mes en adelante": todavía no pagada al inicio de ese mes
+      const items = rows.filter(row=> row.empresa===e && (row.fechaPago ? row.fechaPago >= cutoff : true));
+      results[e][mk.year][mk.month] = items;
+    });
+  });
+  return {sheetName, results};
+}
+
+/* ============ IMPORTAR DESVINCULACIONES (Corriente/No Corriente, mes a mes) ============ */
+function parseDesvinculacionesSheet(workbook, monthKeys){
+  const {sheetName, rows} = readQuotaSheet(workbook, n=>/desvincul/i.test(n), 'Desvinculaciones',
+    (g,col)=> String(g(col.plan)||'').trim());
+  const results = buildQuotaSnapshots(rows, monthKeys);
+  return {sheetName, results};
+}
+
+/* ============ IMPORTAR PLANES DE PAGO (Otras deudas, Corriente/No Corriente, mes a mes) ============ */
+function parsePlanesDePagoSheet(workbook, monthKeys){
+  const {sheetName, rows} = readQuotaSheet(workbook, n=>/planes/i.test(n) && /pago/i.test(n), 'Planes de Pago',
+    (g,col)=> `${String(g(col.tipo)||'').trim()} ${String(g(col.plan)||'').trim()}`.trim());
+  const results = buildQuotaSnapshots(rows, monthKeys);
+  return {sheetName, results};
+}
+
+/* ============ IMPORTAR CRÉDITOS BANCARIOS (deuda bancaria, Corriente/No Corriente, mes a mes) ============ */
+function parseCreditosBancariosSheet(workbook, monthKeys){
+  const {sheetName, rows} = readQuotaSheet(workbook, n=>/credito/i.test(normalizeHeader(n)) && /banc/i.test(n), 'Créditos Bancarios',
+    (g,col)=> String(g(col.banco)||'').trim());
+  const results = buildQuotaSnapshots(rows, monthKeys);
+  return {sheetName, results};
+}
+
+/* ============ IMPORTAR PLANES ARCA (deuda fiscal en cuotas, Corriente/No Corriente, mes a mes) ============ */
+function parsePlanesArcaSheet(workbook, monthKeys){
+  const {sheetName, rows} = readQuotaSheet(workbook, n=>/planes/i.test(n) && /arca/i.test(n), 'Planes ARCA',
+    (g,col)=> `Plan ${String(g(col.plan)||'').trim()}`);
+  const results = buildQuotaSnapshots(rows, monthKeys);
+  return {sheetName, results};
+}
+
+/* ============ VER DETALLE (drill-down) ============ */
+function renderDrillModal(fieldId, month){
+  const data = lastMonthData[month];
+  const items = (data.meta && data.meta[fieldId] && data.meta[fieldId].items) || [];
+  const f = ALL_FIELDS.find(x=>x.id===fieldId);
+  const totalInt = items.reduce((a,i)=>a+(i.intereses||0),0);
+  const totalCap = items.reduce((a,i)=>a+(i.saldo||0),0);
+  const totalTot = items.reduce((a,i)=>a+(i.total||0),0);
+  const rows = items.map((i,idx)=>`<tr>
+    <td>${i.impuesto||''}</td><td>${i.concepto||''}</td>
+    <td>${i.vencimiento?new Date(i.vencimiento).toLocaleDateString('es-AR'):'—'}</td>
+    <td style="text-align:right">${fmtMoney(i.saldo)}</td>
+    <td style="text-align:right;color:var(--orange)">${fmtMoney(i.intereses)}</td>
+    <td style="text-align:right">${fmtMoney(i.total)}</td>
+    <td><button class="del-item-btn" data-del-idx="${idx}" title="Eliminar esta línea">🗑</button></td>
+  </tr>`).join('');
+  document.getElementById('modal').innerHTML = `
+    <span class="close-x" id="closeXDrill">&times;</span>
+    <h3>Detalle — ${f.label} (${MESES[month]})</h3>
+    <div class="desc">${items.length} ítems. Podés borrar una línea si no corresponde — el total se recalcula solo.</div>
+    <table><thead><tr><th>Impuesto</th><th>Concepto</th><th>Vencimiento</th><th>Capital</th><th>Intereses</th><th>Total</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr style="font-weight:700;border-top:1px solid var(--border2)">
+      <td colspan="3">Total</td><td style="text-align:right">${fmtMoney(totalCap)}</td><td style="text-align:right;color:var(--orange)">${fmtMoney(totalInt)}</td><td style="text-align:right">${fmtMoney(totalTot)}</td><td></td>
+    </tr></tfoot></table>
+  `;
+  document.getElementById('closeXDrill').addEventListener('click', closeModal);
+  document.querySelectorAll('button[data-del-idx]').forEach(btn=>{
+    btn.addEventListener('click', ()=> deleteDrillItem(fieldId, month, Number(btn.dataset.delIdx)));
+  });
+}
+
+function openDrillModal(fieldId, month){
+  renderDrillModal(fieldId, month);
+  document.getElementById('overlay').classList.add('show');
+}
+
+async function deleteDrillItem(fieldId, month, idx){
+  const d = await loadPeriod(state.entity, state.year, month);
+  const items = (d.meta[fieldId] && d.meta[fieldId].items) || [];
+  items.splice(idx, 1);
+  d.meta[fieldId].items = items;
+  d.values[fieldId] = items.reduce((a,i)=>a+(i.total||0),0);
+  await savePeriod(state.entity, state.year, month, d);
+  await renderGrid(); // actualiza lastMonthData con los datos ya guardados
+  renderDrillModal(fieldId, month); // vuelve a pintar el modal (sigue abierto) con la línea borrada
+}
+
+/* ============ EXPORTAR EXCEL / PDF (vista actual: empresa + año elegidos) ============ */
+async function gatherExportData(monthsOverride){
+  const readonly = state.entity === 'conjunto';
+  const visibleMonths = monthsOverride || defaultVisibleMonths(state.year);
+  const monthData = {};
+  for(const m of visibleMonths){
+    monthData[m] = readonly ? await effectiveMonthDataConjunto(state.year, m) : await effectiveMonthData(state.entity, state.year, m);
+  }
+  const totalsByMonth = {};
+  visibleMonths.forEach(m=> totalsByMonth[m] = computeTotals(monthData[m].values));
+  return {visibleMonths, monthData, totalsByMonth};
+}
+
+async function exportExcel(monthsOverride){
+  const {visibleMonths, monthData, totalsByMonth} = await gatherExportData(monthsOverride);
+  const entLabel = ENTITIES.find(e=>e.id===state.entity).label;
+  const aoa = [];
+  aoa.push([`Situación Patrimonial — ${entLabel} — ${state.year}`]);
+  aoa.push(['Rubro', ...visibleMonths.map(m=>MESES[m])]);
+  const field = (f)=> aoa.push([f.label, ...visibleMonths.map(m=> Math.round(monthData[m].values[f.id])||0)]);
+  const section = (label)=> aoa.push([label]);
+  const total = (label,key)=> aoa.push([label, ...visibleMonths.map(m=> Math.round(totalsByMonth[m][key]))]);
+  const ratio = (label,key)=> aoa.push([label, ...visibleMonths.map(m=> isFinite(totalsByMonth[m][key])?Number(totalsByMonth[m][key].toFixed(2)):'')]);
+  const pct = (label,key)=> aoa.push([label, ...visibleMonths.map(m=> isFinite(totalsByMonth[m][key])?Number((totalsByMonth[m][key]*100).toFixed(1))+'%':'')]);
+
+  section('ACTIVO CORRIENTE'); ACTIVO_CTE.forEach(field); total('Total Activo Corriente','totActCte');
+  section('ACTIVO NO CORRIENTE'); ACTIVO_NOCTE.forEach(field); total('Total Activo No Corriente','totActNoCte');
+  total('TOTAL ACTIVO','totActivo');
+  section('PASIVO CORRIENTE'); PASIVO_CTE.forEach(field); total('Total Pasivo Corriente','totPasCte');
+  section('PASIVO NO CORRIENTE'); PASIVO_NOCTE.forEach(field); total('Total Pasivo No Corriente','totPasNoCte');
+  total('TOTAL PASIVO','totPasivo');
+  total('PATRIMONIO NETO','patrimonioNeto');
+  section('RATIOS');
+  ratio('Liquidez Corriente','liquidez'); ratio('Prueba Ácida','pruebaAcida'); ratio('Endeudamiento','endeudamiento');
+  ratio('Solvencia','solvencia'); ratio('Cobertura del Pasivo con Patrimonio','coberturaPasPatrimonio');
+  pct('% Pasivo Corriente s/ Pasivo Total','pctPasCte'); pct('% Pasivo No Corriente s/ Pasivo Total','pctPasNoCte');
+  total('Capital de Trabajo','capitalTrabajo');
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:28}, ...visibleMonths.map(()=>({wch:14}))];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, entLabel.slice(0,28));
+  const wbout = XLSX.write(wb, {type:'array', bookType:'xlsx'});
+  const blob = new Blob([wbout], {type:'application/octet-stream'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `situacion_patrimonial_${state.entity}_${state.year}.xlsx`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function exportPdf(){
+  openPdfMonthModal();
+}
+
+function openPdfMonthModal(){
+  const months = defaultVisibleMonths(state.year);
+  const entLabel = ENTITIES.find(e=>e.id===state.entity).label;
+  document.getElementById('modal').innerHTML = `
+    <span class="close-x" id="closeXPdf">&times;</span>
+    <h3>Exportar PDF — ${entLabel} ${state.year}</h3>
+    <div class="desc">Elegí qué meses van en el PDF (menos meses = más chance de que entre en una sola hoja apaisada).</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0">
+      ${months.map(m=>`<label style="display:flex;align-items:center;gap:5px;font-size:13px;background:var(--bg3);padding:6px 10px;border-radius:6px;cursor:pointer">
+        <input type="checkbox" class="pdf-month-chk" value="${m}" checked> ${MESES[m].slice(0,3)}
+      </label>`).join('')}
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:10px">
+      <button class="btn" id="pdfSelAll" style="font-size:12px;padding:6px 10px">Todos</button>
+      <button class="btn" id="pdfSelNone" style="font-size:12px;padding:6px 10px">Ninguno</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelPdf">Cancelar</button>
+      <button class="btn primary" id="confirmPdf">Generar PDF</button>
+    </div>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('closeXPdf').addEventListener('click', closeModal);
+  document.getElementById('cancelPdf').addEventListener('click', closeModal);
+  document.getElementById('pdfSelAll').addEventListener('click', ()=> document.querySelectorAll('.pdf-month-chk').forEach(c=>c.checked=true));
+  document.getElementById('pdfSelNone').addEventListener('click', ()=> document.querySelectorAll('.pdf-month-chk').forEach(c=>c.checked=false));
+  document.getElementById('confirmPdf').addEventListener('click', confirmPdfExport);
+}
+
+async function confirmPdfExport(){
+  const selected = Array.from(document.querySelectorAll('.pdf-month-chk:checked')).map(c=>Number(c.value)).sort((a,b)=>a-b);
+  if(!selected.length){ alert('Elegí al menos un mes.'); return; }
+  closeModal();
+  const entLabel = ENTITIES.find(e=>e.id===state.entity).label;
+  document.getElementById('printTitle').textContent = `Situación Patrimonial — ${entLabel} — ${state.year}`;
+  await renderGrid(selected); // pinta la grilla SOLO con los meses elegidos
+  window.print();
+  const restore = ()=>{ renderGrid(); window.removeEventListener('afterprint', restore); };
+  window.addEventListener('afterprint', restore);
+}
+
+
+async function exportAllData(){
+  try{
+    const listRes = await Store.list('');
+    const keys = (listRes && listRes.keys) || [];
+    if(!keys.length){ alert('No encontré datos guardados para exportar todavía.'); return; }
+    const bundle = {};
+    for(const k of keys){
+      try{
+        const r = await Store.get(k);
+        if(r) bundle[k] = r.value;
+      }catch(e){ /* si una key falla, seguimos con el resto */ }
+    }
+    const payload = {app:'situacion_patrimonial', exportedAt:new Date().toISOString(), data:bundle};
+    const blob = new Blob([JSON.stringify(payload, null, 1)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `situacion_patrimonial_backup_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(e){
+    alert('No pude exportar los datos: '+e.message+'. Puede que este navegador tenga bloqueado el almacenamiento local (modo incógnito, por ejemplo).');
+  }
+}
+
+function openImportBackupModal(){
+  document.getElementById('modal').innerHTML = `
+    <span class="close-x" id="closeXBackup">&times;</span>
+    <h3>Importar datos (backup)</h3>
+    <div class="desc">Subí un archivo exportado con "Exportar datos". Va a restaurar todo lo que tenga adentro — si una clave ya existe, la reemplaza.</div>
+    <input type="file" id="backupFileInput" accept=".json">
+    <div id="backupBody"></div>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('closeXBackup').addEventListener('click', closeModal);
+  document.getElementById('backupFileInput').addEventListener('change', handleBackupFile);
+}
+
+let backupCtx = null;
+function handleBackupFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt)=>{
+    let payload;
+    try{ payload = JSON.parse(evt.target.result); }
+    catch(err){ document.getElementById('backupBody').innerHTML = `<div class="desc" style="color:var(--red)">El archivo no es un JSON válido.</div>`; return; }
+    if(!payload || !payload.data){ document.getElementById('backupBody').innerHTML = `<div class="desc" style="color:var(--red)">Este archivo no tiene el formato esperado (¿es un backup exportado desde acá?).</div>`; return; }
+    const keys = Object.keys(payload.data);
+    backupCtx = payload;
+    document.getElementById('backupBody').innerHTML = `
+      <div class="desc">Encontré ${keys.length} período(s) guardado(s)${payload.exportedAt?` · exportado el ${new Date(payload.exportedAt).toLocaleString('es-AR')}`:''}.</div>
+      <div class="modal-actions">
+        <button class="btn" id="cancelBackup">Cancelar</button>
+        <button class="btn primary" id="confirmBackup">Restaurar</button>
+      </div>`;
+    document.getElementById('cancelBackup').addEventListener('click', closeModal);
+    document.getElementById('confirmBackup').addEventListener('click', confirmBackupImport);
+  };
+  reader.readAsText(file);
+}
+
+async function confirmBackupImport(){
+  const entries = Object.entries(backupCtx.data);
+  let ok=0, fail=0;
+  for(const [k,v] of entries){
+    try{ await Store.set(k, v); cache[k] = JSON.parse(v); ok++; }
+    catch(e){ fail++; }
+  }
+  closeModal();
+  renderAll();
+  alert(`Restaurado: ${ok} período(s)${fail?`, ${fail} con error`:''}.`);
+}
+
+/* ============ INIT ============ */
+document.getElementById('btnMeta').addEventListener('click', openMetaModal);
+document.getElementById('btnImportCF').addEventListener('click', openImportCFModal);
+document.getElementById('btnSyncPanels').addEventListener('click', openSyncPanelsModal);
+document.getElementById('btnSyncDolar').addEventListener('click', openSyncDolarModal);
+document.getElementById('btnExport').addEventListener('click', exportAllData);
+document.getElementById('btnImportBackup').addEventListener('click', openImportBackupModal);
+document.getElementById('btnExportExcel').addEventListener('click', exportExcel);
+document.getElementById('btnExportPdf').addEventListener('click', exportPdf);
+renderAll();
+</script>
+</body>
+</html>
