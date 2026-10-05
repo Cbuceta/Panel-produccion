@@ -271,7 +271,7 @@ const S={db:null,live:false,uid:null,canPlan:true,canWrite:true,
 /* ---------- derivados ---------- */
 const woKey=(op,pieza,seq)=>op+'|'+pieza+'|'+seq;
 function entries(){const out=[];for(const p of S.partes)for(const it of (p.items||[]))out.push({...it,_doc:p.id,fecha:p.fecha});return out}
-function recompute(){
+function recompute(){DV++;
   const m=new Map();
   for(const e of entries()){ if(e.tipo!=='prod'||!e.op_id)continue;
     const k=woKey(e.op_id,e.pieza,e.seq);const x=m.get(k)||{qty:0,scrap:0,min:0,std:0};
@@ -1713,7 +1713,7 @@ function clearActiva(id){if(!S.db)return;S.db.collection('activas').doc(id||uidS
 function activasVivas(){return (S.activas||[]).filter(a=>a.activo&&a.fecha&&a.fecha>=addDays(today(),-1))}
 function transcurrido(a){const now=new Date();const [h,m]=String(a.ini||'0:0').split(':').map(Number);const st=new Date(a.fecha+'T00:00:00');st.setHours(h,m,0,0);const min=Math.max(0,Math.round((now-st)/60000));return min}
 const durTxt=m=>m<60?m+' min':Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' min';
-function htmlActivas(){const A=activasVivas().sort((a,b)=>String(a.maq).localeCompare(String(b.maq),'es',{numeric:true}));
+function htmlActivas(){const A=activasVivas().slice().sort((a,b)=>String(a.maq).localeCompare(String(b.maq),'es',{numeric:true}));
   return `<section class="panel"><div class="pzh" style="align-items:baseline"><h2>Trabajando ahora <span class="note">${A.length}</span></h2><span class="note">se actualiza solo cuando el operario toca Empecé o Terminé en su celular</span></div>
   ${A.length?`<div class="tw"><table><tr><th>Operario</th><th>Máquina</th><th>Tarea</th><th>Desde</th><th class="n">Tiempo</th><th></th></tr>${A.map(a=>{const min=transcurrido(a);const olv=min>600;const par=a.tipo==='parada';
     return `<tr class="${a.op_id?'click':''}" ${a.op_id?`data-verop="${esc(a.op_id)}"`:''}><td><span class="dot ${par?'dp':'dw'}"></span>${esc(persona(a.yo))}</td><td>${esc(a.maq||'–')}</td>
@@ -1757,12 +1757,15 @@ update(keepFocus){const L=$('#dList');if(!L)return;if(!keepFocus&&document.activ
   if(this.ver==='disp'){const P=Object.values(stockTerminado()).filter(X=>X.disp>0||this.open===X.key).filter(X=>!qq||nrm(X.pieza+' '+(X.codigo||'')+' '+X.arts.join(' ')).includes(qq)).sort((a,b)=>b.disp-a.disp);
     L.innerHTML=`<p class="note" style="margin-top:0">Unidades que completaron el último paso del taller y todavía no se mandaron a otra área. Al asignar se consume primero de los lotes más viejos. Tocá una pieza para ver sus lotes, o cargá un ajuste si hay piezas en el piso que no pasaron por el sistema.</p>
     ${S.canPlan?'<div class="row" style="margin:0 0 10px"><button class="btn sec sm" id="dAj">Cargar ajuste o stock inicial</button></div>':''}
-    ${P.length?`<div class="tw"><table><tr><th>Pieza</th><th>Código</th><th>Artículos</th><th class="n">Disponible</th><th class="n">Lotes</th><th>Más viejo</th><th>Asignar</th></tr>
-    ${P.map(X=>{const open=this.open===X.key;const conD=X.lotes.filter(l=>l.disp>0);return `<tr class="click" data-dk="${esc(X.key)}"><td><b>${esc(X.pieza)}</b></td><td class="note">${esc(X.codigo||'')}</td><td class="note">${esc(X.arts.slice(0,4).join(', '))}${X.arts.length>4?'…':''}</td><td class="n"><b>${nf(X.disp)}</b></td><td class="n">${conD.length}</td><td>${fmtD(conD[0]?.fecha||'')}</td>
+    ${P.length?`<div class="tw"><table><tr><th></th><th>Pieza</th><th>Código</th><th>Artículos</th><th class="n">Disponible</th><th class="n">Lotes</th><th>Más viejo</th><th>Asignar</th></tr>
+    ${P.map(X=>{const open=this.open===X.key;const conD=X.lotes.filter(l=>l.disp>0);return `<tr class="click" data-dk="${esc(X.key)}"><td onclick="event.stopPropagation()">${S.canPlan?`<input type="checkbox" data-dsel="${esc(X.key)}" ${this.selB&&this.selB[X.key]!=null?'checked':''} style="width:auto" aria-label="Elegir ${esc(X.pieza)}">`:''}</td><td><b>${esc(X.pieza)}</b></td><td class="note">${esc(X.codigo||'')}</td><td class="note">${esc(X.arts.slice(0,4).join(', '))}${X.arts.length>4?'…':''}</td><td class="n"><b>${nf(X.disp)}</b></td><td class="n">${conD.length}</td><td>${fmtD(conD[0]?.fecha||'')}</td>
       <td onclick="event.stopPropagation()">${S.canPlan?`<span class="row" style="gap:4px;flex-wrap:nowrap"><input type="number" min="1" max="${X.disp}" placeholder="${nf(X.disp)}" data-dq="${esc(X.key)}" style="width:86px;text-align:right"><select data-da="${esc(X.key)}" style="width:auto">${AREAS.map(a=>`<option>${a}</option>`).join('')}</select><button class="btn sm" data-dgo="${esc(X.key)}">Enviar</button></span>`:''}</td></tr>
-      ${open?`<tr><td colspan="7"><table><tr><th>Lote</th><th>Fecha</th><th class="n">Producido</th><th class="n">Asignado</th><th class="n">Disponible</th></tr>${X.lotes.map(l=>`<tr><td>${l.tipo==='op'?'OP '+esc(l.op):l.tipo==='aj'?'Ajuste / stock inicial':'Fuera de plan'}</td><td>${fmtD(l.fecha)}</td><td class="n">${nf(l.qty)}</td><td class="n">${nf(l.cons)}</td><td class="n"><b>${nf(l.disp)}</b></td></tr>`).join('')}</table></td></tr>`:''}`}).join('')}</table></div>`:'<p class="note">No hay unidades terminadas disponibles. Aparecen acá cuando el taller completa el último paso de una pieza.</p>'}`;
+      ${open?`<tr><td colspan="8"><table><tr><th>Lote</th><th>Fecha</th><th class="n">Producido</th><th class="n">Asignado</th><th class="n">Disponible</th></tr>${X.lotes.map(l=>`<tr><td>${l.tipo==='op'?'OP '+esc(l.op):l.tipo==='aj'?'Ajuste / stock inicial':'Fuera de plan'}</td><td>${fmtD(l.fecha)}</td><td class="n">${nf(l.qty)}</td><td class="n">${nf(l.cons)}</td><td class="n"><b>${nf(l.disp)}</b></td></tr>`).join('')}</table></td></tr>`:''}`}).join('')}</table></div>${S.canPlan?this.barraLote(P):''}`:'<p class="note">No hay unidades terminadas disponibles. Aparecen acá cuando el taller completa el último paso de una pieza.</p>'}`;
     L.querySelectorAll('[data-dk]').forEach(r=>r.onclick=()=>{this.open=this.open===r.dataset.dk?null:r.dataset.dk;this.update(true)});
     L.querySelectorAll('[data-dgo]').forEach(b=>b.onclick=()=>this.enviar(b.dataset.dgo));
+    L.querySelectorAll('[data-dsel]').forEach(c=>c.onchange=()=>{this.selB=this.selB||{};if(c.checked)this.selB[c.dataset.dsel]=0;else delete this.selB[c.dataset.dsel];this.update(true)});
+    {const t=$('#dbTod');if(t)t.onclick=()=>{this.selB={};for(const X of P)this.selB[X.key]=0;this.update(true)};const n=$('#dbNin');if(n)n.onclick=()=>{this.selB={};this.update(true)};
+     const ar=$('#dbA');if(ar)ar.onchange=()=>{this.dbA=ar.value;this.update(true)};const g=$('#dbGo');if(g)g.onclick=()=>this.enviarLote()}
     const aj=$('#dAj');if(aj)aj.onclick=()=>this.ajuste()}
   else if(this.ver==='proc'){const R=enProcesoEntrePasos().filter(x=>!qq||nrm(x.l.pieza+' '+x.o.articulo+' '+(x.l.codigo||'')).includes(qq));const por={};R.forEach(x=>{por[x.hacia.tipo]=(por[x.hacia.tipo]||0)+x.q});
     L.innerHTML=`<p class="note" style="margin-top:0">Piezas que terminaron un paso y esperan el siguiente, en las órdenes abiertas. Muestra dónde se está acumulando el trabajo.</p>
@@ -1772,6 +1775,18 @@ update(keepFocus){const L=$('#dList');if(!L)return;if(!keepFocus&&document.activ
   else{const M=(S.movs||[]).slice().sort((a,b)=>String(b.ts).localeCompare(String(a.ts))).filter(m=>!qq||nrm(m.pieza+' '+(m.codigo||'')+' '+(m.area||'')).includes(qq));
     L.innerHTML=M.length?`<div class="tw"><table><tr><th>Fecha</th><th>Tipo</th><th>Pieza</th><th class="n">Unidades</th><th>Destino</th><th>De los lotes</th><th>Observación</th><th></th></tr>${M.map(m=>`<tr class="${m.anulado?'off':''}"><td>${fmtD(m.fecha)}</td><td>${m.tipo==='ajuste'?(+m.qty>0?'Ajuste (+)':'Ajuste (−)'):'Envío'}</td><td>${esc(m.pieza)} <span class="note">${esc(m.codigo||'')}</span></td><td class="n">${nf(Math.abs(+m.qty))}</td><td>${m.area?`<span class="pill ok">${esc(m.area)}</span>`:''}</td><td class="note">${(m.consumo||[]).map(c=>`${c.op==='ajuste'?'ajuste':c.op==='sin orden'?'fuera de plan':'OP '+esc(c.op)}: ${nf(c.qty)}`).join(', ')}</td><td class="note">${esc(m.obs||'')}${m.anulado?' (anulado)':''}</td><td class="n">${S.canPlan&&!m.anulado?`<button class="btn link" data-anu="${esc(m.id)}">Anular</button>`:''}</td></tr>`).join('')}</table></div>`:'<p class="note">Todavía no hay movimientos.</p>';
     L.querySelectorAll('[data-anu]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Anular este movimiento? Las unidades vuelven a estar disponibles.'))return;try{await S.db.collection('movimientos').doc(b.dataset.anu).update({anulado:true,anulado_ts:new Date().toISOString()});toast('Movimiento anulado')}catch(e){toast('No se pudo guardar')}})}},
+barraLote(P){const sel=Object.keys(this.selB||{}).filter(k=>P.some(X=>X.key===k));const tot=sel.reduce((a,k)=>{const X=P.find(x=>x.key===k);const inp=document.querySelector(`[data-dq="${k}"]`);return a+(parseInt(inp?.value,10)||X.disp)},0);const A=this.dbA||'Pintura';
+  return `<div class="lote" style="flex-wrap:wrap"><span><b>${sel.length} piezas elegidas</b> <span class="note">${nf(P.filter(X=>sel.includes(X.key)).reduce((a,X)=>a+X.disp,0))} unidades disponibles; si no ponés cantidad en una fila, se manda todo lo disponible</span> <button class="btn link" id="dbTod">marcar todas</button><button class="btn link" id="dbNin">ninguna</button></span>
+   <span class="row" style="gap:8px;align-items:flex-end"><label class="f" style="flex:0 0 auto">Destino<select id="dbA" style="width:auto">${AREAS.map(a=>`<option ${a===A?'selected':''}>${a}</option>`).join('')}</select></label>
+   ${A==='Pintura'?`<label class="f" style="flex:0 0 auto">Color<input id="dbC" list="dlColB" placeholder="NEGRO" style="width:130px"></label><datalist id="dlColB">${colores().map(c=>`<option value="${esc(c)}">`).join('')}</datalist><label class="f" style="flex:0 0 auto">Prioridad<select id="dbP" style="width:auto"><option value="normal">Normal</option><option value="urgente">Urgente</option></select></label><label class="f" style="flex:0 0 auto">Requerida<input type="date" id="dbF" value="${addDays(today(),3)}"></label>`:''}
+   <button class="btn" id="dbGo">Enviar ${sel.length||''} a ${A}</button></span></div>`},
+async enviarLote(){const P=stockTerminado();const sel=Object.keys(this.selB||{}).filter(k=>P[k]);if(!sel.length){toast('Tildá las piezas que querés mandar');return}const A=$('#dbA').value;let color=null,meta=null;
+  if(A==='Pintura'){color=($('#dbC').value||'').trim().toUpperCase();if(!color){toast('Elegí el color para las órdenes de pintura');return}meta={prioridad:$('#dbP').value,fecha_req:$('#dbF').value,obs:'Envío múltiple desde Stock terminado'}}
+  const items=[];for(const k of sel){const X=P[k];const inp=document.querySelector(`[data-dq="${k}"]`);const q=parseInt(inp?.value,10)||X.disp;if(q>X.disp){toast(`${X.pieza}: hay solo ${nf(X.disp)} disponibles`);return}items.push({k,X,q})}
+  if(!confirm(`Mandar ${items.length} piezas (${nf(items.reduce((a,x)=>a+x.q,0))} unidades) a ${A}${color?' en '+color:''}?`))return;if(busy('#dbGo'))return;let n=0;
+  try{for(const {k,X,q} of items){const {consumo}=consumirFIFO(X,q);const id='mv-'+newId();await S.db.collection('movimientos').doc(id).set({id,tipo:'salida',fecha:today(),ts:new Date().toISOString(),por:S.uid||null,key:k,pieza:X.pieza,codigo:X.codigo||null,articulos:X.arts,qty:q,area:A,obs:meta?.obs||'Envío múltiple',consumo,colores:color?[{c:color,q}]:null});
+      if(A==='Pintura')await crearOrdenesPintura(X,[{c:color,q}],meta,id);n++}
+    this.selB={};toast(n+' piezas enviadas a '+A+(A==='Pintura'?', con sus órdenes de pintura':''))}catch(e){toast('Se enviaron '+n+'. Falló una: revisá y probá de nuevo.')}finally{done('#dbGo')}},
 async enviar(k){const P=stockTerminado();const X=P[k];if(!X)return;const inp=document.querySelector(`[data-dq="${CSS.escape(k)}"]`);const q=parseInt(inp.value||X.disp,10);const area=document.querySelector(`[data-da="${CSS.escape(k)}"]`).value;
   if(!(q>0)){toast('Poné cuántas unidades mandás');return}if(q>X.disp){toast('Hay solo '+nf(X.disp)+' disponibles');return}
   if(area==='Pintura'){modalOrdenPintura(X,q,async(t,R,meta)=>{const {consumo}=consumirFIFO(X,t);const id='mv-'+newId();
@@ -2530,6 +2545,58 @@ function bindSector(B,sec){bindActivas(B);bindPlanta(B);
     if(sec==='armado'){const c=cfgA('armado');const cur=mesaDe(pid);modalPersona(pid,`<label class="f" style="margin:8px 0">Mesa de hoy<select id="qpMe"><option value="">Sin mesa</option>${(c.mesas||[]).map(x=>`<option ${x===cur?'selected':''}>${esc(x)}</option>`).join('')}</select></label>`,m=>{m.querySelector('#qpMe').onchange=async ev=>{try{await guardarDot(d=>{d.mesas=d.mesas||{};for(const k of Object.keys(d.mesas))d.mesas[k]=(d.mesas[k]||[]).filter(x=>x!==pid);if(ev.target.value)(d.mesas[ev.target.value]=d.mesas[ev.target.value]||[]).push(pid)});toast('Mesa asignada')}catch(e){toast('No se pudo guardar')}}});return}
     modalPersona(pid)};el.onclick=go;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}}})}
 
+/* ---------- planificar pintura por color ---------- */
+const COLOR_TOK={NEGRO:['NTX','NEG','NE','NT','N'],BLANCO:['BTX','BLA','BL','BA','BT','B'],COBRE:['COB','CO','CB'],'GRIS PERLA':['GRIS','GRP','GP'],ROJO:['ROJ'],OXIDO:['OXI']};
+function colorDeCodigo(code,fam){const ov=S.M.colores?.codigos?.[code];if(ov!==undefined)return ov||null;const U=String(code).toUpperCase();const all=Object.entries(COLOR_TOK).flatMap(([c,ts])=>ts.map(t=>[t,c])).sort((a,b)=>b[0].length-a[0].length);
+  const fin='(?=$|[^A-Z]|GU|CEN|LED|XL|D4|CAC|E27|2L)';const nf=nrm(fam||'');const nu=nrm(U);
+  if(nf&&nu.startsWith(nf)){const rest=nu.slice(nf.length);for(const [t,c] of all)if(new RegExp('^'+t+fin).test(rest))return c}
+  for(const [t,c] of all)if(new RegExp('[0-9\\-/]'+t+fin).test(U))return c;
+  for(const [t,c] of all){if(t.length<2)continue;if(new RegExp('[A-Z0-9]'+t+'(?=$|[^A-Z]|E27|GU|CEN|LED|XL|2L)').test(U))return c}return null}
+function demandaPorColor(color){const vinc=S.M.vinculos?.items||{};const prod=S.M.productos?.items||{};const sh=compartidas();const D={};const sinColor=[];
+  for(const r of S.P.pendiente?.items||[]){const falta=Math.max(0,-(+r.pron||0));if(!falta)continue;const fam=vinc[r.code]||r.fam;if(!fam||!prod[fam])continue;const c=colorDeCodigo(r.code,fam);
+    if(!c){sinColor.push({code:r.code,fam,falta});continue}if(c!==color)continue;
+    for(const p of prod[fam].piezas){const k=p.codigo&&sh.has(p.codigo)?'C:'+p.codigo:fam+'|'+p.pieza;const X=D[k]=D[k]||{key:k,pieza:p.pieza,codigo:p.codigo||null,arts:new Set(),dem:0,codes:[]};X.arts.add(fam);X.dem+=falta*(p.cant||1);X.codes.push({code:r.code,falta})}}
+  for(const X of Object.values(D))X.arts=[...X.arts];return {D,sinColor:sinColor.sort((a,b)=>b.falta-a.falta)}}
+V.pcolor={color:null,sel:{},soloDem:true,q:'',
+html(){return '<div id="pcB"></div>'},
+render(B){const C=colores();if(!this.color)this.color=C[0]||'NEGRO';const color=this.color;const {D,sinColor}=demandaPorColor(color);const T=stockTerminado();const SP=stockPintura();
+  const ord={};const asig={};for(const o of opintAbiertas()){if(o.color===color)ord[o.key]=(ord[o.key]||0)+o.falta;asig[o.key]=(asig[o.key]||0)+o.falta}
+  const keys=new Set([...Object.keys(D),...Object.values(T).filter(X=>X.disp>0).map(X=>X.key),...Object.values(SP).filter(X=>X.crudo>0).map(X=>X.key)]);const qq=nrm(this.q);
+  const rows=[...keys].map(k=>{const d=D[k];const inf=d||infoKey(k);const enT=T[k]?.disp||0;const enP=Math.max(0,(SP[k]?.crudo||0)-(asig[k]||0));const dem=d?.dem||0;const yo=ord[k]||0;const nec=Math.max(0,dem-yo);
+    return {k,pieza:inf.pieza,codigo:inf.codigo,arts:d?d.arts:(inf.arts||[]),codes:d?.codes||[],dem,yo,nec,enT,enP,disp:enT+enP,sug:Math.min(nec,enT+enP)}})
+    .filter(r=>(!this.soloDem||r.nec>0)&&(r.disp>0||r.nec>0)).filter(r=>!qq||nrm(r.pieza+' '+(r.codigo||'')+' '+r.arts.join(' ')).includes(qq)).sort((a,b)=>(b.sug>0)-(a.sug>0)||b.nec-a.nec);
+  const S0=this.sel[color]=this.sel[color]||{};const tot=Object.values(S0).reduce((a,v)=>a+v,0);
+  B.innerHTML=`<section class="panel filt"><div class="row" style="align-items:flex-end"><label class="f" style="flex:0 1 200px">Color<select id="pcC">${C.map(c=>`<option ${c===color?'selected':''}>${esc(c)}</option>`).join('')}</select></label>
+   <label class="f" style="flex:1 1 200px">Buscar pieza o artículo<input id="pcQ" value="${esc(this.q)}"></label><label style="display:flex;gap:6px;align-items:center;font-size:14px"><input type="checkbox" id="pcS" ${this.soloDem?'checked':''} style="width:auto"> Solo con faltante en ${esc(color)}</label></div>
+   <p class="note" style="margin:8px 0 0">Faltante en ${esc(color)} según el pendiente importado, por pieza (ya descontado lo que tiene orden de pintura abierta en este color), contra lo disponible para pintar: lo terminado en el taller y lo crudo que ya está en pintura sin orden. Tildá y ajustá cantidades.</p></section>
+   <section class="panel">${rows.length?`<div class="tw"><table><tr><th></th><th>Pieza</th><th>Artículos</th><th class="n">Faltante ${esc(color)}</th><th class="n">Ya ordenado</th><th class="n">En taller</th><th class="n">En pintura</th><th class="n">A pintar</th></tr>
+   ${rows.map((r,i)=>`<tr><td><input type="checkbox" data-pck="${i}" ${S0[r.k]?'checked':''} style="width:auto" ${r.disp?'':'disabled'} aria-label="Elegir ${esc(r.pieza)}"></td><td><b>${esc(r.pieza)}</b> <span class="note">${esc(r.codigo||'')}</span>${r.codes.length?`<br><span class="note">${r.codes.slice(0,4).map(c=>`${esc(c.code)} ${nf(c.falta)}`).join(', ')}${r.codes.length>4?'…':''}</span>`:''}</td><td class="note">${esc(r.arts.slice(0,4).join(', '))}</td>
+    <td class="n"><b>${nf(r.dem)}</b></td><td class="n">${r.yo?nf(r.yo):''}</td><td class="n">${nf(r.enT)}</td><td class="n">${nf(r.enP)}</td><td class="n"><input type="number" min="0" max="${r.disp}" data-pcq="${i}" value="${S0[r.k]??''}" placeholder="${r.sug?nf(r.sug):''}" style="width:90px;text-align:right" ${r.disp?'':'disabled'}></td></tr>`).join('')}</table></div>`:`<p class="note">No hay piezas ${this.soloDem?'con faltante en '+esc(color)+' ':''}para mostrar.</p>`}
+   <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:12px"><span class="note">${Object.keys(S0).length} piezas elegidas, ${nf(tot)} unidades en ${esc(color)}</span>
+    <span class="row" style="gap:8px;align-items:flex-end"><label class="f" style="flex:0 0 auto">Prioridad<select id="pcPr" style="width:auto"><option value="normal">Normal</option><option value="urgente">Urgente</option></select></label><label class="f" style="flex:0 0 auto">Requerida<input type="date" id="pcF" value="${addDays(today(),3)}"></label><button class="btn" id="pcGo">Generar órdenes de pintura</button></span></div></section>
+   ${sinColor.length?`<section class="panel"><h2>Códigos con faltante sin color reconocido <span class="note">${sinColor.length}</span></h2><p class="note" style="margin-top:-6px">No se pudo leer el color en el código de Odoo. Si se pinta, asignale el color; si no (acero, crudo, madera), dejalo vacío.</p>
+    <div class="tw"><table><tr><th>Código</th><th>Artículo</th><th class="n">Faltante</th><th>Color</th></tr>${sinColor.slice(0,40).map(x=>`<tr><td>${esc(x.code)}</td><td>${esc(x.fam)}</td><td class="n">${nf(x.falta)}</td><td><select data-pcx="${esc(x.code)}" style="width:auto"><option value="">no se pinta</option>${C.map(c=>`<option>${esc(c)}</option>`).join('')}</select></td></tr>`).join('')}</table></div></section>`:''}`;
+  $('#pcC').onchange=()=>{this.color=$('#pcC').value;this.render(B)};$('#pcS').onchange=()=>{this.soloDem=$('#pcS').checked;this.render(B)};
+  $('#pcQ').oninput=()=>{this.q=$('#pcQ').value;clearTimeout(this._t);this._t=setTimeout(()=>{this.render(B);const n=$('#pcQ');n.focus();n.setSelectionRange(n.value.length,n.value.length)},300)};
+  B.querySelectorAll('[data-pck]').forEach(c=>c.onchange=()=>{const r=rows[+c.dataset.pck];if(c.checked)S0[r.k]=S0[r.k]||r.sug||r.disp;else delete S0[r.k];this.render(B)});
+  B.querySelectorAll('[data-pcq]').forEach(inp=>inp.onchange=()=>{const r=rows[+inp.dataset.pcq];const v=parseInt(inp.value,10);if(!(v>0)){delete S0[r.k]}else{if(v>r.disp){toast('Hay '+nf(r.disp)+' disponibles');inp.value=r.disp;S0[r.k]=r.disp}else S0[r.k]=v}this.render(B)});
+  B.querySelectorAll('[data-pcx]').forEach(sl=>sl.onchange=async()=>{const d=JSON.parse(JSON.stringify(S.M.colores||{}));d.codigos=d.codigos||{};d.codigos[sl.dataset.pcx]=sl.value||'';try{await S.db.doc('maestro/colores').set(d);toast('Color asignado a '+sl.dataset.pcx)}catch(e){toast('No se pudo guardar')}});
+  $('#pcGo').onclick=async()=>{const el=Object.entries(S0).filter(([,v])=>v>0);if(!el.length){toast('Tildá al menos una pieza');return}if(!confirm(`Generar ${el.length} órdenes de pintura en ${color} por ${nf(tot)} unidades?`))return;if(busy('#pcGo'))return;
+    const meta={prioridad:$('#pcPr').value,fecha_req:$('#pcF').value,obs:'Planificado por color'};let n=0;
+    try{for(const [k,q] of el){const r=rows.find(x=>x.k===k)||{enP:0,enT:0};const deP=Math.min(q,r.enP);const deT=q-deP;let movId=null;
+        if(deT>0){const X=stockTerminado()[k];if(!X||X.disp<deT){toast('Ya no hay '+nf(deT)+' en el taller para '+(X?.pieza||k));continue}const {consumo}=consumirFIFO(X,deT);movId='mv-'+newId();
+          await S.db.collection('movimientos').doc(movId).set({id:movId,tipo:'salida',fecha:today(),ts:new Date().toISOString(),por:S.uid||null,key:k,pieza:X.pieza,codigo:X.codigo||null,articulos:X.arts,qty:deT,area:'Pintura',obs:'Planificado por color '+color,consumo,colores:[{c:color,q:deT}]})}
+        const inf=infoKey(k);await crearOrdenesPintura({key:k,pieza:inf.pieza,codigo:inf.codigo,arts:inf.arts},[{c:color,q}],meta,movId);n++}
+      this.sel[color]={};toast(n+' órdenes de pintura generadas en '+color);this.render(B)}catch(e){toast('No se pudo completar. Revisá las órdenes generadas.')}finally{done('#pcGo')}}}};
+
+
+/* ---------- rendimiento: cada cálculo pesado se hace una vez por cambio de datos ---------- */
+let DV=0;function memoV(fn){let v=-1,r;return function(...a){if(a.length)return fn.apply(this,a);if(v!==DV){r=fn();v=DV}return r}}
+entries=memoV(entries);entPint=memoV(entPint);entArm=memoV(entArm);stockTerminado=memoV(stockTerminado);stockPintura=memoV(stockPintura);stockArmado=memoV(stockArmado);
+pintadoPorOrden=memoV(pintadoPorOrden);oarmHecho=memoV(oarmHecho);compartidas=memoV(compartidas);opintAbiertas=memoV(opintAbiertas);oarmAbiertas=memoV(oarmAbiertas);activasVivas=memoV(activasVivas);
+function memoA(fn){let v=-1,m=new Map();return function(...a){if(v!==DV){m=new Map();v=DV}const k=JSON.stringify(a);if(!m.has(k))m.set(k,fn.apply(this,a));return m.get(k)}}
+sugerir=memoV(sugerir);pendientesPorTipo=memoV(pendientesPorTipo);workordersFor=memoA(workordersFor);ultimaFecha=memoA(ultimaFecha);{const _j=juegos;const _jm=memoA((f,c)=>_j(f,c));juegos=function(f,c,ST){return ST?_j(f,c,ST):_jm(f,c)}}
+
 /* ---------- router ---------- */
 function route(){const h=(location.hash||'#general').slice(1);let [v,sel,...rest]=h.split('/');if(v==='desvios'){v='indicadores'}else if(v==='fabrica'){v='plan'}else if(v==='planificacion'){v='plan';V.plan.tab='curso'}else if(v==='plan'&&!sel){}let name=V[v]&&!['fabrica','planificacion'].includes(v)?v:'general';
   if(name!=='ot'&&accesoActivo()&&!perfilActual()){if(S.view&&S.view!=='login')V[S.view]?.unmount?.();S.view='login';pantallaLogin();return}
@@ -2538,7 +2605,7 @@ function route(){const h=(location.hash||'#general').slice(1);let [v,sel,...rest
   if(S.view&&S.view!==name&&S.view!=='login')V[S.view]?.unmount?.();S.view=name;V[name].mount(sel,rest);try{window.scrollTo(0,0)}catch(e){}}
 window.addEventListener('hashchange',()=>{if(S.view==='maestro'&&BOM.dirty&&!location.hash.startsWith('#maestro')){if(!confirm('Hay cambios sin guardar en la lista de materiales. ¿Salir igual?')){history.replaceState(null,'','#maestro');return}BOM.dirty=false;BOM.draft=null}route()});
 document.querySelectorAll('[data-pronto]').forEach(a=>a.onclick=e=>{e.preventDefault();toast(a.dataset.pronto+' se suma en la próxima etapa')});
-function changed(what){const v=V[S.view];if(!v)return;
+function changed(what){DV++;const v=V[S.view];if(!v)return;
   if(what==='maestro'&&['taller','plan'].includes(S.view)){ /* formularios dependen del maestro */ if(!document.activeElement||document.activeElement===document.body)v.mount(v.sel);else v.update();return}
   v.update()}
 
