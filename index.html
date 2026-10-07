@@ -282,6 +282,7 @@ function recompute(){DV++;
     const k=woKey(e.op_id,e.pieza,e.seq);const x=m.get(k)||{qty:0,scrap:0,min:0,std:0};
     x.qty+=+e.qty||0;x.scrap+=+e.scrap||0;x.min+=+e.min||0;x.std+=+e.std_min||0;m.set(k,x)}
   S.prog=m;
+  programarResumenGeneral();
 }
 function opState(o){
   if(o.entrega)return 'entregada';if(o.estado==='cancelada'||o.estado==='cerrada')return o.estado;
@@ -2682,6 +2683,44 @@ document.querySelectorAll('[data-pronto]').forEach(a=>a.onclick=e=>{e.preventDef
 function changed(what){DV++;const v=V[S.view];if(!v)return;
   if(what==='maestro'&&['taller','plan'].includes(S.view)){ /* formularios dependen del maestro */ if(!document.activeElement||document.activeElement===document.body)v.mount(v.sel);else v.update();return}
   v.update()}
+
+/* ---------- Resumen para el Panel General ---------- */
+// Publica en la misma base (documento "resumen_v1") los mismos 4 números que muestra la pantalla General:
+// órdenes abiertas, horas estándar pendientes, eficiencia y horas de parada de los últimos 7 días.
+// Solo guarda si algo cambió y como máximo una vez cada 5 minutos por computadora.
+const RESUMEN_DOC='resumen_v1';
+let rgTimer=null,rgUltimoEnvio=0,rgIntentos=0;
+function construirResumenGeneral(){
+  const abiertas=S.ordenes.filter(abierta);
+  const pend=pendientesPorTipo();const hs=Object.values(pend).reduce((a,x)=>a+x.hs,0);
+  const desde=addDays(today(),-6);const E=entries().filter(e=>e.fecha>=desde);
+  const prod=E.filter(e=>e.tipo==='prod');
+  const real=prod.reduce((a,e)=>a+(+e.min||0),0),std=prod.reduce((a,e)=>a+(+e.std_min||0),0);
+  const par=E.filter(e=>e.tipo==='parada'&&motivo(e.motivo)?.categoria!=='pausa').reduce((a,e)=>a+(+e.min||0),0);
+  return {generado:new Date().toISOString(),desde,hasta:today(),ordenesAbiertas:abiertas.length,
+    hsPendientes:Math.round(hs*10)/10,eficiencia7:real?std/real:null,hsParada7:Math.round(par/60*10)/10};
+}
+function programarResumenGeneral(demora){
+  if(!S.supa||S.local||!S.db)return;
+  clearTimeout(rgTimer);
+  rgTimer=setTimeout(publicarResumenGeneral,demora==null?4000:demora);
+}
+async function publicarResumenGeneral(){
+  try{
+    // esperar a que hayan llegado los datos y los maestros (los motivos definen qué es una pausa)
+    if(!S.loaded.motivos||!S.loaded.motivos_pintura||!S.loaded.motivos_armado||(!S.ordenes.length&&!S.partes.length)){
+      if(++rgIntentos<6)programarResumenGeneral(5000);return}
+    const espera=300000-(Date.now()-rgUltimoEnvio);
+    if(espera>0){programarResumenGeneral(espera);return}
+    rgIntentos=0;
+    const r=construirResumenGeneral();
+    const firma=o=>JSON.stringify({...o,generado:undefined});
+    const act=await S.db.doc(RESUMEN_DOC).get();
+    if(act.exists&&firma(act.data())===firma(r))return; // nada cambió
+    rgUltimoEnvio=Date.now();
+    await S.db.doc(RESUMEN_DOC).set(r);
+  }catch(e){console.error('No se pudo publicar el resumen para el Panel General',e)}
+}
 
 /* ---------- arranque ---------- */
 route();
