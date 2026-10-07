@@ -1736,7 +1736,7 @@ function stockTerminado(){const sh=compartidas();const P={};const prodM=S.M.prod
     add(claveStock(o,l,sh),{pieza:l.pieza,codigo:l.codigo,art:o.articulo},{id:o.id+'|'+li,tipo:'op',op:o.numero,fecha:ultimaFecha(o)||String(o.creada||'').slice(0,10),qty:q});
     if(o.tipo==='lote'&&o.destinos)o.destinos.forEach(d=>P[claveStock(o,l,sh)].arts.add(d.fam))})}
   // producción fuera de plan en el último paso de la ruta
-  for(const e of entries()){if(e.tipo!=='prod'||e.op_id||e.seq==null||!(+e.qty>0))continue;const f=prodM[e.articulo];const pz=f?.piezas.find(p=>p.pieza===e.pieza);if(!pz||lastSeqL(pz)!==e.seq)continue;
+  for(const e of entries()){if(e.tipo!=='prod'||e.op_id||e.seq==null||!(+e.qty>0)||e.origen==='historial')continue;const f=prodM[e.articulo];const pz=f?.piezas.find(p=>p.pieza===e.pieza);if(!pz||lastSeqL(pz)!==e.seq)continue;
     const k=pz.codigo&&sh.has(pz.codigo)?'C:'+pz.codigo:e.articulo+'|'+e.pieza;add(k,{pieza:e.pieza,codigo:pz.codigo,art:e.articulo},{id:'fp|'+e.id,tipo:'fp',op:'sin orden',fecha:e.fecha,qty:+e.qty})}
   // movimientos: ajustes suman o restan, salidas consumen
   const movs=(S.movs||[]).filter(m=>!m.anulado).sort((a,b)=>String(a.ts).localeCompare(String(b.ts)));
@@ -2621,7 +2621,8 @@ function modalReset(){const m=document.createElement('div');m.className='modal';
    <p>Borra lo cargado para empezar las pruebas de cero. <b>No se borran</b> los maestros (listas de materiales, máquinas, personal, motivos, estándares, accesos) ni el pendiente importado.</p>
    <div class="chips" style="flex-direction:column;align-items:stretch">${grupos.map(([k,n,q])=>`<label class="chip" style="justify-content:space-between"><span><input type="checkbox" data-rs="${k}" checked style="width:auto"> ${n}</span><span class="note">${q} documentos</span></label>`).join('')}
     <label class="chip"><input type="checkbox" id="rsLin" checked style="width:auto"> Líneas en curso de pintura y armado, dotación del día, ajustes y stock en proceso cargados a mano</label>
-    <label class="chip"><input type="checkbox" id="rsHist" checked style="width:auto"> Mantener el historial importado del Excel del taller (para Indicadores)</label></div>
+    <label class="chip"><input type="checkbox" id="rsPend" style="width:auto"> Borrar también el pendiente importado (las sugerencias de A lanzar quedan vacías hasta importar uno nuevo)</label>
+    <label class="chip"><input type="checkbox" id="rsHist" checked style="width:auto"> Mantener el historial importado del Excel del taller (solo se usa en Indicadores; no suma stock)</label></div>
    <label class="f" style="margin-top:12px">Para confirmar escribí BORRAR<input id="rsK" autocomplete="off"></label><div class="err" id="rsE"></div>
    <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn sec" data-x>Cancelar</button><button class="btn" id="rsGo" style="background:var(--bad);border-color:var(--bad);color:#fff">Borrar</button></div></div>`;
   document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.hasAttribute('data-x'))m.remove()};
@@ -2629,6 +2630,7 @@ function modalReset(){const m=document.createElement('div');m.className='modal';
     const sel=[...m.querySelectorAll('[data-rs]:checked')].map(x=>x.dataset.rs);const keepH=$('#rsHist').checked;const src={ordenes:S.ordenes,partes:S.partes,movimientos:S.movs,opint:S.opint,pintura:S.pint,oarm:S.oarm,armado:S.arm,activas:S.activas,derivaciones:S.derivs};let n=0;
     try{for(const col of sel){for(const d of [...(src[col]||[])]){if(col==='partes'&&keepH){const it=(d.items||[]).filter(x=>x.origen==='historial');if(it.length){if(it.length!==(d.items||[]).length){const {id,...rest}=d;await S.db.collection('partes').doc(d.id).set({...rest,items:it})}continue}}
           await S.db.collection(col).doc(d.id).delete();n++}}
+      if($('#rsPend').checked){try{await S.db.doc('planificacion/pendiente').delete();n++}catch(e){}}
       if($('#rsLin').checked){for(const p of ['linea/pintura','linea/armado','dotacion/'+today(),'planificacion/ajustes','planificacion/stock']){try{await S.db.doc(p).delete();n++}catch(e){}}}
       m.remove();toast('Listo: '+n+' documentos borrados. Recargá la página en las otras computadoras.')}catch(e){$('#rsE').textContent='Se borraron '+n+'. Hubo un error: probá de nuevo.'}finally{done('#rsGo')}}}
 
