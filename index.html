@@ -196,6 +196,7 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
 .gcard{display:block;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:14px 16px;color:var(--ink);text-decoration:none}.gcard:hover{border-color:var(--lamp)}
 .gcard h3{margin:0 0 8px;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.gcard div{display:flex;align-items:baseline;gap:8px;padding:3px 0}.gcard b{font-size:20px;font-stretch:85%;min-width:70px}.gcard span{font-size:13px;color:var(--muted)}
 .bulkbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;margin-bottom:8px;border-radius:8px;background:var(--badbg);border:1px solid var(--bad)}
+.oprow.sig{border:2px solid var(--lamp)}
 .toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 @media (max-width:900px){
@@ -229,7 +230,7 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
     <a href="#instructivo" data-v="instructivo">Instructivo</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-09 a</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-09 b</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -951,6 +952,27 @@ function descargarOTs(L,fmt,ren){fmt=fmt||lsGet('otfmt')||'a6';ren=ren??(lsGet('
     dibujarOT(d,x,(q%2)*148.5,Math.floor(q/2)*105,i,L.length,ren)});
   const ops=[...new Set(L.map(x=>x.o.numero))];
   guardarArchivo(ops.length===1?`Ordenes de trabajo OP ${ops[0]} (${L.length}).pdf`:`Ordenes de trabajo (${L.length}).pdf`,d.output('blob'))}
+
+/* ---------- una hoja por pieza: el operario elige la operación ---------- */
+function otPiezaURL(o,li){return appURL()+'#ot/p/'+encodeURIComponent(o.id)+'/'+li}
+function dibujarPieza(d,g,ox,oy,i,tot){const k=148.5/210,W=210,H=148.5,M=9;const X=v=>ox+v*k,Y=v=>oy+v*k,F=v=>Math.max(6.2,v*k*1.12);const {o,l,li}=g;
+  d.setTextColor(0);d.setFont('helvetica','bold');d.setFontSize(F(15));d.text(`Hoja de pieza  OP ${o.numero}-${li+1}`,X(M),Y(11.5));d.setDrawColor(0);d.setLineWidth(0.4);d.line(X(M),Y(15.5),X(W-M),Y(15.5));d.setLineWidth(0.2);
+  d.setTextColor(60);d.setFont('helvetica','normal');d.setFontSize(F(8.5));d.text(`Req. ${o.fecha_req?o.fecha_req.split('-').reverse().join('/'):'-'}${o.prioridad==='urgente'?'  URGENTE':''}`,X(W-M),Y(11),{align:'right'});d.setTextColor(0);
+  const QS=42;qrPDF(d,otPiezaURL(o,li),X(W-M-QS),Y(19),QS*k);d.setFontSize(F(6.5));d.setTextColor(90);d.text('Escaneá y elegí la operación',X(W-M-QS/2),Y(19+QS+2),{align:'center'});d.setTextColor(0);const WR=W-M-QS-4;
+  d.setFont('helvetica','bold');d.setFontSize(F(19));d.text(d.splitTextToSize(l.pieza,(WR-M)*k)[0],X(M),Y(27));d.setFontSize(F(11));d.text(d.splitTextToSize(`${o.articulo}${l.codigo?'  ('+l.codigo+')':''}`,(WR-M)*k)[0],X(M),Y(35));
+  d.setFont('helvetica','normal');d.setFontSize(F(10));d.text(`Cantidad: ${nf(l.cant)} piezas`,X(M),Y(42));if(o.notas){d.setFontSize(F(7));const t=d.splitTextToSize(o.notas,(WR-M)*k);d.text(t[0]+(t.length>1?'…':''),X(M),Y(48))}
+  let y=Math.max(53,19+QS+6);const cols=[['Paso',14],['Operación',26],['Máquina',44],['Std pz/h',26],['Hs est.',22],['Viene de',30]];const tw=cols.reduce((a,c)=>a+c[1],0),sc=(W-2*M)/tw;
+  d.setDrawColor(0);d.setLineWidth(0.35);d.rect(X(M),Y(y),(W-2*M)*k,7*k);d.setLineWidth(0.2);d.setFont('helvetica','bold');d.setFontSize(F(8));let cx=M;cols.forEach(([n,cw])=>{d.text(n,X(cx+1.5),Y(y+5));cx+=cw*sc});y+=7;d.setFont('helvetica','normal');
+  const rh=Math.min(8.5,(H-M-10-y)/Math.max(1,l.ops.length));l.ops.forEach((w,wi)=>{cx=M;const v=[String(w.seq),w.op,tipoNombre(w.tipo),w.seg?nf(3600/w.seg):'-',w.seg?nf(l.cant*w.seg/3600,1):'-',wi?l.ops[wi-1].op:'Mat. prima'];
+    d.setFontSize(F(8.5));cols.forEach(([,cw],ci)=>{d.setDrawColor(170);d.rect(X(cx),Y(y),cw*sc*k,rh*k);d.text(d.splitTextToSize(String(v[ci]),cw*sc*k-2)[0],X(cx+1.5),Y(y+rh*0.68));cx+=cw*sc});y+=rh});
+  d.setFontSize(F(8));d.text('Escaneá el QR con el celular, elegí la operación que vas a hacer y tocá EMPECÉ. Al terminar, TERMINÉ con la cantidad.',X(M),Y(Math.min(H-9,y+6)),{maxWidth:(W-2*M)*k});
+  d.setFontSize(F(6));d.setTextColor(120);d.text(`Spotsline Fabricación. Emitida ${new Date().toLocaleDateString('es-AR')}. Hoja ${i+1} de ${tot}.`,X(M),Y(H-4));d.setTextColor(0)}
+function descargarPiezas(G,fmt){if(!window.jspdf){toast('No se pudo cargar el generador de PDF. Recargá la página.');return}if(!G.length){toast('Marcá al menos una orden de trabajo');return}const {jsPDF}=window.jspdf;
+  if(fmt==='a6'){const d=new jsPDF({orientation:'landscape',unit:'mm',format:[148.5,105]});G.forEach((g,i)=>{if(i)d.addPage([148.5,105],'landscape');dibujarPieza(d,g,0,0,i,G.length)});guardarArchivo(`Hojas por pieza A6 (${G.length}).pdf`,d.output('blob'));return}
+  const d=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});G.forEach((g,i)=>{const q=i%4;if(i&&!q)d.addPage();if(!q){d.setDrawColor(150);d.setLineDashPattern([1.5,1.5],0);d.line(148.5,0,148.5,210);d.line(0,105,297,105);d.setLineDashPattern([],0)}dibujarPieza(d,g,(q%2)*148.5,Math.floor(q/2)*105,i,G.length)});
+  guardarArchivo(`Hojas por pieza (${G.length}).pdf`,d.output('blob'))}
+function agruparPorPieza(L){const m=new Map();for(const x of L){const k=x.o.id+'|'+x.li;if(!m.has(k))m.set(k,{o:x.o,l:x.l,li:x.li,items:[]});m.get(k).items.push(x)}return [...m.values()]}
+
 /* selector de órdenes de trabajo */
 function elegirOTs(os,tipo){
   const L=otsDe(os);if(!L.length){toast('No hay órdenes de trabajo para imprimir');return}
@@ -962,7 +984,7 @@ function elegirOTs(os,tipo){
    <span class="row" style="gap:6px"><button class="btn sec sm" data-m="todas">Marcar visibles</button><button class="btn sec sm" data-m="pend">Solo pendientes</button><button class="btn sec sm" data-m="nada">Desmarcar todo</button></span></div>
    <p class="note" style="margin:0 0 8px">Cada orden lleva un QR que abre la pantalla del operario en: <b>${esc(appURL())}</b>${/^https?:/.test(location.protocol)&&!/claude\.ai|claudeusercontent/.test(location.host)?'':' <span class="poor">Imprimilas desde la versión publicada en GitHub para que el QR abra la dirección correcta.</span>'}</p>
    <div class="dlgb" id="oList"></div>
-   <div class="pzh" style="align-items:center;margin-top:12px"><span class="note" id="oCnt"></span><span class="row" style="gap:8px;align-items:center"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Tamaño<select id="oFmt" style="width:auto"><option value="a6">Una por hoja A6</option><option value="a4">4 por hoja A4</option></select></label><label style="display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap"><input type="checkbox" id="oRen" style="width:auto"> Renglones para anotar a mano</label><button class="btn sec" id="oCama" title="Una sola hoja con un QR que abre todas las órdenes marcadas juntas">Una hoja para la misma cama</button><button class="btn" id="oGo">Imprimir</button></span></div></div>`;
+   <div class="pzh" style="align-items:center;margin-top:12px"><span class="note" id="oCnt"></span><span class="row" style="gap:8px;align-items:center"><label class="f" style="flex-direction:row;align-items:center;gap:6px">Hojas<select id="oModo" style="width:auto"><option value="proceso">Una por proceso</option><option value="pieza">Una por pieza (eligen la operación)</option></select></label><label class="f" style="flex-direction:row;align-items:center;gap:6px">Tamaño<select id="oFmt" style="width:auto"><option value="a6">Una por hoja A6</option><option value="a4">4 por hoja A4</option></select></label><label style="display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap"><input type="checkbox" id="oRen" style="width:auto"> Renglones para anotar a mano</label><button class="btn sec" id="oCama" title="Una sola hoja con un QR que abre todas las órdenes marcadas juntas">Una hoja para la misma cama</button><button class="btn" id="oGo">Imprimir</button></span></div></div>`;
   document.body.appendChild(m);const close=()=>{m.remove();document.removeEventListener('keydown',esc_)};const esc_=e=>{if(e.key==='Escape')close()};document.addEventListener('keydown',esc_);
   m.onclick=e=>{if(e.target===m||e.target.hasAttribute('data-x'))close()};
   const vis=()=>L.filter(x=>!filtro||x.w.tipo===filtro);
@@ -972,13 +994,14 @@ function elegirOTs(os,tipo){
       html+=`<label class="orow"><input type="checkbox" data-n="${esc(x.num)}" ${sel.has(x.num)?'checked':''} style="width:auto"><span class="t">${esc(x.num)}</span><span><b>${esc(tipoNombre(x.w.tipo))}</b> ${esc(x.w.op)}, ${esc(x.l.pieza)}</span><span class="n">${nf(x.l.cant)} pz</span>${done?'<span class="pill ok">hecha</span>':x.hecho?`<span class="pill lamp">${nf(x.hecho)} hechas</span>`:'<span></span>'}</label>`}
     $('#oList').innerHTML=html||'<p class="note">No hay procesos de ese tipo.</p>';
     $('#oList').querySelectorAll('[data-n]').forEach(c=>c.onchange=()=>{c.checked?sel.add(c.dataset.n):sel.delete(c.dataset.n);cnt()});cnt()};
-  const cnt=()=>{const n=sel.size;const a6=($('#oFmt')?.value||'a6')==='a6';const h=a6?n:Math.ceil(n/4);$('#oCnt').textContent=n?`${n} ${n===1?'orden':'órdenes'} de trabajo, ${h} ${h===1?'hoja':'hojas'} ${a6?'A6':'A4'}`:'Ninguna marcada';$('#oGo').textContent=n?`Imprimir ${n}`:'Imprimir'};
+  const cnt=()=>{const pz=($('#oModo')?.value||'proceso')==='pieza';const n=pz?agruparPorPieza(L.filter(x=>sel.has(x.num))).length:sel.size;const a6=($('#oFmt')?.value||'a6')==='a6';const h=a6?n:Math.ceil(n/4);$('#oCnt').textContent=n?`${n} ${pz?(n===1?'pieza':'piezas'):(n===1?'orden de trabajo':'órdenes de trabajo')}, ${h} ${h===1?'hoja':'hojas'} ${a6?'A6':'A4'}`:'Ninguna marcada';$('#oGo').textContent=n?`Imprimir ${n}`:'Imprimir'};
   $('#oFil').value=filtro;$('#oFil').onchange=()=>{filtro=$('#oFil').value;draw()};
   m.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const a=b.dataset.m;if(a==='nada')sel.clear();else vis().forEach(x=>{if(a==='todas'||x.hecho<x.l.cant)sel.add(x.num);else sel.delete(x.num)});draw()});
   {const rc=$('#oRen');rc.checked=lsGet('otren')==='1';rc.onchange=()=>lsSet('otren',rc.checked?'1':'0')}
   {const f=$('#oFmt');f.value=lsGet('otfmt')||'a6';f.onchange=()=>{lsSet('otfmt',f.value);cnt()}}
   $('#oCama').onclick=()=>{const out=L.filter(x=>sel.has(x.num));if(out.length<2){toast('Marcá al menos dos órdenes para la misma cama');return}const tp=new Set(out.map(x=>x.w.tipo));if(tp.size>1){toast('Todas tienen que ser del mismo tipo de máquina');return}if(out.length>8){toast('Hasta 8 órdenes por cama');return}hojaCama(out)};
-  $('#oGo').onclick=()=>{const out=L.filter(x=>sel.has(x.num));if(!out.length){toast('Marcá al menos una orden de trabajo');return}descargarOTs(out,$('#oFmt').value,$('#oRen').checked)};
+  {const mo=$('#oModo');mo.value=lsGet('otmodo')||'proceso';mo.onchange=()=>{lsSet('otmodo',mo.value);cnt()}}
+  $('#oGo').onclick=()=>{const out=L.filter(x=>sel.has(x.num));if(!out.length){toast('Marcá al menos una orden de trabajo');return}if($('#oModo').value==='pieza'){descargarPiezas(agruparPorPieza(out),$('#oFmt').value);return}descargarOTs(out,$('#oFmt').value,$('#oRen').checked)};
   draw();$('#oGo').focus()}
 
 function hojaCama(L){if(!window.jspdf){toast('No se pudo cargar el generador de PDF. Recargá la página.');return}const {jsPDF}=window.jspdf;const d=new jsPDF({orientation:'landscape',unit:'mm',format:[148.5,105]});
@@ -1594,7 +1617,7 @@ const kStr=k=>k.map(x=>encodeURIComponent(String(x))).join('.');
 const kParse=s=>{const p=String(s).split('.');const seq=p.pop(),li=p.pop();return [decodeURIComponent(p.join('.')),li,seq]};
 function otGrupoURL(keys){return appURL()+'#ot/g/'+keys.map(kStr).join('~')}
 V.ot={keys:[],
-mount(sel,rest){document.body.classList.add('solo');if(sel==='g'&&rest&&rest[0])this.keys=rest[0].split('~').map(kParse);else if(sel)this.keys=[[decodeURIComponent(sel),...(rest||[])]];else this.keys=[];this.render()},
+mount(sel,rest){document.body.classList.add('solo');this.pz=null;if(sel==='p'&&rest&&rest.length>=2){this.pz=[decodeURIComponent(rest[0]),rest[1]];this.keys=[];this.render();return}if(sel==='g'&&rest&&rest[0])this.keys=rest[0].split('~').map(kParse);else if(sel)this.keys=[[decodeURIComponent(sel),...(rest||[])]];else this.keys=[];this.render()},
 unmount(){document.body.classList.remove('solo')},
 ctxs(keys){return (keys||this.keys).map(k=>({k,c:ctxKey(k)}))},
 yo(){const id=lsGet('yo');return (S.M.personal?.items||[]).find(p=>p.id===id&&p.activo!==false)?id:''},
@@ -1612,6 +1635,12 @@ render(){const M=$('#main');if(!M)return;{const dg=this.diag();if(dg){M.innerHTM
   if(mio&&!(mio.keys||[]).length){M.innerHTML=`<div class="op1">${head}<div class="opcard warn"><h2>${esc(motivo(mio.motivo)?.nombre||'Tarea')} desde las ${esc(mio.ini)}</h2><p class="note">${mio.maq?esc(mio.maq):'Sin máquina'}</p><button class="opbig" id="oFinPar">Terminé</button><button class="btn link" id="oCancel" style="margin-top:8px">Cancelar</button></div></div>`;this.bindHead();this.bindParadaFin(mio,yo);return}
   if(mio&&!this.mismo(mio)){M.innerHTML=`<div class="op1">${head}<div class="opcard warn"><h2>Tenés una tarea sin terminar</h2><p>${esc(mio.titulo)}, desde las <b>${esc(mio.ini)}</b>.</p><button class="opbig" id="oVolver">Ir a terminarla</button><button class="opbig sec" id="oDescartar" style="margin-top:8px">Descartarla</button></div></div>`;this.bindHead();
     $('#oVolver').onclick=()=>this.goKeys(mio.keys);$('#oDescartar').onclick=()=>{if(confirm('¿Descartar la tarea sin guardar?')){CUR.set(null);this.render()}};return}
+  if(this.pz&&!this.keys.length){const [oid,li]=this.pz;const o=S.ordenes.find(x=>x.id===oid);const l=o?.lineas?.[+li];
+    if(!l){M.innerHTML=`<div class="op1">${head}<div class="opcard"><h2>No encuentro esta pieza</h2><p class="note">Puede que la orden esté cerrada o se haya lanzado en otra versión de la página.</p><button class="opbig sec" id="oLista">Elegir otra orden</button></div></div>`;this.bindHead();$('#oLista').onclick=()=>{location.hash='ot'};return}
+    const st=l.ops.map(w=>{const h=S.prog.get(woKey(o.id,l.pieza,w.seq))?.qty||0;return {w,h,falta:Math.max(0,l.cant-h)}});const sig=st.find(x=>x.falta>0);const A=activasVivas();
+    M.innerHTML=`<div class="op1">${head}<div class="opcard"><div class="ops">OP ${esc(o.numero)}, ${esc(o.articulo)}</div><div class="opp">${esc(l.pieza)}${l.codigo?` <span class="note">${esc(l.codigo)}</span>`:''}</div><p class="note" style="margin:4px 0 0">${nf(l.cant)} piezas. Elegí la operación que vas a hacer.</p></div>
+     ${st.map(x=>{const otros=A.filter(a=>a.op_id===o.id&&a.pieza===l.pieza&&a.seq==x.w.seq);return `<button class="oprow ${x===sig?'sig':''}" data-pzseq="${x.w.seq}" style="padding:14px"><b style="font-size:17px">${x.w.seq}. ${esc(tipoNombre(x.w.tipo))} ${esc(x.w.op)}</b>${x===sig?' <span class="pill lamp">sigue</span>':''}${!x.falta?' <span class="pill ok">completa</span>':''}<br><span>${nf(x.h)} hechas de ${nf(l.cant)}, faltan ${nf(x.falta)}${otros.length?`. Ahora: ${otros.map(a=>esc(persona(a.yo))).join(', ')}`:''}</span></button>`}).join('')}</div>`;
+    this.bindHead();M.querySelectorAll('[data-pzseq]').forEach(b=>b.onclick=()=>{const x=st.find(z=>z.w.seq==b.dataset.pzseq);if(x&&!x.falta&&!confirm('Esa operación ya está completa. ¿Abrirla igual?'))return;this.goKeys([[oid,li,b.dataset.pzseq]])});return}
   if(!this.keys.length){M.innerHTML=`<div class="op1">${head}${this.inicio()}</div>`;this.bindHead();this.bindInicio(yo);return}
   const C=this.ctxs();if(C.some(x=>!x.c)){M.innerHTML=`<div class="op1">${head}<div class="opcard"><h2>No encuentro ${C.length>1?'alguna de estas órdenes':'esta orden de trabajo'}</h2><p class="note">Puede estar cerrada o cancelada, o haberse lanzado en otra versión de la página. Hay ${S.ordenes.length} órdenes en la base.</p><button class="opbig sec" id="oLista">Elegir otra orden</button></div></div>`;this.bindHead();$('#oLista').onclick=()=>{location.hash='ot'};return}
   const tipo=C[0].c.w.tipo;const maqs=(S.M.centros?.items||[]).filter(x=>x.tipo===tipo);const mq=lsGet('maq.'+tipo);const maq=maqs.some(x=>x.codigo===mq)?mq:(maqs.length===1?maqs[0].codigo:'');
@@ -1620,7 +1649,7 @@ render(){const M=$('#main');if(!M)return;{const dg=this.diag();if(dg){M.innerHTM
     return multi?`<div class="opline"><div><b>OP ${esc(o.numero)}</b> ${esc(o.articulo)}<br><span>${esc(l.pieza)}, ${esc(w.op)}</span></div><div style="text-align:right"><b>${nf(falta)}</b><br><span>faltan de ${nf(l.cant)}</span></div></div>`
     :`<div class="opt">${esc(tipoNombre(w.tipo))} <span>${esc(w.op)}</span></div><div class="ops">OP ${esc(o.numero)}, ${esc(o.articulo)}</div><div class="opp">${esc(l.pieza)} <span class="note">paso ${w.seq} de ${l.ops.length}</span></div>
      <div class="opnums"><div><b>${nf(l.cant)}</b><span>pedidas</span></div><div><b>${nf(h)}</b><span>hechas</span></div><div><b class="${falta?'':'good'}">${nf(falta)}</b><span>faltan</span></div></div>
-     <p class="note" style="margin:6px 0 0">${w.seg?`Estándar ${nf(3600/w.seg)} por hora. `:''}Viene de ${l.ops[i-1]?esc(l.ops[i-1].op):'materia prima'}, sigue en ${l.ops[i+1]?esc(l.ops[i+1].op):'pintura'}.</p>`};
+     <p class="note" style="margin:6px 0 0">${w.seg?`Estándar ${nf(3600/w.seg)} por hora. `:''}Viene de ${l.ops[i-1]?esc(l.ops[i-1].op):'materia prima'}, sigue en ${l.ops[i+1]?esc(l.ops[i+1].op):'pintura'}.</p><a class="btn link" style="padding-left:0" href="#ot/p/${encodeURIComponent(o.id)}/${o.lineas.indexOf(l)}">Ver todas las operaciones de esta pieza</a>`};
   const info=`<div class="opcard">${multi?`<div class="opt">${esc(tipoNombre(tipo))} <span>cama compartida</span></div><p class="note" style="margin:4px 0 8px">${C.length} órdenes en la misma tarea. El tiempo se reparte entre ellas según lo producido.</p>`:''}${C.map(infoUna).join('')}
     ${!enc||enc.tipo!=='parada'?`<button class="btn sec sm" id="oAdd" style="margin-top:10px">Agregar otra orden a esta tarea (misma cama)</button>`:''}${multi&&!enc?`<button class="btn link" id="oQuitar" style="margin-left:6px">Quitar la última</button>`:''}</div>`;
   let act;
