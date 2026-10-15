@@ -228,9 +228,10 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
     <a href="#indicadores" data-v="indicadores">Indicadores</a>
     <a href="#maestro" data-v="maestro">Maestro</a>
     <a href="#instructivo" data-v="instructivo">Instructivo</a>
+    <a href="#auditoria" data-v="auditoria">Registro de cambios</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-09 b</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-09 c</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -277,7 +278,18 @@ const S={db:null,live:false,uid:null,canPlan:true,canWrite:true,
 
 /* ---------- derivados ---------- */
 const woKey=(op,pieza,seq)=>op+'|'+pieza+'|'+seq;
-function entries(){const out=[];for(const p of S.partes)for(const it of (p.items||[]))out.push({...it,_doc:p.id,fecha:p.fecha});return out}
+function entries(){const out=[];for(const p of S.partes)for(const it of (p.items||[]))out.push({...it,_doc:p.id,fecha:p.fecha});return descontarPausas(out)}
+/* Las pausas (refrigerio, categoría Pausa) que caen dentro de un registro de producción del mismo operario y día descuentan minutos de trabajo.
+   Si el registro ya trae minutos descontados (carga por QR con parada en el medio), solo se descuenta lo que falte. */
+function solape(a0,a1,b0,b1){let t=0;for(const k of [-1440,0,1440])t+=Math.max(0,Math.min(a1,b1+k)-Math.max(a0,b0+k));return t}
+function pausaSolapada(fecha,op,ini,fin,P){const a=toMin(ini),sp=diffMin(ini,fin);if(a==null||!sp)return 0;let ov=0;
+  for(const p of P){if(p.fecha!==fecha||p.operario!==op)continue;const b=toMin(p.ini),dp=diffMin(p.ini,p.fin)||0;if(b==null||!dp)continue;ov+=solape(a,a+sp,b,b+dp)}return Math.min(ov,sp)}
+function descontarPausas(E){const P=E.filter(e=>e.tipo==='parada'&&motivo(e.motivo)?.categoria==='pausa');if(!P.length)return E;const con=new Set(P.map(p=>p.fecha+'|'+p.operario));
+  const G={};for(const e of E)if(e.tipo==='prod'&&con.has(e.fecha+'|'+e.operario)){const k=e.grupo?'g|'+e.grupo:'i|'+e._doc+'|'+e.id;(G[k]=G[k]||[]).push(e)}
+  for(const g of Object.values(G)){const e0=g[0];const sp=diffMin(e0.ini,e0.fin);if(!sp)continue;const ov=pausaSolapada(e0.fecha,e0.operario,e0.ini,e0.fin,P);if(!ov)continue;
+    const tot=g.reduce((a,e)=>a+(+e.min||0),0);if(!tot)continue;const ya=Math.max(0,sp-tot);const extra=Math.min(tot-1,Math.max(0,ov-ya));if(extra<=0)continue;
+    let resto=tot-extra;g.forEach((e,i)=>{const m0=+e.min||0;const m=i===g.length-1?Math.max(0,resto):Math.round(m0*(tot-extra)/tot);resto-=m;e.min_bruto=m0;e.min=m;e.pausa_desc=m0-m})}
+  return E}
 function recompute(){DV++;
   const m=new Map();
   for(const e of entries()){ if(e.tipo!=='prod'||!e.op_id)continue;
@@ -503,19 +515,19 @@ resolveWO(){const v=$('#pWO').value;
     const p=f.piezas.find(x=>x.pieza===pz);const w=p?.ops.find(x=>x.seq==seq);return w?{op_id:null,articulo:art,pieza:pz,w}:null}
   if(!v)return null;const [oid,pz,seq]=v.split('|');const o=S.ordenes.find(x=>x.id===oid);const l=o?.lineas.find(x=>x.pieza===pz);const w=l?.ops.find(x=>x.seq==seq);
   return w?{op_id:oid,numero:o.numero,articulo:o.articulo,pieza:pz,w}:null},
-calc(){const r=this.resolveWO();const m=diffMin($('#pIni').value,$('#pFin').value);const q=+$('#pQty').value||0;const c=$('#pCalc');
+calc(){const r=this.resolveWO();const m0=diffMin($('#pIni').value,$('#pFin').value);const pz=m0?pausaSolapada($('#tFecha').value,$('#tOp').value,$('#pIni').value,$('#pFin').value,entries().filter(e=>e.tipo==='parada'&&motivo(e.motivo)?.categoria==='pausa')):0;const m=m0?Math.max(1,m0-pz):m0;const pzT=pz?` (descontados ${pz} min de pausa)`:'';const q=+$('#pQty').value||0;const c=$('#pCalc');
   if(!r||!m){c.textContent=r?.w&&!r.w.seg?'Este paso no tiene tiempo estándar cargado en el maestro.':'';return}
-  if(!r.w.seg){c.textContent=`${m} minutos. Este paso no tiene tiempo estándar: se registra sin eficiencia.`;return}
+  if(!r.w.seg){c.textContent=`${m} minutos${pzT}. Este paso no tiene tiempo estándar: se registra sin eficiencia.`;return}
   const std=q*r.w.seg/60;const ef=std/m;
-  c.innerHTML=`${m} min reales, ${nf(std,0)} min estándar (${nf(3600/r.w.seg,0)} pz/h). Eficiencia <b class="${ef>=.75?'good':ef<.55?'poor':''}">${pct(ef)}</b>`},
-overlaps(ini,fin){const a=toMin(ini),d=diffMin(ini,fin);return this.dayEntries().find(e=>{const b=toMin(e.ini),db=+e.min||0;return a<b+db&&b<a+d})},
+  c.innerHTML=`${m} min reales${pzT}, ${nf(std,0)} min estándar (${nf(3600/r.w.seg,0)} pz/h). Eficiencia <b class="${ef>=.75?'good':ef<.55?'poor':''}">${pct(ef)}</b>`},
+overlaps(ini,fin,tipo){const a=toMin(ini),d=diffMin(ini,fin);const esP=e=>e.tipo==='parada'&&motivo(e.motivo)?.categoria==='pausa';return this.dayEntries().find(e=>{if(tipo==='prod'&&esP(e))return false;if(tipo==='pausa'&&e.tipo==='prod')return false;const b=toMin(e.ini),db=diffMin(e.ini,e.fin)??(+e.min||0);return a<b+db&&b<a+d})},
 async guardarProd(){const err=$('#pErr');if(!S.canWrite){err.textContent='Tu acceso es de solo lectura: pedí permiso de colaborador para cargar.';return}if(busy('#pGo'))return;try{const op=$('#tOp').value,fecha=$('#tFecha').value,maq=$('#pMaq').value;
   if(!op){err.textContent='Elegí el operario arriba.';return}if(!maq){err.textContent='Elegí la máquina.';return}
   const r=this.resolveWO();if(!r){err.textContent=$('#pWO').value==='__fuera'?'Completá artículo y pieza.':'Elegí la orden de trabajo.';return}
   const ini=$('#pIni').value,fin=$('#pFin').value,m=diffMin(ini,fin);if(!m){err.textContent='Revisá la hora de inicio y fin.';return}
   const q=parseInt($('#pQty').value,10);if(!(q>=0)||$('#pQty').value===''){err.textContent='Ingresá la cantidad producida.';return}
   const sc=parseInt($('#pScrap').value,10)||0;
-  const ov=this.overlaps(ini,fin);if(ov&&!confirm(`Se superpone con otro registro de ${ov.ini} a ${ov.fin}. ¿Guardar igual?`))return;
+  const ov=this.overlaps(ini,fin,'prod');if(ov&&!confirm(`Se superpone con otro registro de ${ov.ini} a ${ov.fin}. ¿Guardar igual?`))return;
   const X=(this.extras||[]).filter(x=>x.v);for(const x of X){if(!(parseInt(x.q,10)>=0)){err.textContent='Poné la cantidad de cada orden de la cama.';return}}
   const lst=[{op_id:r.op_id,numero:r.numero||null,articulo:r.articulo,pieza:r.pieza,w:r.w,q,sc},...X.map(x=>{const [oid,pz,sq]=x.v.split('|');const o=S.ordenes.find(z=>z.id===oid);const l=o.lineas.find(z=>z.pieza===pz);const w=l.ops.find(z=>z.seq==sq);return {op_id:o.id,numero:o.numero,articulo:o.articulo,pieza:l.pieza,w,q:parseInt(x.q,10),sc:parseInt(x.s,10)||0}})];
   const W=lst.map(z=>(z.q+z.sc)*(z.w.seg||1));const sw=W.reduce((a,b)=>a+b,0);let resto=m;const mins=lst.map((z,i)=>{if(i===lst.length-1)return Math.max(0,resto);const k=Math.round(m*(sw?W[i]/sw:1/lst.length));resto-=k;return k});
@@ -528,9 +540,9 @@ async guardarProd(){const err=$('#pErr');if(!S.canWrite){err.textContent='Tu acc
 async guardarParada(){const err=$('#sErr');if(!S.canWrite){err.textContent='Tu acceso es de solo lectura: pedí permiso de colaborador para cargar.';return}if(busy('#sGo'))return;try{const op=$('#tOp').value,fecha=$('#tFecha').value,mot=$('#sMot').value;
   if(!op){err.textContent='Elegí el operario arriba.';return}if(!mot){err.textContent='Elegí el motivo.';return}
   const ini=$('#sIni').value,fin=$('#sFin').value,m=diffMin(ini,fin);if(!m){err.textContent='Revisá la hora de inicio y fin.';return}
-  err.textContent='';const ovp=this.overlaps(ini,fin);if(ovp&&!confirm(`Se superpone con otro registro de ${ovp.ini} a ${ovp.fin}. ¿Guardar igual?`))return;const maq=$('#sMaq').value;
+  err.textContent='';const esPau=motivo(mot)?.categoria==='pausa';const ovp=this.overlaps(ini,fin,esPau?'pausa':'parada');if(ovp&&!confirm(`Se superpone con otro registro de ${ovp.ini} a ${ovp.fin}. ¿Guardar igual?`))return;const maq=$('#sMaq').value;
   const it={id:newId(),tipo:'parada',operario:op,centro:maq||null,centro_tipo:maq?centroTipo(maq):null,motivo:mot,ini,fin,min:m,obs:$('#sObs').value.trim(),ts:new Date().toISOString()};
-  try{await writeParte(fecha,items=>items.push(it));toast('Parada registrada');$('#sObs').value='';$('#sMot').value='';$('#pFin').value='';$('#sFin').value='';$('#pIni').value=fin;$('#sIni').value=fin}
+  try{await writeParte(fecha,items=>items.push(it));toast(esPau?'Pausa registrada: se descuenta del tiempo de trabajo':'Parada registrada');$('#sObs').value='';$('#sMot').value='';$('#pFin').value='';$('#sFin').value='';$('#pIni').value=fin;$('#sIni').value=fin}
   catch(e){err.textContent='No se pudo guardar. Probá de nuevo.'}finally{done('#sGo')}}finally{done('#sGo')}},
 update(){if(!$('#dia'))return;TT.update();this.fillWO();this.calc();
   const op=$('#tOp').value;const D=$('#dia');$('#dTit').textContent=op?'Día de '+persona(op):'Día del operario';
@@ -539,18 +551,18 @@ update(){if(!$('#dia'))return;TT.update();this.fillWO();this.calc();
   if(!es.length){D.innerHTML='<p class="note">Sin registros para este día. Empezá cargando la primera tarea.</p>';return}
   let html='',prevEnd=null,prodM=0,stdM=0,parM=0,gapM=0;
   for(const e of es){const a=toMin(e.ini);if(prevEnd!=null&&a-prevEnd>5){gapM+=a-prevEnd;html+=`<div class="gap">${a-prevEnd} min sin registrar</div>`}
-    prevEnd=Math.max(prevEnd??0,a+(+e.min||0));
-    const mine=e._doc===fechaDoc(e.fecha);
+    prevEnd=Math.max(prevEnd??0,a+(diffMin(e.ini,e.fin)??(+e.min||0)));
+    const puedeBorrar=S.canPlan||S.puedeUsuarios;
     if(e.tipo==='prod'){prodM+=+e.min||0;stdM+=+e.std_min||0;const ef=e.std_min!=null?e.std_min/e.min:null;
-      html+=`<div class="e"><span class="t">${e.ini}–${e.fin}</span><span><b>${esc(e.centro)}</b> ${esc(e.articulo)} ${esc(e.pieza)}, paso ${e.seq}${e.op_numero?` <span class="note">OP ${esc(e.op_numero)}</span>`:' <span class="pill lamp">fuera de plan</span>'}<br><span class="note">${nf(e.qty)} piezas${e.scrap?`, ${nf(e.scrap)} scrap`:''}, ${e.min} min${e.obs?`. ${esc(e.obs)}`:''}</span></span>
-      <span style="text-align:right">${ef!=null?`<b class="${ef>=.75?'good':ef<.55?'poor':''}">${pct(ef)}</b>`:'<span class="pill">s/std</span>'}${mine&&S.canWrite?`<br><button class="btn link" data-del="${e.id}" data-f="${e.fecha}">Borrar</button>`:''}</span></div>`}
+      html+=`<div class="e"><span class="t">${e.ini}–${e.fin}</span><span><b>${esc(e.centro)}</b> ${esc(e.articulo)} ${esc(e.pieza)}, paso ${e.seq}${e.op_numero?` <span class="note">OP ${esc(e.op_numero)}</span>`:' <span class="pill lamp">fuera de plan</span>'}<br><span class="note">${nf(e.qty)} piezas${e.scrap?`, ${nf(e.scrap)} scrap`:''}, ${e.min} min${e.pausa_desc?` (sin ${e.pausa_desc} min de pausa)`:''}${e.obs?`. ${esc(e.obs)}`:''}</span></span>
+      <span style="text-align:right">${ef!=null?`<b class="${ef>=.75?'good':ef<.55?'poor':''}">${pct(ef)}</b>`:'<span class="pill">s/std</span>'}${puedeBorrar?`<br><button class="btn link" data-del="${esc(e._doc)}|${esc(e.id)}">Borrar</button>`:''}</span></div>`}
     else{const mo=motivo(e.motivo);if(mo?.categoria!=='pausa')parM+=+e.min||0;
       html+=`<div class="e"><span class="t">${e.ini}–${e.fin}</span><span>${esc(mo?.nombre||'Parada')}${e.centro?` <span class="note">${esc(e.centro)}</span>`:''}<br><span class="note">${e.min} min${e.obs?`. ${esc(e.obs)}`:''}</span></span>
-      <span style="text-align:right"><span class="pill ${mo?.categoria==='pausa'?'':'bad'}">${mo?.categoria==='pausa'?'pausa':'no productivo'}</span>${mine&&S.canWrite?`<br><button class="btn link" data-del="${e.id}" data-f="${e.fecha}">Borrar</button>`:''}</span></div>`}}
+      <span style="text-align:right"><span class="pill ${mo?.categoria==='pausa'?'':'bad'}">${mo?.categoria==='pausa'?'pausa':'no productivo'}</span>${puedeBorrar?`<br><button class="btn link" data-del="${esc(e._doc)}|${esc(e.id)}">Borrar</button>`:''}</span></div>`}}
   const ef=prodM&&stdM?stdM/prodM:null;
   D.innerHTML=`<div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><b>${nf(prodM/60,1)}</b><span>hs productivas</span></div><div class="kpi"><b>${nf(parM/60,1)}</b><span>hs no productivas</span></div><div class="kpi"><b class="${ef==null?'':ef>=.75?'good':ef<.55?'poor':''}">${pct(ef)}</b><span>eficiencia del día</span></div></div>
   ${gapM?`<p class="note poor" style="margin-top:-6px">${gapM} min del día quedaron sin registrar.</p>`:''}<div class="day">${html}</div>`;
-  D.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('¿Borrar este registro?'))return;try{await writeParte(b.dataset.f,items=>{const i=items.findIndex(x=>x.id===b.dataset.del);if(i>=0)items.splice(i,1)});toast('Registro borrado')}catch(e){toast('No se pudo borrar')}});
+  D.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!(S.canPlan||S.puedeUsuarios)){toast('Solo el planificador o el administrador pueden borrar registros');return}if(!confirm('¿Borrar este registro?'))return;const [d,i]=b.dataset.del.split('|');try{await mutarParte(d,items=>{const k=items.findIndex(x=>x.id===i);if(k>=0)items.splice(k,1)});toast('Registro borrado')}catch(e){toast('No se pudo borrar')}});
 }};
 const fechaDoc=f=>f+'_'+uidShort();
 
@@ -636,7 +648,7 @@ update(){if(!$('#iF'))return;if(document.activeElement&&$('#iF').contains(docume
    ${o.lineas.flatMap(l=>l.ops.map(w=>{const p=S.prog.get(woKey(o.id,l.pieza,w.seq))||{qty:0,scrap:0,min:0,std:0};const dt=p.min&&p.std?(p.min-p.std)/p.std:null;
     return `<tr><td>${esc(l.pieza)}</td><td>${w.seq} ${esc(w.op)}</td><td class="n">${nf(l.cant)}</td><td class="n">${nf(p.qty)}</td><td class="n">${p.qty>=l.cant?'<span class="good">0</span>':nf(l.cant-p.qty)}</td><td class="n">${nf(p.scrap)}</td><td class="n">${w.seg?nf(p.std/60,1):'s/std'}</td><td class="n">${nf(p.min/60,1)}</td><td class="n">${dt==null?'–':`<span class="${dt>.25?'poor':dt<=0?'good':''}">${dt>0?'+':''}${Math.round(dt*100)}%</span>`}</td></tr>`})).join('')}</table></div></div>`).join('')}
    <p class="note">Plan contra hecho usa todo lo registrado en cada orden, no solo el período.</p></section>`:''}
-  <p class="note">Tocá el título de cualquier columna para ordenar; tocá de nuevo para invertir. Eficiencia: minutos estándar producidos sobre minutos reales, solo en pasos con tiempo estándar. Las pausas (refrigerio) no cuentan como tiempo no productivo.</p>`;
+  <p class="note">Tocá el título de cualquier columna para ordenar; tocá de nuevo para invertir. Eficiencia: minutos estándar producidos sobre minutos reales, solo en pasos con tiempo estándar. Las pausas (refrigerio) no cuentan como tiempo no productivo, y si caen dentro de un registro de producción se descuentan de sus minutos trabajados.</p>`;
   box.querySelectorAll('[data-set]').forEach(r=>r.onclick=()=>{const [k,...v]=r.dataset.set.split(':');const val=v.join(':');F[k]=F[k]===val?'':val;if(k==='tipo')F.maq='';this.save();this.update();try{$('#iF').scrollIntoView({block:'start',behavior:'smooth'})}catch(e){}})},
 excel(){if(typeof XLSX==='undefined'){toast('No se pudo cargar el generador de Excel. Recargá la página.');return}const E=this.datos();if(!E.length){toast('No hay registros con estos filtros');return}
   const wb=XLSX.utils.book_new();const [d0,d1]=this.rango();
@@ -681,9 +693,10 @@ update(){const box=$('#mm');if(!box)return;
     box.innerHTML=`<section class="panel"><div class="pzh" style="align-items:center"><h2 style="margin:0 0 10px">Personal</h2>${ed?'<button class="btn sec sm" id="pLeg">Traer legajos del panel de horas</button>':''}</div>
     <div class="chips" style="margin-bottom:12px">${Object.entries(AREAS_PL).map(([k,v])=>{const n=personalDeArea(k).length;const d=personalDeArea(k).filter(p=>derivVigente(p.id,today())).length;return `<button class="chip ${this.fArea===k?'on':''}" data-fa="${k}" style="cursor:pointer;font:inherit">${v}: <b>${n}</b>${d?` <small class="note">(${d} derivados)</small>`:''}</button>`}).join('')}${this.fArea?'<button class="btn link" data-fa="">ver todos</button>':''}</div>
     <p class="note" style="margin-top:-4px">Para mover a alguien de área en forma permanente, cambiá su <b>Área</b>. Para mandarlo a otra área por un día o un período, usá <b>derivar</b>: al terminar vuelve solo a la suya. Los números de arriba son el personal de cada área hoy, contando derivaciones; tocá un área para filtrar.</p>${ed?`<div class="row" style="margin-bottom:12px"><label class="f" style="flex:0 1 130px">Legajo<input id="pl" inputmode="numeric"></label><label class="f">Nombre y apellido<input id="pn"></label><button class="btn" id="pAdd">Agregar</button></div><div class="err" id="pnErr"></div>`:''}
-    <div class="tw"><table><tr><th>Legajo</th><th>Nombre</th><th>Área</th><th>Hoy</th><th>En el panel de horas</th><th>Estado</th><th></th></tr>${P.slice().filter(p=>!this.fArea||areaDe(p.id,today())===this.fArea||(p.area||'taller')===this.fArea).sort((a,b)=>String(a.legajo||'zzz').localeCompare(String(b.legajo||'zzz'),'es',{numeric:true})||a.nombre.localeCompare(b.nombre)).map(p=>`<tr><td>${ed?`<input value="${esc(p.legajo||'')}" data-leg="${esc(p.id)}" placeholder="sin legajo" style="width:110px">`:esc(p.legajo||'–')}</td><td>${esc(p.nombre)}</td><td>${ed?`<select data-par="${esc(p.id)}" style="width:auto">${Object.entries(AREAS_PL).map(([k,v])=>`<option value="${k}" ${(p.area||'taller')===k?'selected':''}>${v}</option>`).join('')}</select>`:AREAS_PL[p.area||'taller']}</td><td>${derivVigente(p.id,today())?etiquetaArea(p.id):'<span class="note">en su área</span>'}${ed&&p.activo!==false?` <button class="btn link" data-pder="${esc(p.id)}">derivar</button>`:''}</td><td>${S.horas?(()=>{const e=empleadoHoras(p.id);return ed?`<select data-hv="${esc(p.id)}" style="width:auto;max-width:230px;${e?'':'border-color:var(--bad)'}"><option value="">${e?'':'sin vincular'}</option>${S.horas.map(x=>x.nombre).sort().map(n=>`<option ${e&&e.nombre===n?'selected':''}>${esc(n)}</option>`).join('')}</select>`:(e?esc(e.nombre):'<span class="poor">sin vincular</span>')})():'<span class="note">'+(S.supa?'leyendo…':'solo en GitHub')+'</span>'}</td><td>${p.activo===false?'<span class="pill">inactivo</span>':'<span class="pill ok">activo</span>'}</td><td class="n">${ed?`<button class="btn link" data-tg="${esc(p.id)}">${p.activo===false?'Activar':'Desactivar'}</button>`:''}</td></tr>`).join('')}</table></div>
+    <div class="tw"><table><tr><th>Legajo</th><th>Nombre</th><th>Área</th><th>Hoy</th><th>En el panel de horas</th><th>Clave operario</th><th>Estado</th><th></th></tr>${P.slice().filter(p=>!this.fArea||areaDe(p.id,today())===this.fArea||(p.area||'taller')===this.fArea).sort((a,b)=>String(a.legajo||'zzz').localeCompare(String(b.legajo||'zzz'),'es',{numeric:true})||a.nombre.localeCompare(b.nombre)).map(p=>`<tr><td>${ed?`<input value="${esc(p.legajo||'')}" data-leg="${esc(p.id)}" placeholder="sin legajo" style="width:110px">`:esc(p.legajo||'–')}</td><td>${esc(p.nombre)}</td><td>${ed?`<select data-par="${esc(p.id)}" style="width:auto">${Object.entries(AREAS_PL).map(([k,v])=>`<option value="${k}" ${(p.area||'taller')===k?'selected':''}>${v}</option>`).join('')}</select>`:AREAS_PL[p.area||'taller']}</td><td>${derivVigente(p.id,today())?etiquetaArea(p.id):'<span class="note">en su área</span>'}${ed&&p.activo!==false?` <button class="btn link" data-pder="${esc(p.id)}">derivar</button>`:''}</td><td>${S.horas?(()=>{const e=empleadoHoras(p.id);return ed?`<select data-hv="${esc(p.id)}" style="width:auto;max-width:230px;${e?'':'border-color:var(--bad)'}"><option value="">${e?'':'sin vincular'}</option>${S.horas.map(x=>x.nombre).sort().map(n=>`<option ${e&&e.nombre===n?'selected':''}>${esc(n)}</option>`).join('')}</select>`:(e?esc(e.nombre):'<span class="poor">sin vincular</span>')})():'<span class="note">'+(S.supa?'leyendo…':'solo en GitHub')+'</span>'}</td><td>${p.pinq?'<span class="pill ok">sí</span>':'<span class="pill">no</span>'}${ed?` <button class="btn link" data-pq="${esc(p.id)}">${p.pinq?'cambiar':'asignar'}</button>`:''}</td><td>${p.activo===false?'<span class="pill">inactivo</span>':'<span class="pill ok">activo</span>'}</td><td class="n">${ed?`<button class="btn link" data-tg="${esc(p.id)}">${p.activo===false?'Activar':'Desactivar'}</button>`:''}</td></tr>`).join('')}</table></div>
     <p class="note">La columna <b>En el panel de horas</b> muestra con quién se cruza cada persona para leer su ausentismo. Si figura sin vincular o con la persona equivocada, elegila de la lista. El legajo se muestra en el celular del operario y en las descargas de Indicadores. También se puede cargar desde la planilla de maestros.</p></section>`;
     {const b=$('#pLeg');if(b)b.onclick=()=>completarLegajos()}
+    box.querySelectorAll('[data-pq]').forEach(b=>b.onclick=async()=>{const p=P.find(x=>x.id===b.dataset.pq);const k=prompt('Clave de operario para '+p.nombre+' (4 a 6 números):');if(k===null)return;if(!/^\d{4,6}$/.test(k.trim())){toast('Tiene que ser de 4 a 6 números');return}const h=await hashPin(k.trim());save(P.map(x=>x.id===p.id?{...x,pinq:h}:x))});
     box.querySelectorAll('[data-fa]').forEach(b=>b.onclick=()=>{this.fArea=b.dataset.fa||null;this.update()});
     box.querySelectorAll('[data-par]').forEach(sl=>sl.onchange=()=>save(P.map(p=>p.id===sl.dataset.par?{...p,area:sl.value}:p)));box.querySelectorAll('[data-pder]').forEach(b=>b.onclick=()=>derivar(b.dataset.pder));
     box.querySelectorAll('[data-hv]').forEach(sl=>sl.onchange=()=>save(P.map(p=>p.id===sl.dataset.hv?{...p,horas:sl.value||null}:p)));
@@ -1620,14 +1633,14 @@ V.ot={keys:[],
 mount(sel,rest){document.body.classList.add('solo');this.pz=null;if(sel==='p'&&rest&&rest.length>=2){this.pz=[decodeURIComponent(rest[0]),rest[1]];this.keys=[];this.render();return}if(sel==='g'&&rest&&rest[0])this.keys=rest[0].split('~').map(kParse);else if(sel)this.keys=[[decodeURIComponent(sel),...(rest||[])]];else this.keys=[];this.render()},
 unmount(){document.body.classList.remove('solo')},
 ctxs(keys){return (keys||this.keys).map(k=>({k,c:ctxKey(k)}))},
-yo(){const id=lsGet('yo');return (S.M.personal?.items||[]).find(p=>p.id===id&&p.activo!==false)?id:''},
+yo(){const id=lsGet('yo');const p=(S.M.personal?.items||[]).find(p=>p.id===id&&p.activo!==false);if(!p)return '';if(cfgOp().pedirClave&&(!p.pinq||lsGet('yoh')!==p.pinq))return '';return id},
 goKeys(keys){location.hash=keys.length>1?'ot/g/'+keys.map(kStr).join('~'):keys.length?'ot/'+keys[0].map(x=>encodeURIComponent(String(x))).join('/'):'ot'},
 mismo(cur){return !!(cur&&cur.keys&&cur.keys.length&&cur.keys.length===this.keys.length&&cur.keys.every((k,i)=>k.map(String).join('|')===this.keys[i].map(String).join('|')))},
 render(){const M=$('#main');if(!M)return;{const dg=this.diag();if(dg){M.innerHTML=`<div class="op1">${this.volver()}${dg}</div>`;return}}
   const yo=this.yo();const P=(S.M.personal?.items||[]).filter(p=>p.activo!==false);
   if(!S.M.productos){M.innerHTML='<div class="op1"><p class="note">Cargando…</p></div>';return}
   if(!yo){M.innerHTML=`<div class="op1">${this.volver()}<h1>¿Quién sos?</h1><p class="lead">Elegilo una vez: este celular lo recuerda.</p><input id="oBus" class="opin" placeholder="Buscá por nombre o legajo" style="margin-bottom:10px" inputmode="search"><div class="opgrid" id="oGr">${P.map(p=>`<button class="opbig sec" data-yo="${esc(p.id)}" data-q="${esc(nrm(p.nombre+' '+(p.legajo||'')))}">${esc(p.nombre)}${p.legajo?`<br><small class="note">Legajo ${esc(p.legajo)}</small>`:''}</button>`).join('')}</div></div>`;
-    M.querySelectorAll('[data-yo]').forEach(b=>b.onclick=()=>{lsSet('yo',b.dataset.yo);this.render()});$('#oBus').oninput=()=>{const q=nrm($('#oBus').value);M.querySelectorAll('[data-yo]').forEach(b=>b.classList.toggle('hide',!!q&&!b.dataset.q.includes(q)))};return}
+    M.querySelectorAll('[data-yo]').forEach(b=>b.onclick=async()=>{const p=persObj(b.dataset.yo);if(cfgOp().pedirClave){if(!p?.pinq){alert('Todavía no tenés clave de operario. Pedile al supervisor que te la asigne.');return}const k=prompt(p.nombre+': ingresá tu clave de operario');if(k===null)return;const h=await hashPin(k);if(h!==p.pinq){alert('Clave incorrecta.');return}lsSet('yoh',h)}lsSet('yo',b.dataset.yo);this.render()});$('#oBus').oninput=()=>{const q=nrm($('#oBus').value);M.querySelectorAll('[data-yo]').forEach(b=>b.classList.toggle('hide',!!q&&!b.dataset.q.includes(q)))};return}
   let cur=CUR.get();if(cur&&cur.key&&!cur.keys)cur.keys=[cur.key];
   const leg=(S.M.personal?.items||[]).find(p=>p.id===yo)?.legajo;
   const head=`${this.volver()}<div class="ophead"><span><b>${esc(persona(yo))}</b>${leg?` <span class="note">legajo ${esc(leg)}</span>`:''}</span><span class="row" style="gap:4px"><button class="btn link" id="oHoy">Mis registros de hoy</button><button class="btn link" id="oNo">No soy yo</button></span></div>`;
@@ -1659,7 +1672,7 @@ render(){const M=$('#main');if(!M)return;{const dg=this.diag();if(dg){M.innerHTM
      <label class="f" style="margin-top:8px">Observaciones<input id="oObs" class="opin" placeholder="opcional"></label><div class="err" id="oErr"></div>
      <button class="opbig" id="oFin">Terminé</button><div class="row" style="gap:6px;margin-top:8px">${multi?'':`<button class="btn sec" id="oParc">Informar cuántas llevo${enc.parcial?` (${nf(enc.parcial.qty)})`:''}</button>`}<button class="btn sec" id="oPar">Parada o cambio de matriz</button><button class="btn link" id="oCancel">Cancelar tarea</button></div></div>`}
   else{act=`<div class="opcard"><label class="f">Máquina<select id="oMaq" class="opin"><option value="">Elegí la máquina</option>${maqs.map(x=>`<option ${x.codigo===maq?'selected':''}>${esc(x.codigo)}</option>`).join('')}</select></label><div class="err" id="oErr"></div>
-     <button class="opbig" id="oIni">Empecé</button><div class="row" style="gap:6px;margin-top:8px"><button class="btn sec" id="oPar">Parada o cambio de matriz</button>${multi?'':'<button class="btn sec" id="oMano">Cargar a mano</button>'}</div><div id="oManoF"></div></div>`}
+     <button class="opbig" id="oIni">Empecé</button><div class="row" style="gap:6px;margin-top:8px"><button class="btn sec" id="oPar">Parada o cambio de matriz</button>${multi||!cfgOp().cargaManual?'':'<button class="btn sec" id="oMano">Cargar a mano</button>'}</div><div id="oManoF"></div></div>`}
   M.innerHTML=`<div class="op1">${head}${info}${act}</div>`;this.bindHead();
   const titulo=C.map(({c})=>`OP ${c.o.numero} ${c.l.pieza} ${c.w.op}`).join(' + ');
   const bA=$('#oAdd');if(bA)bA.onclick=()=>this.agregar(tipo);const bQ=$('#oQuitar');if(bQ)bQ.onclick=()=>this.goKeys(this.keys.slice(0,-1));
@@ -1714,8 +1727,8 @@ bindInicio(yo){const s=$('#oTipo');s.onchange=()=>{this.tipo=s.value;lsSet('ot.t
      <p class="note" style="margin:10px 0 6px">¿Qué vas a hacer?</p><div class="dlgb" style="border:0;padding:0"><div class="opgrid">${Mo.map(m=>`<button class="opbig sec" data-m="${esc(m.id)}">${esc(m.nombre)}</button>`).join('')}</div></div></div>`;
     document.body.appendChild(box);box.onclick=e=>{if(e.target===box||e.target.hasAttribute('data-x'))box.remove()};
     box.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{CUR.set({yo,keys:[],titulo:motivo(b.dataset.m)?.nombre||'',maq:$('#soM').value,ini:ahora(),fecha:today(),tipo:'parada',motivo:b.dataset.m});box.remove();toast('Empezaste a las '+ahora());this.render()})}},
-volver(){return `<div class="opvolver"><a href="#general" class="btn link">Volver al panel</a></div>`},
-bindHead(){const n=$('#oNo');if(n)n.onclick=()=>{try{localStorage.removeItem('spl.yo')}catch(e){}this.render()};const h=$('#oHoy');if(h)h.onclick=()=>this.hoy()},
+volver(){return cfgOp().volverPanel||!accesoActivo()&&!cfgOp().pedirClave?`<div class="opvolver"><a href="#general" class="btn link">Volver al panel</a></div>`:''},
+bindHead(){const n=$('#oNo');if(n)n.onclick=()=>{try{localStorage.removeItem('spl.yo');localStorage.removeItem('spl.yoh')}catch(e){}this.render()};const h=$('#oHoy');if(h)h.onclick=()=>this.hoy()},
 diag(){const u=appURL();const gh=/github\.io/.test(location.host);
   if(S.supaErr)return `<div class="opcard warn" style="border-color:var(--bad)"><h2>No hay conexión con la base compartida</h2><p class="note">${esc(S.supaDet||'')}</p><p>${S.supaErr==='tabla'?'Falta crear la tabla <b>'+SUPA.tabla+'</b> en Supabase (una sola vez, con el script SQL).':'No se pudo conectar con Supabase. Revisá que el celular tenga internet (datos o wifi) y recargá.'}</p><p class="note">Mientras tanto no se puede cargar la producción desde este celular.</p></div>`;
   if(S.local)return `<div class="opcard warn" style="border-color:var(--bad)"><h2>Esta página no está conectada a la base compartida</h2><p class="note">Se abrió desde <b>${esc(u)}</b>. El QR tiene que abrir la dirección de GitHub: reimprimí la orden desde https://cbuceta.github.io/Panel-produccion/</p></div>`;
@@ -2097,7 +2110,7 @@ function derivar(pid){const p=persObj(pid);if(!p)return;const act=(S.derivs||[])
 /* perfiles */
 const PERF_DEF=[{id:'plan',nombre:'Planificación',vistas:'*',area:null,pin:null},{id:'taller',nombre:'Fábrica',vistas:['planta','taller','indicadores','instructivo'],area:'taller',pin:null,editar:true},
  {id:'pintura',nombre:'Pintura',vistas:['planta','pintura','indicadores','instructivo'],area:'pintura',pin:null,editar:true},{id:'armado',nombre:'Armado',vistas:['planta','armado','indicadores','instructivo'],area:'armado',pin:null,editar:true},{id:'expedicion',nombre:'Expedición',vistas:['planta','instructivo'],area:'expedicion',pin:null,editar:true}];
-const VISTAS_PL={general:'General',planta:'Planta en vivo',plan:'Planificación',taller:'Fábrica (taller)',pintura:'Pintura',armado:'Armado',indicadores:'Indicadores',maestro:'Maestro',instructivo:'Instructivo'};
+const VISTAS_PL={auditoria:'Registro de cambios',general:'General',planta:'Planta en vivo',plan:'Planificación',taller:'Fábrica (taller)',pintura:'Pintura',armado:'Armado',indicadores:'Indicadores',maestro:'Maestro',instructivo:'Instructivo'};
 async function hashPin(pin){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('spl|'+pin));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){let h=0;for(const c of 'spl|'+pin)h=(h*31+c.charCodeAt(0))|0;return 'x'+h}}
 const PERMISOS={plan:['Planificar','Lanzar y ajustar órdenes, órdenes de pintura y armado, ordenar líneas, estándares y objetivos'],maestro:['Editar maestros','Listas de materiales, máquinas, personal, motivos y planilla de maestros'],
   cargar:['Cargar producción','Empezar y terminar en las líneas de pintura y armado, carga manual del taller'],editar:['Editar y borrar registros','Corregir o borrar registros y movimientos'],derivar:['Derivar personal','Mandar personal a otro sector y asignar pintores y mesas'],usuarios:['Usuarios y permisos','Crear usuarios, claves y permisos; poner los datos en cero']};
@@ -2124,8 +2137,9 @@ function pantallaLogin(){document.body.classList.add('solo');const P=perfiles().
   const go=async()=>{const id=$('#lgP').value,k=$('#lgK').value;const p=perfiles().find(x=>x.id===id);const h=await hashPin(k);if(!p||p.pin!==h){$('#lgE').textContent='Clave incorrecta.';return}
     try{localStorage.setItem('spl.sesion',JSON.stringify({id,h}))}catch(e){}lsSet('ultPerfil',id);document.body.classList.remove('solo');route()};
   $('#lgGo').onclick=go;$('#lgK').onkeydown=e=>{if(e.key==='Enter')go()};$('#lgK').focus()}
-function htmlAccesos(){const P=perfiles();const ed=S.puedeUsuarios;const secLbl=a=>a?(AREAS_PL[a]||a):'Todos';
-  return (ed?`<section class="panel" style="border-color:var(--bad)"><div class="pzh" style="align-items:center"><span><b>Datos de prueba</b><br><span class="note">Borra órdenes, registros y movimientos para arrancar de cero. Los maestros no se tocan.</span></span><button class="btn sec" id="rsOpen">Poner los datos en cero</button></div></section>`:'')+
+function htmlAccesos(){const P=perfiles();const ed=S.puedeUsuarios;const secLbl=a=>a?(AREAS_PL[a]||a):'Todos';const co=cfgOp();
+  return `<section class="panel"><h2>Operarios (celular con QR)</h2><p class="note" style="margin-top:-4px">Los operarios entran escaneando el QR de la orden y solo pueden cargar su producción. Con el ingreso con usuario activado, cualquier otra pantalla les pide usuario y clave.</p>
+   <div class="chips" style="flex-direction:column;align-items:stretch">${[['pedirClave','Pedir clave al operario','Cada persona usa su clave de operario (se asigna en Maestro > Personal). Sin clave no puede cargar a su nombre.'],['cargaManual','Permitir "Cargar a mano" en el celular','Si está apagado, solo se carga con Empecé y Terminé, con la hora real.'],['volverPanel','Mostrar "Volver al panel" en el celular','Para usar el celular también como panel.']].map(([k,n,d])=>`<label class="chip" style="justify-content:space-between"><span><input type="checkbox" data-oc="${k}" ${co[k]?'checked':''} ${ed?'':'disabled'} style="width:auto"> <b>${n}</b></span><span class="note">${d}</span></label>`).join('')}</div></section>`+(ed?`<section class="panel" style="border-color:var(--bad)"><div class="pzh" style="align-items:center"><span><b>Datos de prueba</b><br><span class="note">Borra órdenes, registros y movimientos para arrancar de cero. Los maestros no se tocan.</span></span><button class="btn sec" id="rsOpen">Poner los datos en cero</button></div></section>`:'')+
   `<section class="panel"><div class="pzh" style="align-items:center"><h2 style="margin:0">Usuarios y permisos</h2>${ed?'<button class="btn" id="usNew">Nuevo usuario</button>':''}</div>
    <p class="note">${accesoActivo()?'El ingreso con usuario y clave está activo.':'Hoy cualquiera que abre la página entra con todos los permisos. Al guardar un usuario con clave y permiso de "Usuarios y permisos", se activa el ingreso con usuario y clave.'} Las claves ordenan qué ve y qué hace cada uno; no reemplazan una seguridad fuerte.</p>
    <div class="tw"><table><tr><th>Usuario</th><th>Sector</th><th>Ve</th><th>Puede</th><th>Clave</th><th></th></tr>${P.map(p=>{const pm=permisosDe(p);return `<tr><td><b>${esc(p.nombre)}</b></td><td>${secLbl(p.vistas==='*'?null:p.area)}</td><td class="note">${p.vistas==='*'?'Todo':(p.vistas||[]).map(v=>VISTAS_PL[v]||v).join(', ')}</td>
@@ -2154,7 +2168,7 @@ function editarUsuario(id){const P=JSON.parse(JSON.stringify(perfiles()));let u=
     u.nombre=nombre;if(k)u.pin=await hashPin(k);u.vistas=$('#uTodo').checked?'*':[...m.querySelectorAll('[data-uv]:checked')].map(c=>c.dataset.uv);u.area=$('#uA').value||null;u.permisos={};m.querySelectorAll('[data-up]').forEach(c=>{if(c.checked)u.permisos[c.dataset.up]=true});u.editar=!!u.permisos.editar;
     if(u.vistas!=='*'&&!u.vistas.length){$('#uE').textContent='Elegí al menos una pantalla.';return}
     const L=nuevo?[...P,u]:P.map(x=>x.id===u.id?u:x);if(await guardarUsuarios(L,nuevo?'Usuario creado':'Usuario actualizado'))m.remove()}}
-function bindAccesos(box){{const r=$('#rsOpen');if(r)r.onclick=()=>modalReset()}const n=$('#usNew');if(n)n.onclick=()=>editarUsuario(null);
+function bindAccesos(box){{const r=$('#rsOpen');if(r)r.onclick=()=>modalReset()}box.querySelectorAll('[data-oc]').forEach(c=>c.onchange=async()=>{const d={...cfgOp(),[c.dataset.oc]:c.checked};try{await S.db.doc('maestro/operarios_cfg').set(d);toast('Guardado')}catch(e){toast('No se pudo guardar')}});const n=$('#usNew');if(n)n.onclick=()=>editarUsuario(null);
   box.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>editarUsuario(b.dataset.use));
   box.querySelectorAll('[data-usd]').forEach(b=>b.onclick=async()=>{const P=perfiles();const u=P.find(x=>x.id===b.dataset.usd);if(!confirm('¿Borrar el usuario '+u.nombre+'?'))return;await guardarUsuarios(P.filter(x=>x.id!==u.id),'Usuario borrado')})}
 
@@ -2773,6 +2787,44 @@ async function actualizarRutaOP(o){const cambios=[];const lineas=JSON.parse(JSON
   if(!confirm(`Actualizar la ruta de ${cambios.join(', ')} en la OP ${o.numero} con la lista de materiales actual?${conAvance?'\n\nOjo: esta OP ya tiene producción cargada. Lo registrado queda asociado al número de paso; si cambió el orden de las operaciones, revisá el avance.':''}`))return;
   try{await S.db.collection('ordenes').doc(o.id).update({lineas,ruta_actualizada:new Date().toISOString()});toast('Ruta de la OP '+o.numero+' actualizada')}catch(e){toast('No se pudo guardar')}}
 
+/* ---------- configuración de operarios (celular con QR) ---------- */
+function cfgOp(){return {pedirClave:false,cargaManual:false,volverPanel:false,...(S.M.operarios_cfg||{})}}
+function quienSoy(){const p=S.perfil;if(S.view==='ot'||!p||!accesoActivo()){const yo=lsGet('yo');const po=yo&&persObj(yo);if(S.view==='ot'&&po)return {quien:po.nombre+(po.legajo?' (leg. '+po.legajo+')':''),tipo:'operario'};if(!accesoActivo())return {quien:p?.nombre||'sin usuario',tipo:'panel'}}return {quien:p.nombre,tipo:'panel'}}
+
+/* ---------- registro de cambios (auditoría) ---------- */
+const AUD_SKIP=/^(auditoria\/|activas\/|linea\/|resumen_v1$)/;
+let wqAud=Promise.resolve();const AUDBUF={};
+function cortito(v){if(v==null)return '–';const t=typeof v==='object'?JSON.stringify(v):String(v);return t.length>70?t.slice(0,67)+'…':t}
+function descItem(x){if(!x)return '';const a=[x.tipo==='parada'?'parada '+(motivo(x.motivo)?.nombre||x.motivoTxt||''):'',x.op_numero?'OP '+x.op_numero:'',x.opint_num||'',x.oarm_num||'',x.articulo||x.fam||'',x.pieza||'',x.paso||'',x.color||'',x.centro||x.mesa||'',x.qty!=null?x.qty+' u.':'',x.ok!=null?x.ok+' OK':'',x.ini&&x.fin?x.ini+'–'+x.fin:'',x.operario?persona(x.operario):''].filter(Boolean);return a.join(' ')}
+function antesDe(path){const [c,...r]=path.split('/');const id=r.join('/');const col={ordenes:S.ordenes,partes:S.partes,movimientos:S.movs,opint:S.opint,oarm:S.oarm,pintura:S.pint,armado:S.arm,derivaciones:S.derivs,buzon:S.buzon}[c];
+  if(col){const d=col.find(x=>x.id===id);if(!d)return null;const {id:_,...rest}=d;return rest}if(c==='maestro')return S.M[id]||null;if(c==='planificacion')return S.P[id]||null;if(c==='dotacion')return id===today()?S.dot:null;return null}
+function resumirCambio(path,antes,despues,accion){const c=path.split('/')[0];
+  if(accion==='delete')return 'borró '+(antes?.items?`${antes.items.length} registros`:antes?.numero?'la orden '+antes.numero:antes?.nombre||antes?.pieza||'el documento');
+  if(despues&&Array.isArray(despues.items)&&(!antes||Array.isArray(antes.items))&&['partes','pintura','armado','auditoria'].includes(c)){const A=new Map((antes?.items||[]).map(x=>[x.id,x]));const B=new Map(despues.items.map(x=>[x.id,x]));const out=[];
+    for(const [k,x] of B)if(!A.has(k))out.push('agregó '+descItem(x));for(const [k,x] of A)if(!B.has(k))out.push('borró '+descItem(x));
+    for(const [k,x] of B)if(A.has(k)&&JSON.stringify(A.get(k))!==JSON.stringify(x)){const y=A.get(k);const ch=Object.keys({...x,...y}).filter(f=>!['ts','editado'].includes(f)&&JSON.stringify(x[f])!==JSON.stringify(y[f])).slice(0,5).map(f=>`${f}: ${cortito(y[f])} → ${cortito(x[f])}`);out.push('modificó '+descItem(x)+' ('+ch.join(', ')+')')}
+    return out.join('; ')||'sin cambios'}
+  if(c==='maestro'&&path.endsWith('/productos')&&antes&&despues){const fs=Object.keys({...antes.items,...despues.items}).filter(f=>JSON.stringify(antes.items?.[f])!==JSON.stringify(despues.items?.[f]));return 'listas de materiales: '+fs.slice(0,8).join(', ')+(fs.length>8?'…':'')}
+  if(c==='maestro'&&antes&&despues&&Array.isArray(despues.items)&&Array.isArray(antes.items)){const A=new Map(antes.items.map(x=>[x.id||x.codigo||x.nombre,x]));const out=[];for(const x of despues.items){const k=x.id||x.codigo||x.nombre;const y=A.get(k);if(!y)out.push('agregó '+(x.nombre||x.codigo||k));else if(JSON.stringify(y)!==JSON.stringify(x)){const ch=Object.keys({...x,...y}).filter(f=>f!=='pin'&&f!=='pinq'&&JSON.stringify(x[f])!==JSON.stringify(y[f]));const cl=[JSON.stringify(x.pin)!==JSON.stringify(y.pin)?'cambió la clave de usuario':'',JSON.stringify(x.pinq)!==JSON.stringify(y.pinq)?'cambió la clave de operario':''].filter(Boolean);out.push((x.nombre||x.codigo||k)+': '+[...ch.map(f=>`${f} ${cortito(y[f])} → ${cortito(x[f])}`),...cl].join(', '))}A.delete(k)}for(const [k,y] of A)out.push('borró '+(y.nombre||y.codigo||k));return out.join('; ')||'sin cambios'}
+  if(!antes)return 'creó '+(despues?.numero?'la orden '+despues.numero:despues?.pieza?despues.pieza+(despues.color?' '+despues.color:'')+(despues.qty||despues.cant?' '+(despues.qty||despues.cant):''):'');
+  const ks=Object.keys({...antes,...despues}).filter(k=>!['ts','actualizado','importado'].includes(k)&&JSON.stringify(antes[k])!==JSON.stringify(despues[k]));return ks.slice(0,6).map(k=>`${k}: ${cortito(antes[k])} → ${cortito(despues[k])}`).join(', ')||'sin cambios'}
+function auditar(raw){const reg=(path,accion,antes,despues)=>{if(AUD_SKIP.test(path))return;let res='';try{res=resumirCambio(path,antes,despues,accion)}catch(e){res=accion}if(res==='sin cambios')return;const q=quienSoy();
+    const it={id:newId(),ts:new Date().toISOString(),quien:q.quien,tipo:q.tipo,dispositivo:uidShort(),accion:accion==='delete'?'borrar':antes?'modificar':'crear',ruta:path,resumen:res.slice(0,1500)};
+    wqAud=wqAud.then(async()=>{const id=today()+'_'+uidShort();if(!AUDBUF[id]){const cur=(S.aud||[]).find(x=>x.id===id);AUDBUF[id]=cur?(cur.items||[]).slice():[]}AUDBUF[id].push(it);await raw.doc('auditoria/'+id).set({fecha:today(),items:AUDBUF[id].slice()})}).catch(()=>{})};
+  const wrapDoc=(path,r)=>({set:async d=>{const a=antesDe(path);const x=await r.set(d);reg(path,'set',a,d);return x},update:async d=>{const a=antesDe(path);const x=await r.update(d);reg(path,'update',a,a?{...a,...d}:d);return x},
+    delete:async()=>{const a=antesDe(path);const x=await r.delete();reg(path,'delete',a,null);return x},onSnapshot:(...a)=>r.onSnapshot(...a),get:(...a)=>r.get?r.get(...a):undefined});
+  const W=Object.create(raw);W.doc=p=>wrapDoc(p,raw.doc(p));W.collection=c=>{const rc=raw.collection(c);const o=Object.create(rc);o.doc=id=>wrapDoc(c+'/'+id,rc.doc(id));o.onSnapshot=(...a)=>rc.onSnapshot(...a);return o};W._raw=raw;return W}
+V.auditoria={F:null,
+mount(){this.F=this.F||{d0:addDays(today(),-6),d1:today(),quien:'',q:''};$('#main').innerHTML=header('Registro de cambios','Todo lo que se crea, modifica o borra en el panel y desde los celulares: quién, cuándo, desde qué dispositivo y qué cambió.')+'<section class="panel filt" id="auF"></section><section class="panel" id="auB"></section>';this.update()},
+update(){const F=this.F;const B=$('#auB');if(!B)return;const all=[];for(const d of S.aud||[])if(d.fecha>=F.d0&&d.fecha<=F.d1)for(const it of d.items||[])all.push(it);all.sort((a,b)=>String(b.ts).localeCompare(String(a.ts)));
+  const quienes=[...new Set(all.map(x=>x.quien))].sort();const q=nrm(F.q);const L=all.filter(x=>(!F.quien||x.quien===F.quien)&&(!q||nrm(x.resumen+' '+x.ruta).includes(q)));
+  if(!$('#auF').contains(document.activeElement)){$('#auF').innerHTML=`<div class="row"><label class="f" style="flex:0 1 150px">Desde<input type="date" data-au="d0" value="${F.d0}"></label><label class="f" style="flex:0 1 150px">Hasta<input type="date" data-au="d1" value="${F.d1}"></label>
+   <label class="f">Quién<select data-au="quien"><option value="">Todos</option>${quienes.map(x=>`<option ${x===F.quien?'selected':''}>${esc(x)}</option>`).join('')}</select></label><label class="f" style="flex:2 1 220px">Buscar<input data-au="q" value="${esc(F.q)}" placeholder="OP, pieza, usuario…"></label></div>`;
+   $('#auF').querySelectorAll('[data-au]').forEach(el=>el.addEventListener(el.tagName==='INPUT'&&el.type!=='date'?'input':'change',()=>{F[el.dataset.au]=el.value;this.update()}))}
+  const ZON={ordenes:'Órdenes de producción',partes:'Registros del taller',movimientos:'Envíos y stock',opint:'Órdenes de pintura',oarm:'Órdenes de armado',pintura:'Registros de pintura',armado:'Registros de armado',derivaciones:'Derivaciones',maestro:'Maestro',planificacion:'Planificación',dotacion:'Dotación del día',buzon:'Pedidos de mejora'};
+  B.innerHTML=L.length?`<p class="note" style="margin-top:0">${nf(L.length)} cambios.</p><div class="tw"><table><tr><th>Fecha y hora</th><th>Quién</th><th>Acción</th><th>Dónde</th><th>Detalle</th><th>Dispositivo</th></tr>${L.slice(0,600).map(x=>`<tr><td style="white-space:nowrap">${fmtD(x.ts.slice(0,10))} ${new Date(x.ts).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false})}</td><td>${esc(x.quien)}${x.tipo==='operario'?' <span class="pill">celular</span>':''}</td>
+   <td><span class="pill ${x.accion==='borrar'?'bad':x.accion==='crear'?'ok':''}">${x.accion}</span></td><td>${esc(ZON[x.ruta.split('/')[0]]||x.ruta.split('/')[0])}${x.ruta.startsWith('maestro/')?' > '+esc(x.ruta.split('/')[1]):''}</td><td class="note" style="max-width:520px">${esc(x.resumen)}</td><td class="note">${esc(x.dispositivo)}</td></tr>`).join('')}</table></div>${L.length>600?'<p class="note">Se muestran los 600 más recientes; acotá con los filtros.</p>':''}`:'<p class="note">No hay cambios registrados en este período.</p>'}};
+
 /* ---------- router ---------- */
 function route(){const h=(location.hash||'#general').slice(1);let [v,sel,...rest]=h.split('/');if(v==='desvios'){v='indicadores'}else if(v==='fabrica'){v='plan'}else if(v==='planificacion'){v='plan';V.plan.tab='curso'}else if(v==='plan'&&!sel){}let name=V[v]&&!['fabrica','planificacion'].includes(v)?v:'general';
   if(name!=='ot'&&accesoActivo()&&!perfilActual()){if(S.view&&S.view!=='login')V[S.view]?.unmount?.();S.view='login';pantallaLogin();return}
@@ -2848,8 +2900,9 @@ route();
   if(S.supa)setTimeout(cargarHoras,1500);
   if(user){try{S.uid=await user.id();/* accesos sin restricción por ahora */S.canPlan=true;S.canWrite=true;
 }catch(e){}}
-  S.db=db;S.live=true;route();
-  for(const k of ['productos','centros','personal','motivos','vinculos','ventas','perfiles','colores','pintura_std','motivos_pintura','motivos_armado','armado_std']){
+  S.aud=[];db.collection('auditoria').onSnapshot(q=>{S.aud=q.docs.map(d=>({id:d.id,...d.data()}));if(S.view==='auditoria')changed('datos')},()=>{});
+  S.db=auditar(db);S.live=true;route();
+  for(const k of ['productos','centros','personal','motivos','vinculos','ventas','perfiles','colores','pintura_std','motivos_pintura','motivos_armado','armado_std','operarios_cfg']){
     db.doc('maestro/'+k).onSnapshot(s=>{const prev=JSON.stringify(S.M[k]);S.M[k]=s.exists?s.data():null;S.loaded[k]=true;if(k==='perfiles'&&prev!==JSON.stringify(S.M[k])){route();return}changed('maestro')},()=>{})}
   for(const k of ['pendiente','parametros','stock','ajustes','objetivos'])db.doc('planificacion/'+k).onSnapshot(s=>{S.P[k]=s.exists?s.data():null;changed('plan')},()=>{});
   S.derivs=[];db.collection('derivaciones').onSnapshot(q=>{S.derivs=q.docs.map(d=>({id:d.id,...d.data()}));changed('datos')},()=>{});
