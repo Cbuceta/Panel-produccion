@@ -233,7 +233,7 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
     <a href="#auditoria" data-v="auditoria">Registro de cambios</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-09 c</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-19 a</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -284,9 +284,12 @@ function entries(){const out=[];for(const p of S.partes)for(const it of (p.items
 /* Una persona en dos máquinas a la vez: cada máquina conserva sus minutos (eficiencia por máquina), pero a la persona
    se le cuentan una sola vez. min_op = minutos de la persona en ese registro (el tiempo compartido se reparte entre los registros). */
 const minOp=e=>e.min_op!=null?e.min_op:(+e.min||0);
-function simultaneas(E){const by={};for(const e of E)if(e.tipo==='prod'&&e.operario){const k=e.fecha+'|'+e.operario;(by[k]=by[k]||[]).push(e)}
-  for(const L of Object.values(by)){if(L.length<2)continue;const U={};for(const e of L){const k=e.grupo?'g|'+e.grupo:'i|'+e._doc+'|'+e.id;(U[k]=U[k]||[]).push(e)}
-    const us=Object.values(U).map(g=>{const a=toMin(g[0].ini),sp=diffMin(g[0].ini,g[0].fin)||0;return {g,a,b:a+sp,sp,w:0}}).filter(u=>u.a!=null&&u.sp>0);if(us.length<2)continue;
+function simultaneas(E){const by={};const esPar=e=>e.tipo==='parada'&&motivo(e.motivo)?.categoria!=='pausa';
+  for(const e of E)if((e.tipo==='prod'||esPar(e))&&e.operario){const k=e.fecha+'|'+e.operario;(by[k]=by[k]||[]).push(e)}
+  for(const L of Object.values(by)){if(L.length<2||!L.some(e=>e.tipo==='prod'))continue;const U={};for(const e of L){const k=e.grupo?'g|'+e.grupo:'i|'+e._doc+'|'+e.id;(U[k]=U[k]||[]).push(e)}
+    let us=Object.values(U).map(g=>{const a=toMin(g[0].ini),sp=diffMin(g[0].ini,g[0].fin)||0;const tot=g.reduce((x,e)=>x+(+(e.min_bruto??e.min)||0),0);return {g,a,b:a+sp,sp,w:0,par:g[0].tipo!=='prod',def:g[0].tipo==='prod'?Math.max(0,sp-tot):0}}).filter(u=>u.a!=null&&u.sp>0);
+    // una parada que ya se descontó adentro de una tarea (carga por QR) no se reparte de nuevo
+    us=us.filter(u=>!u.par||!us.some(v=>!v.par&&v.def>=u.sp-1&&v.a<=u.a&&v.b>=u.b));if(us.length<2)continue;
     const pts=[...new Set(us.flatMap(u=>[u.a,u.b]))].sort((x,y)=>x-y);let hay=false;
     for(let i=0;i<pts.length-1;i++){const s0=pts[i],t=pts[i+1];const act=us.filter(u=>u.a<=s0&&u.b>=t);if(act.length>1)hay=true;for(const u of act)u.w+=(t-s0)/act.length}
     if(!hay)continue;for(const u of us){const f=u.w/u.sp;if(f>0.999)continue;for(const e of u.g){e.min_op=Math.round((+e.min||0)*f*10)/10;e.simul=true}}}
@@ -575,8 +578,8 @@ update(){if(!$('#dia'))return;TT.update();this.fillWO();this.calc();
     if(e.tipo==='prod'){prodM+=minOp(e);if(e.std_min!=null){stdM+=+e.std_min;stdP+=+e.min||0}const ef=e.std_min!=null?e.std_min/e.min:null;
       html+=`<div class="e"><span class="t">${e.ini}–${e.fin}</span><span><b>${esc(e.centro)}</b> ${esc(e.articulo)} ${esc(e.pieza)}, paso ${e.seq}${e.op_numero?` <span class="note">OP ${esc(e.op_numero)}</span>`:' <span class="pill lamp">fuera de plan</span>'}<br><span class="note">${nf(e.qty)} piezas${e.scrap?`, ${nf(e.scrap)} scrap`:''}, ${e.min} min${e.pausa_desc?` (sin ${e.pausa_desc} min de pausa)`:''}${e.simul?` <span class="pill" title="Trabajó en otra máquina al mismo tiempo: la máquina conserva sus ${e.min} min; a la persona se le cuentan ${nf(minOp(e))}">simultáneo, ${nf(minOp(e))} min de la persona</span>`:''}${e.obs?`. ${esc(e.obs)}`:''}</span></span>
       <span style="text-align:right">${ef!=null?`<b class="${ef>=.75?'good':ef<.55?'poor':''}">${pct(ef)}</b>`:'<span class="pill">s/std</span>'}${btnEd}${puedeBorrar?`<br><button class="btn link" data-del="${esc(e._doc)}|${esc(e.id)}">Borrar</button>`:''}</span></div>`}
-    else{const mo=motivo(e.motivo);if(mo?.categoria!=='pausa')parM+=+e.min||0;
-      html+=`<div class="e"><span class="t">${e.ini}–${e.fin}</span><span>${esc(mo?.nombre||'Parada')}${e.centro?` <span class="note">${esc(e.centro)}</span>`:''}<br><span class="note">${e.min} min${e.obs?`. ${esc(e.obs)}`:''}</span></span>
+    else{const mo=motivo(e.motivo);if(mo?.categoria!=='pausa')parM+=minOp(e);
+      html+=`<div class="e"><span class="t">${e.ini}–${e.fin}</span><span>${esc(mo?.nombre||'Parada')}${e.centro?` <span class="note">${esc(e.centro)}</span>`:''}<br><span class="note">${e.min} min${e.simul?` <span class="pill" title="Al mismo tiempo estuvo produciendo en otra máquina">simultáneo, ${nf(minOp(e))} min de la persona</span>`:''}${e.obs?`. ${esc(e.obs)}`:''}</span></span>
       <span style="text-align:right"><span class="pill ${mo?.categoria==='pausa'?'':'bad'}">${mo?.categoria==='pausa'?'pausa':'no productivo'}</span>${btnEd}${puedeBorrar?`<br><button class="btn link" data-del="${esc(e._doc)}|${esc(e.id)}">Borrar</button>`:''}</span></div>`}}
   const ef=stdP&&stdM?stdM/stdP:null;
   D.innerHTML=`${banA}<div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><b>${nf(prodM/60,1)}</b><span>hs productivas</span></div><div class="kpi"><b>${nf(parM/60,1)}</b><span>hs no productivas</span></div><div class="kpi"><b class="${ef==null?'':ef>=.75?'good':ef<.55?'poor':''}">${pct(ef)}</b><span>eficiencia del día</span></div></div>
@@ -633,7 +636,7 @@ datos(){const F=this.F;const [d0,d1]=this.rango();const artOt=!!(F.art||F.ot);
     &&(!F.origen||(e.origen||'manual')===F.origen)&&(!artOt||e.tipo==='prod')&&(!F.art||e.articulo===F.art)&&(!F.ot||String(e.op_numero)===String(F.ot)))},
 agg(E,key,pers){const m={};const mm=e=>pers?minOp(e):(+e.min||0);for(const e of E){const k=key(e);if(k==null||k==='')continue;const x=m[k]=m[k]||{real:0,std:0,realStd:0,par:0,qty:0,scrap:0,n:0,fp:0};
   if(e.tipo==='prod'){x.real+=mm(e);if(e.std_min!=null){x.std+=+e.std_min;x.realStd+=+e.min||0}x.qty+=+e.qty||0;x.scrap+=+e.scrap||0;x.n++;if(e.fuera_plan)x.fp++}
-  else if(motivo(e.motivo)?.categoria!=='pausa')x.par+=+e.min||0}
+  else if(motivo(e.motivo)?.categoria!=='pausa')x.par+=pers?minOp(e):(+e.min||0)}
   for(const x of Object.values(m)){x.ef=x.realStd?x.std/x.realStd:null;x.sc=x.qty+x.scrap?x.scrap/(x.qty+x.scrap):null;x.np=x.real+x.par?x.par/(x.real+x.par):null}return m},
 bucket(){const F=this.F;const [d0,d1]=this.rango();const dias=(new Date(d1)-new Date(d0))/864e5+1;const a=F.agr==='auto'?(['3m','6m','12m','anio','todo'].includes(F.per)?'mes':dias<=45?'dia':dias<=120?'semana':'mes'):F.agr;
   const fn=a==='dia'?(f=>f):a==='semana'?(f=>lunes(f)):(f=>f.slice(0,7));const lab=a==='dia'?(k=>fmtD(k)):a==='semana'?(k=>'sem '+fmtD(k)):(k=>mesTxt(k).slice(0,3)+' '+k.slice(2,4));
@@ -1080,6 +1083,9 @@ const UNIDADES=['Unidades','kg','m','m²','l'];
 const BOM={q:'',sel:null,draft:null,dirty:false,
 fams(){return S.M.productos?.items||{}},
 usos(codigo){if(!codigo)return[];return Object.entries(this.fams()).filter(([,f])=>f.piezas.some(p=>p.codigo===codigo)).map(([k])=>k)},
+pzRef(codigo,excl){const c=String(codigo||'').trim().toUpperCase();if(!c)return null;let best=null;
+  for(const [f,v] of Object.entries(this.fams())){if(f===excl)continue;for(const q of v.piezas||[]){if(String(q.codigo||'').trim().toUpperCase()!==c||!(q.ops||[]).length)continue;const t=v.actualizado||'';if(!best||t>best.t)best={f,q,t}}}return best},
+refsConocidas(){const m=new Map();for(const [f,v] of Object.entries(this.fams()))for(const q of v.piezas||[]){const c=String(q.codigo||'').trim();if(c&&(q.ops||[]).length&&!m.has(c.toUpperCase()))m.set(c.toUpperCase(),{c,pz:q.pieza,f})}return [...m.values()].sort((a,b)=>a.c.localeCompare(b.c,'es',{numeric:true}))},
 vincs(fam){return Object.entries(S.M.vinculos?.items||{}).filter(([,f])=>f===fam).map(([c])=>c).sort()},
 select(k){if(this.dirty&&!confirm('Hay cambios sin guardar en '+this.sel+'. ¿Descartarlos?'))return;this.sel=k;this.draft=null;this.dirty=false;this.render()},
 ensureDraft(){if(!this.sel)return;if(!this.draft||!this.dirty){const f=this.fams()[this.sel];if(f){this.draft=JSON.parse(JSON.stringify(f));this.draft._vinc=this.vincs(this.sel)}else if(!this.draft?._nuevo)this.draft=null}},
@@ -1113,7 +1119,7 @@ editor(){const d=this.draft;
     ${ed?`<button class="btn sec sm" data-aop="${pi}" style="margin-top:6px">Agregar operación</button>`:''}`;
   const pz=d.piezas.map((p,pi)=>{const u=this.usos(p.codigo).filter(f=>f!==this.sel);return `<div class="bpz">
     <div class="row"><label class="f" style="flex:2 1 160px">Componente (pieza)<input value="${esc(p.pieza)}" data-p="${pi}.pieza" ${dis}></label>
-     <label class="f" style="flex:1 1 120px">Referencia interna<input value="${esc(p.codigo||'')}" data-p="${pi}.codigo" placeholder="ej. AROIN6717" ${dis}></label>
+     <label class="f" style="flex:1 1 120px">Referencia interna<input value="${esc(p.codigo||'')}" data-p="${pi}.codigo" list="dlRefPz" placeholder="ej. AROIN6717" autocomplete="off" ${dis}></label>
      <label class="f" style="flex:0 1 90px">Cantidad<input type="number" min="0" step="any" value="${p.cant}" data-p="${pi}.cant" ${dis}></label>
      <label class="f" style="flex:0 1 110px">Unidad<select data-p="${pi}.uom" ${dis}>${UNIDADES.map(x=>`<option ${x===(p.uom||'Unidades')?'selected':''}>${x}</option>`).join('')}</select></label>
      <label class="f" style="flex:1 1 150px" title="Si esta pieza se suelda a otra de la lista, no va a pintura: la consume el paso de soldadura de la otra, y la otra pasa sola a pintura al terminar">Destino<select data-p="${pi}.integra" ${dis}><option value="">Va a pintura o armado</option>${d.piezas.filter((q,qi)=>qi!==pi&&q.pieza).map(q=>`<option value="${esc(q.pieza)}" ${q.pieza===p.integra?'selected':''}>Se suelda en ${esc(q.pieza)}</option>`).join('')}</select></label>
@@ -1131,7 +1137,7 @@ editor(){const d=this.draft;
    <h3>Productos de Odoo que usan esta lista</h3><p class="note" style="margin-top:-4px">Cada color es un producto distinto en Odoo. Todos comparten esta lista de materiales en el taller.</p>
    <div class="chips">${vs.map(c=>`<span class="chip">${esc(c)}${ed?`<button class="btn link" data-uv="${esc(c)}" aria-label="Quitar ${esc(c)}">quitar</button>`:''}</span>`).join('')||'<span class="note">Ninguno todavía.</span>'}</div>
    ${ed?`<div class="row" style="margin:8px 0 16px"><label class="f" style="flex:0 1 240px">Vincular código de Odoo<input id="bVin" list="dlCodes" placeholder="ej. 1004NEG"></label><datalist id="dlCodes">${codes.slice(0,1500).map(c=>`<option value="${esc(c)}">`).join('')}</datalist><button class="btn sec sm" id="bVinGo">Vincular</button></div>`:''}
-   <h3>Componentes</h3>${pz||'<p class="note">Sin componentes.</p>'}
+   <h3>Componentes</h3>${ed?`<p class="note" style="margin-top:-4px">Al escribir la referencia interna de una pieza que ya está en otra lista de materiales, se trae sola su ruta (operaciones y tiempos), nombre, unidad y materia prima.</p><datalist id="dlRefPz">${this.refsConocidas().slice(0,3000).map(r=>`<option value="${esc(r.c)}">${esc(r.pz)} · ${esc(r.f)}</option>`).join('')}</datalist>`:''}${pz||'<p class="note">Sin componentes.</p>'}
    ${ed?`<div class="row" style="justify-content:space-between;margin-top:14px"><button class="btn sec" id="bAddP">Agregar componente</button>
     <span class="row" style="gap:8px"><button class="btn sec" id="bDisc">Descartar cambios</button><button class="btn" id="bSave">Guardar lista de materiales</button></span></div><div class="err" id="bErr"></div>
     <p class="note">Las órdenes ya lanzadas guardan su propia copia de la ruta, como en Odoo: los cambios se aplican a las próximas órdenes.</p>`:''}`},
@@ -1149,6 +1155,14 @@ bind(){{const vo=$('#bVolOP');if(vo)vo.onclick=()=>{if(this.dirty&&!confirm('Hay
     else if(f==='tipo'){w.tipo=i.value;if(!w.op||w.op===w._auto){w.op=i.value;w._auto=i.value;const oi=E.querySelector(`[data-o="${pi}.${wi}.op"]`);if(oi)oi.value=w.op}}
     else w.op=i.value.trim().toUpperCase();this.touch()});
   const re=()=>{this.touch();$('#bEd').innerHTML=this.editor();this.bind();this.touch()};
+  E.querySelectorAll('[data-p$=".codigo"]').forEach(i=>{const traer=()=>{const pi=+i.dataset.p.split('.')[0];const p=this.draft.piezas[pi];const r=this.pzRef(i.value,this.sel);if(!r)return;
+    const q=r.q;const firmaR=x=>JSON.stringify((x.ops||[]).map(w=>[w.op,w.tipo,w.seg??null]));if(firmaR(p)===firmaR(q)&&p.pieza)return;
+    const vacia=!p.ops.length||(p.ops.length===1&&!p.ops[0].seg);
+    if(!vacia&&!confirm(`La referencia ${q.codigo} ya tiene ruta en ${r.f} (${q.pieza}: ${q.ops.map(w=>w.op).join(' > ')}).\n\n¿Reemplazar la ruta que cargaste por esa?`))return;
+    p.ops=JSON.parse(JSON.stringify(q.ops));p.codigo=q.codigo;p.uom=q.uom||p.uom||'Unidades';if(!p.pieza||!String(p.pieza).trim()||vacia)p.pieza=p.pieza&&String(p.pieza).trim()?p.pieza:q.pieza;
+    if(q.mp&&!(p.mp&&p.mp.codigo))p.mp=JSON.parse(JSON.stringify(q.mp));
+    re();toast(`Ruta de ${q.codigo} traída de ${r.f}`)};
+    i.addEventListener('change',traer);i.addEventListener('input',e=>{if(!e.inputType||e.inputType==='insertReplacementText')traer()})});
   E.querySelectorAll('[data-aop]').forEach(b=>b.onclick=()=>{const p=this.draft.piezas[+b.dataset.aop];const t=p.ops[p.ops.length-1]?.tipo||'GU';p.ops.push({seq:p.ops.length+1,op:t,tipo:t,seg:null,_auto:t});re()});
   E.querySelectorAll('[data-dop]').forEach(b=>b.onclick=()=>{const [pi,wi]=b.dataset.dop.split('.').map(Number);this.draft.piezas[pi].ops.splice(wi,1);re()});
   E.querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>{const [pi,wi,dd]=b.dataset.mv.split('.').map(Number);const a=this.draft.piezas[pi].ops;const j=wi+dd;if(j<0||j>=a.length){toast(dd<0?'Ya es la primera operación':'Ya es la última operación');return}[a[wi],a[j]]=[a[j],a[wi]];re()});
@@ -1992,7 +2006,7 @@ function mutarParte(docId,mut){wq=wq.then(async()=>{const cur=S.partes.find(p=>p
   await S.db.collection('partes').doc(docId).set({...rest,items,actualizado:new Date().toISOString()})});return wq}
 function resumenDia(es){let prod=0,std=0,stdM=0,par=0,qty=0,scrap=0,gap=0,prev=null;const ord=es.slice().sort((a,b)=>(toMin(a.ini)??0)-(toMin(b.ini)??0));
   for(const e of ord){const a=toMin(e.ini);if(prev!=null&&a-prev>5)gap+=a-prev;prev=Math.max(prev??0,a+(diffMin(e.ini,e.fin)??(+e.min||0)));
-    if(e.tipo==='prod'){prod+=minOp(e);if(e.std_min!=null){std+=+e.std_min;stdM+=+e.min||0}qty+=+e.qty||0;scrap+=+e.scrap||0}else if(motivo(e.motivo)?.categoria!=='pausa')par+=+e.min||0}
+    if(e.tipo==='prod'){prod+=minOp(e);if(e.std_min!=null){std+=+e.std_min;stdM+=+e.min||0}qty+=+e.qty||0;scrap+=+e.scrap||0}else if(motivo(e.motivo)?.categoria!=='pausa')par+=minOp(e)}
   return {prod,std,par,qty,scrap,gap,ef:stdM?std/stdM:null,ini:ord[0]?.ini,fin:ord.length?ord.reduce((m,e)=>toMin(e.fin)>toMin(m)?e.fin:m,ord[0].fin):null,n:es.length}}
 const TT={tab:'linea',f:today(),F:{d0:today(),d1:today(),op:'',tipo:'',reg:'',origen:'',q:''},
 init(){const main=$('#main');const nodes=[...main.children].filter(n=>!(n.tagName==='H1'||n.classList.contains('lead')||n.classList.contains('banner')));const wrap=document.createElement('div');wrap.id='tpM';nodes.forEach(n=>wrap.appendChild(n));
@@ -2604,12 +2618,48 @@ bind(B,L){const f=$('#plaF');if(f)f.onchange=async()=>{const x=f.files[0];f.valu
 };
 V.armado={tab:'linea',
 mount(){$('#main').innerHTML=header('Armado','Lo que llega de pintura y del taller, el plan de armado por juegos completos, la línea del día por mesa con su objetivo y eficiencia, y los registros.')+
-  `<div id="aPers"></div><div class="tabs ptabs" id="aT"><button data-at="linea">Línea del día</button><button data-at="plin">Plan por línea</button><button data-at="plan" class="solo-plan">Planificar armado</button><button data-at="ord">Órdenes de armado</button><button data-at="stock">Stock en armado</button><button data-at="reg">Registros</button></div><div id="aB"></div>`;
+  `<div id="aPers"></div><div class="tabs ptabs" id="aT"><button data-at="linea">Línea del día</button><button data-at="man">Carga manual</button><button data-at="plin">Plan por línea</button><button data-at="plan" class="solo-plan">Planificar armado</button><button data-at="ord">Órdenes de armado</button><button data-at="stock">Stock en armado</button><button data-at="reg">Registros</button></div><div id="aB"></div>`;
   document.querySelectorAll('[data-at]').forEach(b=>b.onclick=()=>{this.tab=b.dataset.at;this.render(true)});document.querySelectorAll('.solo-plan').forEach(b=>b.classList.toggle('hide',!S.canPlan));if(this.tab==='plan'&&!S.canPlan)this.tab='linea';this.render(true)},
 update(){this.render(false)},
 render(force){const B=$('#aB');if(!B)return;if(!force&&B.contains(document.activeElement)&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;document.querySelectorAll('[data-at]').forEach(b=>b.classList.toggle('on',b.dataset.at===this.tab));
   const PP=personalArmadoHoy();$('#aPers').innerHTML=`<section class="panel" style="padding:12px 16px"><b>Personal de armado hoy</b> <span class="note">${PP.length}</span><div class="chips" style="margin-top:6px">${PP.map(p=>{const d=derivVigente(p.id,today());const h=S.horas?estadoHoras(p.id,today()):null;return `<span class="chip ${h?.aus?'aus':''}">${esc(p.nombre)}${d?' <small class="note">derivado</small>':''}${p._fuera?' <small class="poor" title="Está trabajando en armado pero su área figura como '+esc(AREAS_PL[p.area||'taller'])+'">área: '+esc(AREAS_PL[p.area||'taller'])+'</small>':''}${h?.aus?' '+esc(h.label):''}</span>`}).join('')||'<span class="note">No hay personal asignado a Armado. Se asigna en Maestro > Personal, o desde Planta en vivo derivando gente.</span>'}</div>${PP.some(p=>p._fuera)?'<p class="note" style="margin:6px 0 0">Las personas marcadas con su área están trabajando en armado pero en Maestro > Personal figuran en otra área. Si son de armado, cambiales el área; si vinieron por el día, derivalas desde Planta en vivo.</p>':''}</section>`;
-  if(this.tab==='linea'){B.innerHTML=this.linea();this.bindLinea(B)}else if(this.tab==='plin')PLA.render(B);else if(this.tab==='plan')this.plan(B);else if(this.tab==='ord')this.ordenes(B);else if(this.tab==='stock')this.stock(B);else this.registros(B)},
+  if(this.tab==='linea'){B.innerHTML=this.linea();this.bindLinea(B)}else if(this.tab==='man'){if(!force&&B.querySelector('#mGo'))return;this.manual(B)}else if(this.tab==='plin')PLA.render(B);else if(this.tab==='plan')this.plan(B);else if(this.tab==='ord')this.ordenes(B);else if(this.tab==='stock')this.stock(B);else this.registros(B)},
+manual(B){if(!(S.puedeCargar||S.canPlan)){B.innerHTML='<section class="panel"><p class="note">Necesitás permiso para cargar producción.</p></section>';return}
+  const c=cfgA('armado');const mesas=c.mesas||['Mesa 1'];const A=oarmAbiertas();const vinc=S.M.vinculos?.items||{};const P=personalArmadoHoy();const f0=this.mf||today();
+  B.innerHTML=`<div class="grid2"><section class="panel"><h2>Carga manual de armado</h2><p class="note" style="margin-top:-6px">Para cargar lo que se armó sin usar Empezar y Terminar. El ritmo que debería hacer sale del estándar de la base para ese código.</p>
+   <div class="row"><label class="f" style="flex:0 1 160px">Fecha<input type="date" id="mF" value="${esc(f0)}"></label><label class="f" style="flex:0 1 140px">Mesa<select id="mMe">${mesas.map(x=>`<option ${x===this.mme?'selected':''}>${esc(x)}</option>`).join('')}</select></label></div>
+   <label class="f" style="margin-top:10px">Orden de armado<select id="mO"><option value="">Sin orden (elegí el código abajo)</option>${A.map(o=>`<option value="${esc(o.id)}">${esc(o.numero)}  ${esc(o.code)}  ${esc(o.color)}  faltan ${nf(o.falta)}</option>`).join('')}</select></label>
+   <label class="f" style="margin-top:10px" id="mCw">Código del artículo<input id="mC" list="dlMC" autocomplete="off" placeholder="código de Odoo"></label><datalist id="dlMC">${Object.keys(vinc).map(k=>`<option value="${esc(k)}">`).join('')}</datalist>
+   <div class="f" style="margin-top:10px"><span>Personas en la mesa</span><div class="chips" id="mP" style="margin-top:6px">${P.map(p=>`<label class="chip" style="cursor:pointer"><input type="checkbox" data-mp="${esc(p.id)}" style="width:auto;margin-right:4px">${esc(p.nombre)}</label>`).join('')||'<span class="note">No hay personal asignado a Armado hoy.</span>'}</div></div>
+   <div class="row" style="margin-top:10px"><label class="f">Hora inicio<input type="time" id="mI"></label><label class="f">Hora fin<input type="time" id="mFi"></label><label class="f" title="Refrigerio o paradas en el medio, que no cuentan">Min. de pausa<input type="number" min="0" id="mPa" value="0"></label></div>
+   <div class="row" style="margin-top:10px"><label class="f">Unidades armadas<input type="number" min="0" id="mQ" inputmode="numeric"></label><label class="f">Def. pintura<input type="number" min="0" id="mDp" value="0"></label><label class="f">Def. proveedor<input type="number" min="0" id="mDv" value="0"></label><label class="f">Def. fábrica<input type="number" min="0" id="mDf" value="0"></label><label class="f">Def. armado<input type="number" min="0" id="mDa" value="0"></label></div>
+   <label class="f" style="margin-top:10px">Observaciones<input id="mOb"></label><div class="err" id="mE"></div>
+   <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" id="mGo">Registrar armado</button></div></section>
+   <section class="panel"><h2>Qué debería hacer</h2><div id="mCalc"><p class="note">Elegí la orden o el código, las personas y el horario.</p></div></section></div>`;
+  const val=()=>{const oid=$('#mO').value;const o=oid?A.find(x=>x.id===oid):null;const code=o?o.code:$('#mC').value.trim().toUpperCase();const fam=o?o.fam:vinc[code];const color=o?o.color:(fam?colorDeCodigo(code,fam)||'SIN PINTAR':null);
+    const ps=[...B.querySelectorAll('[data-mp]:checked')].map(x=>x.dataset.mp);const ini=$('#mI').value,fin=$('#mFi').value;const pa=Math.max(0,parseInt($('#mPa').value,10)||0);const span=diffMin(ini,fin);const mm=span?Math.max(1,span-pa):null;
+    const si=code?stdArmInfo(code):null;const hh=mm?Math.max(1,ps.length)*mm/60:null;const q=parseInt($('#mQ').value,10);return {o,code,fam,color,ps,ini,fin,pa,mm,si,hh,q}};
+  const calc=()=>{const v=val();$('#mCw').classList.toggle('hide',!!v.o);const C=$('#mCalc');
+    if(!v.code){C.innerHTML='<p class="note">Elegí la orden o el código, las personas y el horario.</p>';return}
+    const head=`<p><b>${esc(v.code)}</b>${v.fam?` <span class="note">${esc(v.fam)}</span>`:' <span class="pill bad">sin lista de materiales</span>'} ${v.color?`<span class="pill">${esc(v.color)}</span>`:''}</p>`;
+    if(!v.si){C.innerHTML=head+'<p class="note poor">Este código no tiene estándar de armado en la base. Se registra igual, sin OEE. Podés cargarlo en Maestro.</p>';return}
+    const esp=v.hh?v.si.v*v.hh:null;const ef=esp&&v.q>=0?v.q/esp:null;const obj=+c.ef||null;
+    C.innerHTML=head+`<div class="opnums"><div><b>${nf(v.si.v,1)}</b><span>u/h por persona${v.si.aprox?' (aprox., de la familia)':''}</span></div><div><b>${v.hh?nf(v.hh,2):'–'}</b><span>horas hombre${v.ps.length?` (${v.ps.length} pers.)`:''}</span></div><div><b>${esp!=null?nf(esp):'–'}</b><span>debería armar al 100%</span></div></div>
+     ${obj&&esp?`<p class="note" style="margin:8px 0 0">Al objetivo de la línea (${pct(obj)}): ${nf(esp*obj)} unidades.</p>`:''}
+     ${ef!=null&&!isNaN(ef)?`<p style="margin:10px 0 0;font-size:18px">OEE de esta carga: <b class="${ef>=.85?'good':ef<.65?'poor':''}">${pct(ef)}</b></p>`:'<p class="note" style="margin:10px 0 0">Cargá las unidades armadas para ver el OEE.</p>'}
+     ${!v.ps.length?'<p class="note poor" style="margin:6px 0 0">Marcá quiénes estuvieron en la mesa: las horas hombre dependen de eso.</p>':''}`};
+  B.querySelectorAll('input,select').forEach(el=>{el.addEventListener('input',calc);el.addEventListener('change',calc)});
+  $('#mF').onchange=()=>{this.mf=$('#mF').value;calc()};$('#mMe').onchange=()=>{this.mme=$('#mMe').value};
+  {const hoy=entArm().filter(e=>e.fecha===f0&&e.mesa===$('#mMe').value);const last=hoy.reduce((a,e)=>toMin(e.fin)>toMin(a)?e.fin:a,hoy[0]?.fin||c.ini||'06:00');$('#mI').value=last}
+  $('#mGo').onclick=async()=>{const E=$('#mE');E.textContent='';const v=val();const fecha=$('#mF').value||today();
+    if(!v.code){E.textContent='Elegí la orden de armado o escribí el código.';return}if(!v.fam){E.textContent='Ese código no está vinculado a una lista de materiales.';return}
+    if(!v.ps.length){E.textContent='Marcá quiénes estuvieron en la mesa.';return}if(!v.mm){E.textContent='Revisá la hora de inicio y fin.';return}if(!(v.q>=0)||$('#mQ').value===''){E.textContent='Poné las unidades armadas.';return}
+    if(v.o&&v.q>v.o.falta){E.textContent=`La orden ${v.o.numero} tiene ${nf(v.o.falta)} pendientes: no se puede cargar más que eso.`;return}
+    const ST=stockArmado();const JJ=juegos(v.fam,v.color,ST);if(cfgA('armado').controlStock!==false&&v.q>JJ.n){const lim=(JJ.det||[]).filter(x=>x.q<v.q).map(x=>`- ${x.pieza}: ${nf(x.disp)} en armado (lleva ${x.cant} por artefacto)`).join('\n');if(!confirm(`Control de piezas: en armado hay piezas para ${nf(JJ.n)} artefactos completos y estás cargando ${nf(v.q)}.\n\n${lim}\n\nSi las piezas están físicamente, podés guardar igual.\n\n¿Guardar igual?`))return}
+    const cons=consumoKit(v.fam,v.color,v.q,ST);if(busy('#mGo'))return;
+    try{await writeArm(fecha,a=>a.push({id:newId(),tipo:'armado',oarm:v.o?.id||null,oarm_num:v.o?.numero||null,code:v.code,fam:v.fam,color:v.color,mesa:$('#mMe').value,personas:v.ps,hh:v.hh,ini:v.ini,fin:v.fin,min:v.mm,pausa:v.pa||0,qty:v.q,std_uh:v.si?.v||null,dpint:parseInt($('#mDp').value,10)||0,dprov:parseInt($('#mDv').value,10)||0,dfab:parseInt($('#mDf').value,10)||0,darm:parseInt($('#mDa').value,10)||0,obs:$('#mOb').value.trim(),consumo:cons,origen:'manual',ts:new Date().toISOString()}));
+      toast('Armado registrado: '+nf(v.q)+' unidades');$('#mI').value=v.fin;$('#mFi').value='';$('#mQ').value='';['mDp','mDv','mDf','mDa'].forEach(i=>$('#'+i).value='0');$('#mOb').value='';calc()}catch(e){E.textContent='No se pudo guardar.'}finally{done('#mGo')}};
+  calc()},
 linea(){const c=cfgA('armado');const hoy=entArm().filter(e=>e.fecha===today()).sort((a,b)=>(toMin(a.ini)||0)-(toMin(b.ini)||0));const cur=LINA.get();const A=oarmAbiertas();const ed=S.puedeCargar,plan=S.canPlan;const cls=x=>x==null?'':x>=.85?'good':x<.65?'poor':'';
   let u=0,def=0,mi=0,s1=0,r1=0,par=0;for(const e of hoy){if(e.tipo==='armado'){u+=+e.qty||0;def+=(+e.dpint||0)+(+e.dprov||0)+(+e.dfab||0)+(+e.darm||0);mi+=+e.min||0;const s=stdArm(e.code);const pers=Math.max(1,(e.personas||[]).length);if(s){s1+=(+e.qty||0)/s;r1+=hhDe(e)}}else if(motivo(e.motivo)?.categoria!=='pausa')par+=+e.min||0}
   const efD=r1?s1/r1:null;const pers=personalArmadoHoy().filter(p=>!(S.horas&&estadoHoras(p.id,today())?.aus)).length;const turno=Math.max(0,(diffMin(c.ini,c.fin)||0)-(c.pausa||0));
