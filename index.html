@@ -273,7 +273,7 @@ body.tvon .app{display:none}
     <a href="#auditoria" data-v="auditoria">Registro de cambios</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-19 f</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-19 g</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -650,7 +650,7 @@ rango(){const F=this.F,t=today();const mesAtras=n=>{const d=new Date(t+'T12:00:0
   if(F.per==='anio')return [t.slice(0,4)+'-01-01',t];if(F.per==='3m')return [mesAtras(2),t];if(F.per==='6m')return [mesAtras(5),t];if(F.per==='12m')return [mesAtras(11),t];
   if(F.per==='todo'){const fs=entries().map(e=>e.fecha).filter(Boolean).sort();return [fs[0]||t,t]}
   if(F.per==='hoy')return [t,t];if(F.per==='semana')return [lunes(t),t];if(F.per==='mes')return [F.mes+'-01',finMes(F.mes)];if(F.per==='30')return [addDays(t,-29),t];return [F.d0||t,F.d1||t]},
-mount(){try{this.F={...this.defaults(),...JSON.parse(lsGet('indF')||'{}')}}catch(e){this.F=this.defaults()}
+mount(){try{this.F={...this.defaults(),...JSON.parse(lsGet('indF')||'{}')}}catch(e){this.F=this.defaults()}{const D=this.defaults();this.F.d0=fechaOk(this.F.d0,D.d0);this.F.d1=fechaOk(this.F.d1,D.d1)}
   $('#main').innerHTML=header('Indicadores','Seguimiento de eficiencia, producción, scrap y paradas. Filtrá por período, máquina, persona, artículo u orden; tocá cualquier fila de las tablas para filtrar por ella.')+
   `<section class="panel filt" id="iF"></section><div id="iB"></div>`;this.update()},
 save(){lsSet('indF',JSON.stringify(this.F))},
@@ -2261,7 +2261,7 @@ ops(force){const b=$('#tpO');if(!b)return;if(!force&&b.contains(document.activeE
    <p class="note">Tocá una tarjeta para ver y corregir el día de esa persona en Carga manual.</p>`;
   $('#toF').onchange=()=>{this.f=$('#toF').value||today();this.ops(true)};
   b.querySelectorAll('[data-opv]').forEach(c=>c.onclick=()=>{this.tab='manual';const tf=$('#tFecha'),to=$('#tOp');tf.value=this.f;to.value=c.dataset.opv;lsSet('op',to.value);V.taller.autoTimes(true);V.taller.update();this.show();try{window.scrollTo(0,0)}catch(e){}})},
-todos(force){const b=$('#tpT');if(!b)return;if(!force&&b.contains(document.activeElement)&&['INPUT','SELECT'].includes(document.activeElement.tagName))return;const F=this.F;const T=S.M.centros?.tipos||{};const P=S.M.personal?.items||[];
+todos(force){const b=$('#tpT');if(!b)return;if(!force&&b.contains(document.activeElement)&&['INPUT','SELECT'].includes(document.activeElement.tagName))return;const F=this.F;F.d0=fechaOk(F.d0,addDays(today(),-29));F.d1=fechaOk(F.d1,today());const T=S.M.centros?.tipos||{};const P=S.M.personal?.items||[];
   const legOf=id=>P.find(p=>p.id===id)?.legajo||'';const q=nrm(F.q);
   const E=entries().filter(e=>e.fecha>=F.d0&&e.fecha<=F.d1&&(!F.op||e.operario===F.op)&&(!F.tipo||(e.centro_tipo||centroTipo(e.centro))===F.tipo)&&(!F.reg||e.tipo===F.reg)&&(!F.origen||(e.origen||'manual')===F.origen)
     &&(!q||nrm([persona(e.operario),e.centro,e.op_numero,e.articulo,e.pieza,e.paso,e.obs,motivo(e.motivo)?.nombre].join(' ')).includes(q))).sort((a,b)=>(b.fecha+b.ini).localeCompare(a.fecha+a.ini));
@@ -3316,6 +3316,20 @@ update(){const F=this.F;const B=$('#auB');if(!B)return;const all=[];for(const d 
    <td><span class="pill ${x.accion==='borrar'?'bad':x.accion==='crear'?'ok':''}">${x.accion}</span></td><td>${esc(ZON[x.ruta.split('/')[0]]||x.ruta.split('/')[0])}${x.ruta.startsWith('maestro/')?' > '+esc(x.ruta.split('/')[1]):''}</td><td class="note" style="max-width:520px">${esc(x.resumen)}</td><td class="note">${esc(x.dispositivo)}</td></tr>`).join('')}</table></div>${L.length>600?'<p class="note">Se muestran los 600 más recientes; acotá con los filtros.</p>':''}`:'<p class="note">No hay cambios registrados en este período.</p>'}};
 
 /* ---------- router ---------- */
+/* fechas: mientras se escribe el año (0002, 0020…) el navegador ya da una fecha "válida" y la pantalla se redibujaba con el año 2.
+   Se ignoran los años fuera de 2000–2100 hasta que esté completo, y el calendario queda entre esos años. */
+(function(){const esF=el=>el&&el.tagName==='INPUT'&&el.type==='date';const ok=v=>!v||/^(20\d\d|2100)-/.test(v);
+  const clave=el=>{if(!el||!el.getAttribute)return null;for(const a of ['data-tf','data-f','id']){const v=el.getAttribute(a);if(v)return a==='id'?'#'+CSS.escape(v):`[${a}="${CSS.escape(v)}"]`}return null};
+  /* mientras la fecha tiene el foco no se aplica (cada número escrito redibujaba la pantalla y se perdía lo que se estaba escribiendo); se aplica al salir del campo o con Enter */
+  const corta=e=>{const el=e.target;if(!esF(el)||e.__ok)return;if(!ok(el.value)||el._foc){e.stopImmediatePropagation();e.stopPropagation();if(e.type==='change'||e.type==='input')el._pend=true}};
+  document.addEventListener('change',corta,true);document.addEventListener('input',corta,true);
+  document.addEventListener('focusin',e=>{const el=e.target;if(esF(el)){if(!el._foc)el._v0=el.value;el._foc=true;if(!el.min)el.min='2000-01-01';if(!el.max)el.max='2100-12-31'}},true);
+  document.addEventListener('keydown',e=>{if(e.key==='Enter'&&esF(e.target))e.target.blur()},true);
+  document.addEventListener('focusout',e=>{const el=e.target;if(esF(el))el._foc=false;if(!esF(el)||!el._pend)return;el._pend=false;
+    if(!ok(el.value)){el.value=el._v0||'';toast('Revisá el año de la fecha');return}
+    setTimeout(()=>{const k=clave(document.activeElement);const ev=new Event('change',{bubbles:true});ev.__ok=true;el.dispatchEvent(ev);const ev2=new Event('input',{bubbles:true});ev2.__ok=true;if(el.isConnected)el.dispatchEvent(ev2);
+      if(k){const n=document.querySelector(k);if(n&&n!==document.activeElement)try{n.focus()}catch(x){}}},0)},true)})();
+const fechaOk=(f,def)=>/^(20\d\d|2100)-\d\d-\d\d$/.test(String(f||''))?f:def;
 function route(){const h=(location.hash||'#general').slice(1);let [v,sel,...rest]=h.split('/');if(v==='desvios'){v='indicadores'}else if(v==='fabrica'){v='plan'}else if(v==='planificacion'){v='plan';V.plan.tab='curso'}else if(v==='plan'&&!sel){}let name=V[v]&&!['fabrica','planificacion'].includes(v)?v:'general';
   if(name!=='ot'&&accesoActivo()&&!perfilActual()){if(S.view&&S.view!=='login')V[S.view]?.unmount?.();S.view='login';pantallaLogin();return}
   document.body.classList.toggle('solo',name==='ot');aplicarPerfil();if(!vistaPermitida(name)){const p=perfilActual();const prim=p&&p.vistas!=='*'?(p.vistas||[])[0]:'general';if(prim&&prim!==name){location.hash=prim;return}}
