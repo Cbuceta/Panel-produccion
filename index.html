@@ -233,7 +233,7 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
     <a href="#auditoria" data-v="auditoria">Registro de cambios</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-19 b</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-19 c</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -457,7 +457,7 @@ update(){const L=$('#lista');if(!L)return;const flt=$('#flt').value;const tp=$('
   if(!os.length){L.innerHTML=chip+`<p class="note">${S.ordenes.length?(flt==='vencidas'?'No hay órdenes vencidas. ':'No hay órdenes con ese filtro. '):'Todavía no hay órdenes. '+(S.canPlan?'Lanzalas desde la pestaña A lanzar o con una orden manual.':'')}</p>`;clr();return}
   L.innerHTML=chip+os.map(o=>{const st=opState(o);const open=this.sel===o.id;
     return `<div class="pz opc ${open?'open':''}"><div class="pzh" style="cursor:pointer" data-op="${esc(o.id)}" role="button" tabindex="0" aria-expanded="${open}"><span><b>OP ${esc(o.numero)}</b> ${esc(o.articulo)}, ${nf(o.cantidad)} u. ${o.prioridad==='urgente'?'<span class="pill lamp">urgente</span>':''}${activasVivas().filter(a=>a.op_id===o.id).map(a=>` <span class="pill live">${a.tipo==='parada'?'parada':'ahora'}: ${esc(persona(a.yo))}, ${esc(a.maq)}</span>`).join('')}</span>
-    <span><span class="pill ${st==='completa'?'ok':st==='en proceso'?'lamp':st==='cancelada'?'bad':''}">${st}</span> ${S.canPlan&&(o.estado==='cancelada'||o.estado==='cerrada')?`<button class="btn sm" data-react="${esc(o.id)}" style="padding:2px 10px">Reactivar</button> `:''}${S.canPlan&&abierta(o)?`<button class="btn sec sm" data-edop="${esc(o.id)}" style="padding:2px 10px">Editar</button> `:''}${o.fecha_req<today()&&abierta(o)?`<span class="pill bad">vence ${fmtD(o.fecha_req)}</span>`:`<span class="note">${fmtD(o.fecha_req)}</span>`} <b>${pct(opAvance(o))}</b> <span class="vd">${open?'Ocultar':'Ver detalle'}</span></span></div>
+    <span><span class="pill ${st==='completa'?'ok':st==='en proceso'?'lamp':st==='cancelada'?'bad':''}">${st}</span> ${S.canPlan&&(o.estado==='cancelada'||o.estado==='cerrada')?`<button class="btn sm" data-react="${esc(o.id)}" style="padding:2px 10px">Reactivar</button> `:''}${S.canPlan&&abierta(o)?`<button class="btn sec sm" data-edop="${esc(o.id)}" style="padding:2px 10px">Editar</button> `:''}${S.canPlan&&!motivoNoDeshacer(o)?`<button class="btn sec sm" data-undo="${esc(o.id)}" style="padding:2px 10px" title="Borra la orden como si no se hubiera lanzado y la necesidad vuelve a A lanzar">Deshacer lanzamiento</button> `:''}${o.fecha_req<today()&&abierta(o)?`<span class="pill bad">vence ${fmtD(o.fecha_req)}</span>`:`<span class="note">${fmtD(o.fecha_req)}</span>`} <b>${pct(opAvance(o))}</b> <span class="vd">${open?'Ocultar':'Ver detalle'}</span></span></div>
     ${open?`<div style="margin-top:8px">${o.notas?`<p class="note">${esc(o.notas)}</p>`:''}${o.lineas.map((l,li)=>`<div style="margin:8px 0"><div class="pzh" style="align-items:center"><span>${esc(l.pieza)}</span>${S.canPlan&&abierta(o)?`<label class="note" style="display:flex;gap:6px;align-items:center" onclick="event.stopPropagation()">Piezas<input type="number" min="0" value="${l.cant}" data-lc="${esc(o.id)}|${li}" style="width:100px;text-align:right;font-weight:700"></label>`:`<span class="note">${nf(l.cant)} piezas</span>`}</div>${tubo(o,l)}</div>`).join('')}
     <div class="row" style="justify-content:flex-end;margin-top:6px">${S.puedeMaestro?`<button class="btn sec sm" data-vprod="${esc(o.id)}">Ver producto</button><button class="btn sec sm" data-aprut="${esc(o.id)}" title="Toma la ruta y los tiempos actuales de la lista de materiales">Actualizar ruta</button>`:''}<button class="btn sm" data-ot="${esc(o.id)}">Imprimir órdenes de trabajo</button><button class="btn sec sm" data-pdf="${esc(o.id)}">Hoja de ruta PDF</button><button class="btn sec sm" data-xls="${esc(o.id)}">Excel</button></div>${S.canPlan&&abierta(o)?`<div class="row" style="justify-content:flex-end;margin-top:6px"><button class="btn sec sm" data-act="cerrada" data-id="${esc(o.id)}">Cerrar orden</button><button class="btn sec sm" data-act="cancelada" data-id="${esc(o.id)}">Cancelar orden</button></div>`:''}${S.canPlan&&(o.estado==='cancelada'||o.estado==='cerrada')?`<div class="row" style="justify-content:flex-end;margin-top:6px"><span class="note">${o.estado==='cancelada'?'Cancelada':'Cerrada'}${o.cerrada?' el '+fmtD(String(o.cerrada).slice(0,10)):''}.</span><button class="btn sm" data-react="${esc(o.id)}">Reactivar orden</button></div>`:''}</div>`:''}</div>`}).join('');
   clr();L.querySelectorAll('[data-op]').forEach(h=>{h.onclick=()=>{this.sel=this.sel===h.dataset.op?null:h.dataset.op;this.update()};h.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();h.click()}}});
@@ -470,6 +470,7 @@ update(){const L=$('#lista');if(!L)return;const flt=$('#flt').value;const tp=$('
   L.querySelectorAll('[data-ot]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();elegirOTs([S.ordenes.find(o=>o.id===b.dataset.ot)])});
   L.querySelectorAll('[data-pdf]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();descargarPDF([S.ordenes.find(o=>o.id===b.dataset.pdf)])});
   L.querySelectorAll('[data-xls]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();descargarXLS([S.ordenes.find(o=>o.id===b.dataset.xls)])});
+  L.querySelectorAll('[data-undo]').forEach(b=>b.onclick=async ev=>{ev.stopPropagation();const o=S.ordenes.find(x=>x.id===b.dataset.undo);if(o&&await deshacerLanzamiento([o])&&this.sel===o.id)this.sel=null});
   L.querySelectorAll('[data-edop]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();const o=S.ordenes.find(x=>x.id===b.dataset.edop);if(o)editarOrden(o)});
   L.querySelectorAll('[data-react]').forEach(b=>b.onclick=async ev=>{ev.stopPropagation();if(!confirm('¿Reactivar esta orden? Vuelve a quedar abierta para el taller, con lo que ya se había producido.'))return;
     try{await S.db.collection('ordenes').doc(b.dataset.react).update({estado:'lanzada',cerrada:null,reactivada:new Date().toISOString()});toast('Orden reactivada')}catch(e){toast('No se pudo actualizar')}});
@@ -917,8 +918,9 @@ async saveStock(key,val){const v=Math.max(0,parseInt(val,10)||0);const s=JSON.pa
 async lanzar(){const P=params();const R=this.R;const list=R.sug.filter(s=>this.sel.has(s.id)&&s.lines.some(X=>X.cant>0));if(!list.length){toast('Marcá al menos una orden sugerida con cantidad a fabricar');return}if(busy('#sGoL'))return;
   const total=list.reduce((a,s)=>a+s.lotes,0);
   if(!confirm(`Se van a lanzar ${total} órdenes con fecha requerida ${fmtD(addDays(today(),P.plazo))}. ¿Continuar?`)){done('#sGoL');return}
-  const hechas=[];const red=Math.max(1,P.redondeo);
+  const hechas=[];const red=Math.max(1,P.redondeo);const AJ=S.P.ajustes||{};
   try{let n=0;for(const s of list){const act=s.lines.filter(X=>X.cant>0);
+    const aprev={cant:{},lotes:{}};for(const X of s.lines)if(AJ.cant&&X.key in AJ.cant)aprev.cant[X.key]=AJ.cant[X.key];if(AJ.lotes&&s.id in AJ.lotes)aprev.lotes[s.id]=AJ.lotes[s.id];const tieneAj=Object.keys(aprev.cant).length||Object.keys(aprev.lotes).length;
     for(let li=0;li<s.lotes;li++){
       const lineas=act.map(X=>{let q;if(s.lotes===1)q=X.cant;else{const part=Math.ceil(X.cant/s.lotes/red)*red;q=li<s.lotes-1?Math.min(part,Math.max(0,X.cant-part*li)):Math.max(0,X.cant-part*(s.lotes-1))}
         return {pieza:X.pieza,codigo:X.codigo||null,cant:q,necesidad:X.dem,ops:X.ops.map(w=>({...w}))}}).filter(l=>l.cant>0);
@@ -927,13 +929,13 @@ async lanzar(){const P=params();const R=this.R;const list=R.sug.filter(s=>this.s
       const artCant=s.tipo==='lote'?lineas[0].cant:Math.round(Math.max(...lineas.map(l=>{const p=S.M.productos.items[s.titulo]?.piezas.find(p=>p.pieza===l.pieza);return l.cant/(p?.cant||1)})));
       const doc={numero:num,articulo:s.tipo==='lote'?'LOTE '+act[0].codigo:s.titulo,tipo:s.tipo,cantidad:artCant,fecha_req:addDays(today(),P.plazo),prioridad:'normal',
         notas:(s.tipo==='lote'?'Destinos: '+s.dest.map(d=>d.fam+' '+d.qty).join(', '):'Pendiente: '+s.codes.map(c=>c.code+' '+c.falta).join(', ')+(s.compartidas.length&&P.consolidar?'. En lote compartido: '+s.compartidas.map(X=>X.pieza+' ('+X.codigo+')').join(', '):''))+'.'+lt,
-        lote:s.lotes>1?{n:li+1,de:s.lotes}:null,destinos:s.dest||null,origen:'pendiente',pendiente_importado:S.P.pendiente?.importado||null,estado:'lanzada',creada:new Date().toISOString(),creada_por:S.uid||null,lineas,modelo_odoo:'mrp.production'};
+        lote:s.lotes>1?{n:li+1,de:s.lotes}:null,destinos:s.dest||null,ajuste_previo:tieneAj?aprev:null,origen:'pendiente',pendiente_importado:S.P.pendiente?.importado||null,estado:'lanzada',creada:new Date().toISOString(),creada_por:S.uid||null,lineas,modelo_odoo:'mrp.production'};
       await S.db.collection('ordenes').doc(id).set(doc);hechas.push({id,...doc})}}
     await this.saveAjuste(a=>{for(const s of list){for(const X of s.lines)delete a.cant[X.key];delete a.lotes[s.id]}});
     this.sel.clear();toast(hechas.length+' órdenes lanzadas');this.ultimas=hechas;this.ofrecer(hechas)}
   catch(e){toast('Se lanzaron '+hechas.length+'. Falló una: probá de nuevo.')}finally{done('#sGoL')}},
-ofrecer(os){const b=document.createElement('div');b.className='banner';b.innerHTML=`<b>${os.length} órdenes lanzadas</b> (OP ${esc(os[0].numero)} a ${esc(os[os.length-1].numero)}). <span class="row" style="display:inline-flex;gap:8px;margin-left:8px"><button class="btn sm" id="dOt">Imprimir órdenes de trabajo</button><button class="btn sec sm" id="dPdf">Hojas de ruta en PDF</button><button class="btn sec sm" id="dXls">En Excel</button></span>`;
-  $('#fCap').before(b);$('#dOt').onclick=()=>elegirOTs(os);$('#dPdf').onclick=()=>descargarPDF(os);$('#dXls').onclick=()=>descargarXLS(os);window.scrollTo(0,0)}
+ofrecer(os){const b=document.createElement('div');b.className='banner';b.innerHTML=`<b>${os.length} órdenes lanzadas</b> (OP ${esc(os[0].numero)} a ${esc(os[os.length-1].numero)}). <span class="row" style="display:inline-flex;gap:8px;margin-left:8px"><button class="btn sm" id="dOt">Imprimir órdenes de trabajo</button><button class="btn sec sm" id="dPdf">Hojas de ruta en PDF</button><button class="btn sec sm" id="dXls">En Excel</button>${S.canPlan?'<button class="btn sec sm" id="dUndo">Deshacer este lanzamiento</button>':''}</span>`;
+  $('#fCap').before(b);$('#dOt').onclick=()=>elegirOTs(os);{const u=$('#dUndo');if(u)u.onclick=async()=>{if(await deshacerLanzamiento(os))b.remove()}}$('#dPdf').onclick=()=>descargarPDF(os);$('#dXls').onclick=()=>descargarXLS(os);window.scrollTo(0,0)}
 };
 
 /* ---------- hojas de ruta ---------- */
@@ -3002,6 +3004,21 @@ function modalBorrarOPs(){const L=S.ordenes.slice().sort((a,b)=>String(b.numero)
    <div class="dlgb"><table><tr>${bkTH()}<th>OP</th><th>Artículo</th><th class="n">Cantidad</th><th>Estado</th><th>Requerida</th></tr>${L.map(o=>`<tr>${bkTD(o.id)}<td><b>${esc(o.numero)}</b></td><td>${esc(o.articulo)}</td><td class="n">${nf(o.cantidad)}</td><td>${esc(opState(o))}</td><td>${fmtD(o.fecha_req)}</td></tr>`).join('')}</table></div></div>`;
   document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.hasAttribute('data-x'))m.remove()};bindBulk(m,'órdenes',async ids=>{await borrarDocs('ordenes',ids);m.remove()})}
 
+
+/* ---------- deshacer el lanzamiento de una orden (vuelve a A lanzar) ---------- */
+function motivoNoDeshacer(o){if(!o)return 'No encuentro la orden';if(o.estado==='cancelada'||o.estado==='cerrada'||o.entrega)return 'La orden ya está '+(o.entrega?'entregada':o.estado);
+  let n=0;for(const pt of S.partes||[])for(const it of (pt.items||[]))if(it.op_id===o.id)n++;if(n)return `Ya tiene ${n} registro${n>1?'s':''} del taller. Para deshacerla, primero borrá esos registros (Taller > Todos los registros) o cancelá la orden.`;
+  if(activasVivas().some(a=>a.op_id===o.id))return 'Alguien tiene una tarea iniciada en esta orden ahora.';return null}
+async function deshacerLanzamiento(os){os=os.map(o=>S.ordenes.find(x=>x.id===o.id)||o);const ok=os.filter(o=>!motivoNoDeshacer(o));const no=os.filter(o=>motivoNoDeshacer(o));
+  if(!ok.length){toast(motivoNoDeshacer(no[0]));return false}
+  const msg=`¿Deshacer el lanzamiento de ${ok.length===1?'la OP '+ok[0].numero+' ('+ok[0].articulo+')':ok.length+' órdenes (OP '+ok.map(o=>o.numero).join(', ')+')'}?\n\nLa orden se borra como si no se hubiera lanzado: sale de En curso, se pierde su fecha de lanzamiento y lo que pedía vuelve a aparecer en A lanzar${ok.some(o=>o.ajuste_previo)?' (con los ajustes que tenía)':''}.${no.length?`\n\n${no.length} no se pueden deshacer porque ya tienen registros del taller: OP ${no.map(o=>o.numero).join(', ')}.`:''}`;
+  if(!confirm(msg))return false;
+  let hechas=0;try{for(const o of ok){await S.db.collection('ordenes').doc(o.id).delete();hechas++}
+    const prev=ok.map(o=>o.ajuste_previo).filter(Boolean);if(prev.length){const a=JSON.parse(JSON.stringify(S.P.ajustes||{}));a.cant=a.cant||{};a.lotes=a.lotes||{};
+      for(const x of prev){for(const [k,v] of Object.entries(x.cant||{}))if(!(k in a.cant))a.cant[k]=v;for(const [k,v] of Object.entries(x.lotes||{}))if(!(k in a.lotes))a.lotes[k]=v}
+      a.actualizado=new Date().toISOString();try{await S.db.doc('planificacion/ajustes').set(a)}catch(e){}}
+    toast(hechas===1?'Lanzamiento deshecho: la OP '+ok[0].numero+' volvió a A lanzar':hechas+' lanzamientos deshechos');return true}
+  catch(e){toast(hechas?`Se deshicieron ${hechas}. Falló una: probá de nuevo.`:'No se pudo deshacer. Probá de nuevo.');return hechas>0}}
 
 /* ---------- de la OP a su lista de materiales y de vuelta ---------- */
 function famDeOP(o){const it=S.M.productos?.items||{};if(o.tipo!=='lote'&&it[o.articulo])return o.articulo;const c=o.lineas?.[0]?.codigo;if(c){for(const [f,v] of Object.entries(it))if(v.piezas.some(p=>p.codigo===c))return f}return it[o.articulo]?o.articulo:null}
