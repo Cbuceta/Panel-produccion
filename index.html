@@ -233,7 +233,7 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
     <a href="#auditoria" data-v="auditoria">Registro de cambios</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-19 c</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-19 e</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -657,7 +657,7 @@ update(){if(!$('#iF'))return;if(document.activeElement&&$('#iF').contains(docume
   const F=this.F;const E=this.datos();const box=$('#iB');const tot=this.agg(E,()=>'t',true).t;
   if(!E.length){box.innerHTML='<div class="panel"><p class="note">No hay registros con estos filtros. Probá con otro período o quitá algún filtro.</p></div>';return}
   const cls=ef=>ef==null?'':ef>=.75?'good':ef<.55?'poor':'';const cell=ef=>ef==null?'':ef>=.75?'background:var(--okbg);color:var(--ok)':ef<.55?'background:var(--badbg);color:var(--bad)':'background:var(--lampbg);color:var(--lampink)';
-  const B=this.bucket();const porB=this.agg(E,e=>B.fn(e.fecha),true);const mxH=Math.max(1,...B.keys.map(k=>(porB[k]?.real||0)+(porB[k]?.par||0)));
+  const B=this.bucket();const porB=this.agg(E,e=>B.fn(e.fecha),true);if(B.a==='dia')B.keys=B.keys.filter(k=>porB[k]);const mxH=Math.max(1,...B.keys.map(k=>(porB[k]?.real||0)+(porB[k]?.par||0)));
   const dias=new Set(E.map(e=>e.fecha)).size;
   const tabla=(titulo,key,lab,fk,extra)=>{const m=this.agg(E,key,fk==='op');const rows=Object.entries(m).sort((a,b)=>(b[1].real+b[1].par)-(a[1].real+a[1].par));
     return `<section class="panel"><h2>${titulo}</h2><div class="tw"><table><tr><th>${extra||''}</th><th class="n">Hs prod.</th><th class="n">Hs std</th><th class="n">Eficiencia</th><th class="n">Hs no prod.</th><th class="n">Piezas</th><th class="n">Scrap</th>${fk==='op'?'<th>Evolución</th>':''}</tr>
@@ -674,14 +674,15 @@ update(){if(!$('#iF'))return;if(document.activeElement&&$('#iF').contains(docume
    <div class="evo">${B.keys.map(k=>{const x=porB[k];const r=x?.real||0,p=x?.par||0;return `<div class="ec" title="${esc(B.lab(k))}: ${nf(r/60,1)} hs prod., ${nf(p/60,1)} hs no prod., eficiencia ${pct(x?.ef)}"><span class="${cls(x?.ef)}">${x?.ef!=null?Math.round(x.ef*100):''}</span><div class="eb"><i style="height:${r/mxH*100}%"></i><i class="np" style="height:${p/mxH*100}%"></i></div><small>${esc(B.lab(k))}</small></div>`}).join('')}</div></section>
   ${tabla('Por operario',e=>e.operario,persona,'op','Operario')}
   <div class="grid2" style="grid-template-columns:1fr 1fr">${tabla('Por máquina',e=>e.centro,k=>k,'maq','Máquina')}${tabla('Por tipo de máquina',e=>e.centro_tipo||centroTipo(e.centro),tipoNombre,'tipo','Tipo')}</div>
-  <div class="grid2" style="grid-template-columns:1fr 1fr">${tabla('Por artículo',e=>e.tipo==='prod'?e.articulo:null,k=>k,'art','Artículo')}
-   <section class="panel"><h2>Horas no productivas</h2><p class="note" style="margin-top:-6px">${Object.entries(cat).map(([c,m])=>`${c} ${nf(m/60,1)} h`).join(', ')||'Sin paradas.'}</p><div class="bars">${motR.map(([n,m])=>`<div class="b" style="grid-template-columns:minmax(0,190px) 1fr 70px"><span>${esc(n)}</span><div class="t"><i style="width:${m/mxm*100}%"></i></div><span style="text-align:right">${nf(m/60,1)} h</span></div>`).join('')}</div></section></div>
+  ${PAR.html(E,{id:'taller',dims:[{lab:'Por máquina',col:'Máquina',fn:e=>e.centro||'Sin máquina'},{lab:'Por persona',col:'Persona',fn:e=>persona(e.operario)},{lab:'Por tipo de máquina',col:'Tipo',fn:e=>tipoNombre(e.centro_tipo||centroTipo(e.centro)||'')||'Sin tipo'}],sig:{lab:'Qué se produjo después (mismo puesto y día)',col:'Después',fn:n=>(n.articulo||'')+' · '+(n.pieza||''),mismo:e=>e.centro||('op:'+e.operario),prods:E.filter(e=>e.tipo==='prod')}})}
+  ${tabla('Por artículo',e=>e.tipo==='prod'?e.articulo:null,k=>k,'art','Artículo')}
   ${ops.length?`<section class="panel"><h2>Por orden: plan contra hecho</h2>${ops.map(o=>`<div class="pz"><div class="pzh"><b class="click" data-set="ot:${esc(o.numero)}" style="cursor:pointer">OP ${esc(o.numero)} ${esc(o.articulo)}</b><span class="note">requerida ${fmtD(o.fecha_req)}, avance ${pct(opAvance(o))}</span></div>
    <div class="tw"><table><tr><th>Pieza</th><th>Paso</th><th class="n">Plan</th><th class="n">Hecho</th><th class="n">Falta</th><th class="n">Scrap</th><th class="n">Hs std</th><th class="n">Hs reales</th><th class="n">Desvío tiempo</th></tr>
    ${o.lineas.flatMap(l=>l.ops.map(w=>{const p=S.prog.get(woKey(o.id,l.pieza,w.seq))||{qty:0,scrap:0,min:0,std:0};const dt=p.min&&p.std?(p.min-p.std)/p.std:null;
     return `<tr><td>${esc(l.pieza)}</td><td>${w.seq} ${esc(w.op)}</td><td class="n">${nf(l.cant)}</td><td class="n">${nf(p.qty)}</td><td class="n">${p.qty>=l.cant?'<span class="good">0</span>':nf(l.cant-p.qty)}</td><td class="n">${nf(p.scrap)}</td><td class="n">${w.seg?nf(p.std/60,1):'s/std'}</td><td class="n">${nf(p.min/60,1)}</td><td class="n">${dt==null?'–':`<span class="${dt>.25?'poor':dt<=0?'good':''}">${dt>0?'+':''}${Math.round(dt*100)}%</span>`}</td></tr>`})).join('')}</table></div></div>`).join('')}
    <p class="note">Plan contra hecho usa todo lo registrado en cada orden, no solo el período.</p></section>`:''}
   <p class="note">Tocá el título de cualquier columna para ordenar; tocá de nuevo para invertir. Eficiencia: minutos estándar producidos sobre minutos reales, solo en pasos con tiempo estándar. Si una persona trabaja en dos máquinas a la vez, cada máquina mide su eficiencia con su tiempo, y a la persona las horas se le cuentan una sola vez; su eficiencia es el promedio de las máquinas, ponderado por el tiempo de cada una. Las pausas (refrigerio) no cuentan como tiempo no productivo, y si caen dentro de un registro de producción se descuentan de sus minutos trabajados.</p>`;
+  PAR.bind(box,'taller',()=>this.update());
   box.querySelectorAll('[data-set]').forEach(r=>r.onclick=()=>{const [k,...v]=r.dataset.set.split(':');const val=v.join(':');F[k]=F[k]===val?'':val;if(k==='tipo')F.maq='';this.save();this.update();try{$('#iF').scrollIntoView({block:'start',behavior:'smooth'})}catch(e){}})},
 excel(){if(typeof XLSX==='undefined'){toast('No se pudo cargar el generador de Excel. Recargá la página.');return}const E=this.datos();if(!E.length){toast('No hay registros con estos filtros');return}
   const wb=XLSX.utils.book_new();const [d0,d1]=this.rango();
@@ -693,6 +694,48 @@ excel(){if(typeof XLSX==='undefined'){toast('No se pudo cargar el generador de E
   const B=this.bucket();res(e=>B.fn(e.fecha),k=>k,'Período');
   guardarArchivo(`Indicadores ${d0} a ${d1}.xlsx`,new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})]))}
 };
+
+/* ---------- análisis de horas no productivas (taller, pintura y armado) ---------- */
+const CAT_PAR={preparacion:'Preparación',parada:'Parada',auxiliar:'Tarea auxiliar',pausa:'Pausa'};
+function catParada(e){const mo=motivo(e.motivo);return CAT_PAR[mo?.categoria]||mo?.grupo||'Otro'}
+function nombreParada(e){return motivo(e.motivo)?.nombre||e.motivoTxt||'Otro'}
+/* para cada parada, la producción que siguió (mismo día y mismo puesto); sirve para saber qué se preparó en un cambio de formato */
+function siguienteProd(P,prods,mismo){const idx={};for(const e of prods){const k=e.fecha+'|'+mismo(e);(idx[k]=idx[k]||[]).push(e)}
+  for(const l of Object.values(idx))l.sort((a,b)=>(toMin(a.ini)??0)-(toMin(b.ini)??0));
+  const m=new Map();for(const p of P){const l=idx[p.fecha+'|'+mismo(p)];if(!l)continue;const t=toMin(p.fin??p.ini)??toMin(p.ini);if(t==null)continue;const n=l.find(e=>(toMin(e.ini)??-1)>=t-5);if(n)m.set(p,n)}return m}
+/* cambios de formato del taller por pieza y tipo de máquina, según lo registrado */
+function prepPorPieza(){const E=entries();const prods=E.filter(e=>e.tipo==='prod');const P=E.filter(e=>e.tipo==='parada'&&motivo(e.motivo)?.categoria==='preparacion');
+  const sig=siguienteProd(P,prods,e=>e.centro||('op:'+e.operario));const out={};
+  for(const [p,n] of sig){let cod=null;if(n.op_id){const o=S.ordenes.find(x=>x.id===n.op_id);cod=o?.lineas?.find(l=>l.pieza===n.pieza)?.codigo||null}
+    const tipo=p.centro_tipo||centroTipo(p.centro)||n.centro_tipo||centroTipo(n.centro);const keys=[cod?'c|'+String(cod).toUpperCase():null,'a|'+String(n.articulo||'').toUpperCase()+'|'+String(n.pieza||'').toUpperCase()].filter(Boolean);
+    for(const k0 of keys){const k=k0+'|'+tipo;const x=out[k]=out[k]||{n:0,min:0,ult:'',reg:[]};x.n++;x.min+=+p.min||0;if(p.fecha>x.ult)x.ult=p.fecha;x.reg.push({fecha:p.fecha,ini:p.ini,min:+p.min||0,maq:p.centro,op:p.operario,mot:nombreParada(p)})}}
+  return out}
+function prepDe(idx,fam,p,tipo){return idx[(p.codigo?'c|'+String(p.codigo).toUpperCase():'a|'+String(fam).toUpperCase()+'|'+String(p.pieza||'').toUpperCase())+'|'+tipo]||(p.codigo?idx['a|'+String(fam).toUpperCase()+'|'+String(p.pieza||'').toUpperCase()+'|'+tipo]:null)||null}
+
+/* cfg: {id, dims:[{id,lab,fn}], sig:{lab,fn,mismo,prods}} */
+const PAR={st:{},
+html(E,cfg){const st=this.st[cfg.id]=this.st[cfg.id]||{cat:'',mot:''};const P0=E.filter(e=>e.tipo==='parada');
+  if(!P0.length)return `<section class="panel"><h2>Horas no productivas</h2><p class="note">Sin paradas registradas en este período.</p></section>`;
+  const cats={};for(const e of P0){const c=catParada(e);cats[c]=(cats[c]||0)+(+e.min||0)}
+  const P1=P0.filter(e=>st.cat?catParada(e)===st.cat:catParada(e)!=='Pausa');
+  const mot={};for(const e of P1){const n=nombreParada(e);const x=mot[n]=mot[n]||{min:0,n:0,cat:catParada(e)};x.min+=+e.min||0;x.n++}
+  const motR=Object.entries(mot).sort((a,b)=>b[1].min-a[1].min);if(st.mot&&!mot[st.mot])st.mot='';const mx=Math.max(1,...motR.map(x=>x[1].min));
+  const P=st.mot?P1.filter(e=>nombreParada(e)===st.mot):P1;const tot=P.reduce((a,e)=>a+(+e.min||0),0);const tot1=P1.reduce((a,e)=>a+(+e.min||0),0);
+  const sig=cfg.sig?siguienteProd(P,cfg.sig.prods,cfg.sig.mismo):null;
+  const grp=fn=>{const m={};for(const e of P){const k=fn(e);if(k==null||k==='')continue;const x=m[k]=m[k]||{min:0,n:0};x.min+=+e.min||0;x.n++}return Object.entries(m).sort((a,b)=>b[1].min-a[1].min)};
+  const mini=(t,rows,lab)=>{const mm=Math.max(1,...rows.map(r=>r[1].min));return `<div><h3 style="margin:6px 0">${t}</h3>${rows.length?`<div class="tw"><table><tr><th>${lab||''}</th><th class="n">Hs</th><th class="n">Veces</th><th class="n">Prom. min</th><th style="width:30%"></th></tr>${rows.slice(0,10).map(([k,x])=>`<tr><td>${esc(k)}</td><td class="n">${nf(x.min/60,1)}</td><td class="n">${nf(x.n)}</td><td class="n">${nf(x.min/x.n)}</td><td><div class="bars" style="margin:0"><div class="t"><i style="width:${x.min/mm*100}%"></i></div></div></td></tr>`).join('')}</table></div>${rows.length>10?`<p class="note">y ${rows.length-10} más</p>`:''}`:'<p class="note">Sin datos.</p>'}</div>`};
+  const dias=grp(e=>e.fecha).sort((a,b)=>a[0].localeCompare(b[0]));const mxd=Math.max(1,...dias.map(d=>d[1].min));
+  const regs=P.slice().sort((a,b)=>(b.fecha+(b.ini||'')).localeCompare(a.fecha+(a.ini||'')));
+  return `<section class="panel"><div class="pzh" style="align-items:baseline;flex-wrap:wrap;gap:8px"><h2 style="margin:0">Horas no productivas</h2><span class="note">${nf(tot1/60,1)} hs${st.cat?' de '+esc(st.cat):', sin pausas'}. Tocá una categoría o un motivo para ver el detalle.</span></div>
+   <div class="chips" style="margin:10px 0">${['',...Object.keys(cats).sort((a,b)=>cats[b]-cats[a])].map(c=>`<button class="chip" data-pcat="${esc(c)}" style="cursor:pointer;padding:4px 12px;${st.cat===c?'background:var(--lampbg);border-color:var(--lamp)':''}">${c?esc(c)+' '+nf(cats[c]/60,1)+' h':'Todas sin pausas'}</button>`).join('')}</div>
+   <div class="grid2" style="grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:16px">
+    <div><h3 style="margin:6px 0">Por motivo</h3><div class="bars">${motR.map(([n,x])=>`<div class="b click" data-pmot="${esc(n)}" style="grid-template-columns:minmax(0,180px) 1fr 110px;cursor:pointer;${st.mot===n?'background:var(--lampbg);border-radius:6px;padding:5px 6px':''}" title="${nf(x.n)} veces, promedio ${nf(x.min/x.n)} min"><span>${esc(n)}</span><div class="t"><i style="width:${x.min/mx*100}%"></i></div><span style="text-align:right">${nf(x.min/60,1)} h <small class="note">${tot1?pct(x.min/tot1):''}</small></span></div>`).join('')}</div></div>
+    <div><div class="pzh" style="align-items:center"><h3 style="margin:6px 0">${st.mot?esc(st.mot):'Todos los motivos'}: ${nf(tot/60,1)} hs, ${nf(P.length)} veces, promedio ${P.length?nf(tot/P.length):0} min</h3>${st.mot?'<button class="btn link" data-pmot="">ver todos</button>':''}</div>
+     <h3 style="margin:6px 0">Por día</h3><div class="evo" style="min-height:90px">${dias.map(([d,x])=>`<div class="ec" title="${fmtD(d)}: ${nf(x.min/60,1)} hs, ${x.n} veces"><span>${nf(x.min/60,1)}</span><div class="eb"><i class="np" style="height:${x.min/mxd*100}%"></i></div><small>${fmtD(d)}</small></div>`).join('')}</div>
+     <div class="grid2" style="grid-template-columns:1fr 1fr;gap:12px">${cfg.dims.map(d=>mini(d.lab,grp(d.fn),d.col)).join('')}${sig?mini(cfg.sig.lab,grp(e=>sig.has(e)?cfg.sig.fn(sig.get(e)):'Sin producción después'),cfg.sig.col):''}</div>
+     <details style="margin-top:10px"><summary class="note">Ver los ${nf(regs.length)} registros</summary><div class="tw"><table><tr><th>Fecha</th><th>Inicio</th><th>Fin</th><th class="n">Min</th><th>Motivo</th>${cfg.dims.map(d=>`<th>${esc(d.col||d.lab)}</th>`).join('')}${sig?`<th>${esc(cfg.sig.col||cfg.sig.lab)}</th>`:''}<th>Obs.</th></tr>
+      ${regs.slice(0,300).map(e=>`<tr><td>${fmtD(e.fecha)}</td><td>${esc(e.ini||'')}</td><td>${esc(e.fin||'')}</td><td class="n">${nf(+e.min||0)}</td><td>${esc(nombreParada(e))}</td>${cfg.dims.map(d=>`<td>${esc(d.fn(e)??'')}</td>`).join('')}${sig?`<td>${sig.has(e)?esc(cfg.sig.fn(sig.get(e))):''}</td>`:''}<td class="note">${esc(e.obs||'')}</td></tr>`).join('')}</table></div>${regs.length>300?'<p class="note">Se muestran los 300 más recientes; el Excel trae todos.</p>':''}</details></div></div></section>`},
+bind(root,id,re){const st=this.st[id];if(!st)return;root.querySelectorAll('[data-pcat]').forEach(b=>b.onclick=()=>{st.cat=b.dataset.pcat;st.mot='';re()});root.querySelectorAll('[data-pmot]').forEach(b=>b.onclick=()=>{st.mot=st.mot===b.dataset.pmot?'':b.dataset.pmot;re()})}};
 
 /* MAESTRO */
 V.maestro={mount(){$('#main').innerHTML=header('Maestro','Listas de materiales, centros de trabajo y personal. Es la base de todo el sistema y sigue la estructura de Odoo Fabricación: producto, lista de materiales, componentes y operaciones.')+
@@ -1120,11 +1163,13 @@ editor(){const d=this.draft;
    <div class="banner" style="margin-top:14px"><b>Cómo se arma, igual que en Odoo.</b> Cada artículo tiene una lista de materiales con sus componentes (las piezas). Cada pieza es un semielaborado con su propia ruta: las operaciones en orden, cada una en un centro de trabajo y con su tiempo. Opcionalmente la pieza consume una materia prima (chapa, caño, varilla).</div>`;
   const ed=S.puedeMaestro;const T=S.M.centros?.tipos||{};const tipos=Object.keys(T);
   const dis=ed?'':'disabled';
-  const opsT=(p,pi)=>`<div class="tw"><table class="bt"><tr><th>Sec.</th><th>Operación</th><th>Centro de trabajo</th><th class="n">seg / pieza</th><th class="n">pz / h</th><th class="n">min / ciclo (Odoo)</th><th></th></tr>
+  const PX=prepPorPieza();
+  const prepTd=(p,pi,w,wi)=>{const r=prepDe(PX,this.sel,p,w.tipo);const av=r?Math.round(r.min/r.n):null;return `<td class="n" style="white-space:nowrap"><input type="number" min="0" step="1" value="${w.prep??''}" placeholder="${av!=null?av:'–'}" data-o="${pi}.${wi}.prep" ${dis} style="width:64px;text-align:right" title="Minutos de cambio de formato o preparación de esta operación">${r?`<br><span class="note" title="${esc(r.reg.slice(-8).map(x=>fmtD(x.fecha)+' '+(x.maq||'')+' '+persona(x.op)+': '+x.min+' min').join('\n'))}">registros: ${nf(r.n)} veces, prom. ${nf(r.min/r.n)} min</span>${ed&&w.prep!==av?` <button class="btn link" data-tprep="${pi}.${wi}.${av}">usar</button>`:''}`:''}</td>`};
+  const opsT=(p,pi)=>`<div class="tw"><table class="bt"><tr><th>Sec.</th><th>Operación</th><th>Centro de trabajo</th><th class="n">seg / pieza</th><th class="n">pz / h</th><th class="n">min / ciclo (Odoo)</th><th class="n" title="Cambio de formato o preparación. El dato de los registros sale de las paradas de preparación seguidas de esta pieza en la misma máquina y día.">Cambio de formato (min)</th><th></th></tr>
     ${p.ops.map((w,wi)=>`<tr><td>${wi+1}</td><td><input value="${esc(w.op)}" data-o="${pi}.${wi}.op" ${dis} style="width:80px"></td>
      <td><select data-o="${pi}.${wi}.tipo" ${dis}>${tipos.map(t=>`<option value="${esc(t)}" ${t===w.tipo?'selected':''}>${esc(T[t].nombre)}</option>`).join('')}${tipos.includes(w.tipo)?'':`<option selected value="${esc(w.tipo)}">${esc(w.tipo)} (sin centro)</option>`}</select></td>
      <td class="n"><input type="number" min="0" step="0.1" value="${w.seg??''}" placeholder="falta" data-o="${pi}.${wi}.seg" ${dis} style="width:80px;text-align:right;${w.seg?'':'border-color:var(--bad)'}"></td>
-     <td class="n" data-pzh="${pi}.${wi}">${w.seg?nf(3600/w.seg):'–'}</td><td class="n" data-min="${pi}.${wi}">${w.seg?nf(w.seg/60,3):'–'}</td>
+     <td class="n" data-pzh="${pi}.${wi}">${w.seg?nf(3600/w.seg):'–'}</td><td class="n" data-min="${pi}.${wi}">${w.seg?nf(w.seg/60,3):'–'}</td>${prepTd(p,pi,w,wi)}
      <td class="n" style="white-space:nowrap">${ed?`<button class="btn link" data-mv="${pi}.${wi}.-1" title="Subir">subir</button><button class="btn link" data-mv="${pi}.${wi}.1" title="Bajar">bajar</button><button class="btn link" data-dop="${pi}.${wi}">quitar</button>`:''}</td></tr>`).join('')}</table></div>
     ${ed?`<button class="btn sec sm" data-aop="${pi}" style="margin-top:6px">Agregar operación</button>`:''}`;
   const pz=d.piezas.map((p,pi)=>{const u=this.usos(p.codigo).filter(f=>f!==this.sel);return `<div class="bpz">
@@ -1162,6 +1207,7 @@ bind(){{const vf=$('#bVolForm');if(vf)vf.onclick=()=>{if(this.dirty&&!confirm('H
     if(k[1]==='mp'){p.mp=p.mp||{};p.mp[k[2]]=k[2]==='cant'?(v===''?null:+v):v}else p[k[1]]=v;this.touch()});
   E.querySelectorAll('[data-o]').forEach(i=>i.oninput=i.onchange=()=>{const [pi,wi,f]=i.dataset.o.split('.');const w=this.draft.piezas[+pi].ops[+wi];
     if(f==='seg'){w.seg=i.value===''?null:Math.max(0,+i.value)||null;const a=E.querySelector(`[data-pzh="${pi}.${wi}"]`),b=E.querySelector(`[data-min="${pi}.${wi}"]`);if(a)a.textContent=w.seg?nf(3600/w.seg):'–';if(b)b.textContent=w.seg?nf(w.seg/60,3):'–';i.style.borderColor=w.seg?'':'var(--bad)'}
+    else if(f==='prep'){w.prep=i.value===''?null:Math.max(0,Math.round(+i.value))}
     else if(f==='tipo'){w.tipo=i.value;if(!w.op||w.op===w._auto){w.op=i.value;w._auto=i.value;const oi=E.querySelector(`[data-o="${pi}.${wi}.op"]`);if(oi)oi.value=w.op}}
     else w.op=i.value.trim().toUpperCase();this.touch()});
   const re=()=>{this.touch();$('#bEd').innerHTML=this.editor();this.bind();this.touch()};
@@ -1173,6 +1219,7 @@ bind(){{const vf=$('#bVolForm');if(vf)vf.onclick=()=>{if(this.dirty&&!confirm('H
     if(q.mp&&!(p.mp&&p.mp.codigo))p.mp=JSON.parse(JSON.stringify(q.mp));
     re();toast(`Ruta de ${q.codigo} traída de ${r.f}`)};
     i.addEventListener('change',traer);i.addEventListener('input',e=>{if(!e.inputType||e.inputType==='insertReplacementText')traer()})});
+  E.querySelectorAll('[data-tprep]').forEach(b=>b.onclick=()=>{const [pi,wi,v]=b.dataset.tprep.split('.').map(Number);this.draft.piezas[pi].ops[wi].prep=v;re()});
   E.querySelectorAll('[data-aop]').forEach(b=>b.onclick=()=>{const p=this.draft.piezas[+b.dataset.aop];const t=p.ops[p.ops.length-1]?.tipo||'GU';p.ops.push({seq:p.ops.length+1,op:t,tipo:t,seg:null,_auto:t});re()});
   E.querySelectorAll('[data-dop]').forEach(b=>b.onclick=()=>{const [pi,wi]=b.dataset.dop.split('.').map(Number);this.draft.piezas[pi].ops.splice(wi,1);re()});
   E.querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>{const [pi,wi,dd]=b.dataset.mv.split('.').map(Number);const a=this.draft.piezas[pi].ops;const j=wi+dd;if(j<0||j>=a.length){toast(dd<0?'Ya es la primera operación':'Ya es la última operación');return}[a[wi],a[j]]=[a[j],a[wi]];re()});
@@ -1200,7 +1247,7 @@ async guardar(){const err=$('#bErr');err.textContent='';const d=this.draft;
     if(!p.ops.length){err.textContent=`${n} no tiene operaciones. Toda pieza necesita al menos una.`;return}
     p.ops.forEach((w,wi)=>{w.seq=wi+1;w.op=(w.op||w.tipo).toUpperCase();delete w._auto});if(p.mp&&!p.mp.codigo)delete p.mp}
   for(const p of d.piezas){if(!p.integra){delete p.integra;continue}p.integra=String(p.integra).toUpperCase();const t=d.piezas.find(q=>q!==p&&q.pieza===p.integra);if(!t){err.textContent=`${p.pieza} se suelda en ${p.integra}, que no está en la lista.`;return}if(t.integra===p.pieza){err.textContent=`${p.pieza} y ${t.pieza} no pueden soldarse una en la otra.`;return}}
-  const all0=S.M.productos?.items||{};const firma=p=>JSON.stringify({ops:(p.ops||[]).map(w=>[w.op,w.tipo,w.seg??null]),mp:p.mp||null,uom:p.uom||'Unidades',pieza:p.pieza});const prop=[];
+  const all0=S.M.productos?.items||{};const firma=p=>JSON.stringify({ops:(p.ops||[]).map(w=>[w.op,w.tipo,w.seg??null,w.prep??null]),mp:p.mp||null,uom:p.uom||'Unidades',pieza:p.pieza});const prop=[];
   for(const p of d.piezas){if(!p.codigo)continue;for(const [f,v] of Object.entries(all0)){if(f===this.sel)continue;v.piezas.forEach((q,qi)=>{if(q.codigo===p.codigo&&firma(q)!==firma(p))prop.push({f,qi,codigo:p.codigo,pieza:q.pieza})})}}
   const aplicar=prop.length>0;
   if(busy('#bSave'))return;
@@ -1541,7 +1588,7 @@ function restaurar(){const i=document.createElement('input');i.type='file';i.acc
 
 
 /* ---------- planilla de maestros: descargar y subir ---------- */
-const MH={ldm:['Artículo','Cant. que produce','Tipo de lista','Componente (pieza)','Referencia interna','Cantidad por artículo','Unidad','Materia prima','Consumo MP','Unidad MP','Secuencia','Operación','Tipo de máquina','Seg por pieza','Se suelda en (pieza)'],
+const MH={ldm:['Artículo','Cant. que produce','Tipo de lista','Componente (pieza)','Referencia interna','Cantidad por artículo','Unidad','Materia prima','Consumo MP','Unidad MP','Secuencia','Operación','Tipo de máquina','Seg por pieza','Se suelda en (pieza)','Cambio de formato (min)'],
   tip:['Código','Nombre','Puestos activos','Horas por día'],maq:['Código','Tipo de máquina'],per:['ID','Legajo','Nombre y apellido','Activo'],mot:['ID','Motivo','Categoría'],vin:['Código Odoo','Artículo']};
 const MS={ldm:'Listas de materiales',tip:'Tipos de máquina',maq:'Máquinas',per:'Personal',mot:'Motivos de parada',vin:'Vínculos Odoo'};
 const CAT={preparacion:'Preparación',parada:'Parada',auxiliar:'Tarea auxiliar',pausa:'Pausa'};const CATI={PREPARACION:'preparacion',PARADA:'parada',TAREAAUXILIAR:'auxiliar',AUXILIAR:'auxiliar',PAUSA:'pausa'};
@@ -1554,7 +1601,7 @@ function planillaMaestros(){if(typeof XLSX==='undefined'){toast('No se pudo carg
     ['Personal y motivos: ID en blanco para uno nuevo; no cambies el ID de los existentes. Activo: SI o NO. Categoría: Preparación, Parada, Tarea auxiliar o Pausa.'],[],['Generada el '+new Date().toLocaleString('es-AR')]];
   {const s=XLSX.utils.aoa_to_sheet(ins);s['!cols']=[{wch:120}];XLSX.utils.book_append_sheet(wb,s,'Instrucciones')}
   const it=S.M.productos?.items||{};const L=[];
-  for(const a of Object.keys(it).sort((x,y)=>x.localeCompare(y,'es',{numeric:true}))){const f=it[a];for(const p of f.piezas)for(const w of p.ops)L.push([a,f.qty||1,f.bomtipo==='phantom'?'Kit':'Fabricar',p.pieza,p.codigo||'',p.cant,p.uom||'Unidades',p.mp?.codigo||'',p.mp?.cant??'',p.mp?.codigo?(p.mp.uom||'kg'):'',w.seq,w.op,w.tipo,w.seg??'',p.integra||''])}
+  for(const a of Object.keys(it).sort((x,y)=>x.localeCompare(y,'es',{numeric:true}))){const f=it[a];for(const p of f.piezas)for(const w of p.ops)L.push([a,f.qty||1,f.bomtipo==='phantom'?'Kit':'Fabricar',p.pieza,p.codigo||'',p.cant,p.uom||'Unidades',p.mp?.codigo||'',p.mp?.cant??'',p.mp?.codigo?(p.mp.uom||'kg'):'',w.seq,w.op,w.tipo,w.seg??'',p.integra||'',w.prep??''])}
   add('ldm',L,[16,10,11,24,16,11,10,18,10,9,9,11,11,11,18]);
   add('tip',Object.entries(S.M.centros?.tipos||{}).map(([k,t])=>[k,t.nombre,t.puestos??1,t.horas_dia??7.5]),[10,26,15,13]);
   add('maq',(S.M.centros?.items||[]).map(c=>[c.codigo,c.tipo]),[12,16]);
@@ -1592,7 +1639,9 @@ function analizarMaestros(wb){const R={};const cur={tipos:JSON.parse(JSON.string
       const seg=num(r['Seg por pieza']);if(seg!=null&&!(seg>=0)){E.push(`Fila ${r._fila}: seg por pieza inválido.`);continue}const cant=num(r['Cantidad por artículo'])??1;if(!(cant>0)){E.push(`Fila ${r._fila}: la cantidad por artículo tiene que ser mayor a cero.`);continue}
       const A=arts[a]=arts[a]||{qty:Math.max(1,num(r['Cant. que produce'])||1),bomtipo:nrm(r['Tipo de lista'])==='KIT'?'phantom':'normal',piezas:[]};
       let P=A.piezas.find(x=>x.pieza===pz);if(!P){const mpc=String(r['Materia prima']||'').trim();P={pieza:pz,codigo:String(r['Referencia interna']||'').trim()||null,cant,uom:String(r['Unidad']||'Unidades'),ops:[]};if(mpc)P.mp={codigo:mpc,cant:num(r['Consumo MP']),uom:String(r['Unidad MP']||'kg')};const ig=r['Se suelda en (pieza)'];if(ig!==undefined){if(String(ig).trim())P.integra=String(ig).trim().toUpperCase()}else{const o=S.M.productos?.items?.[a]?.piezas.find(x=>x.pieza===pz);if(o?.integra)P.integra=o.integra}A.piezas.push(P)}
-      P.ops.push({seq:num(r['Secuencia'])??P.ops.length+1,op:String(r['Operación']||ti).trim().toUpperCase()||ti,tipo:ti,seg:seg||null})}
+      {const sq=num(r['Secuencia'])??P.ops.length+1;const w={seq:sq,op:String(r['Operación']||ti).trim().toUpperCase()||ti,tipo:ti,seg:seg||null};const pr=r['Cambio de formato (min)'];
+       if(pr!==undefined){const v=num(pr);if(v!=null&&v>=0)w.prep=Math.round(v)}else{const w0=S.M.productos?.items?.[a]?.piezas.find(x=>x.pieza===pz)?.ops.find(x=>x.seq==sq);if(w0?.prep!=null)w.prep=w0.prep}
+       P.ops.push(w)}}
     for(const A of Object.values(arts))for(const P of A.piezas){P.ops.sort((x,y)=>x.seq-y.seq);P.ops.forEach((w,i)=>w.seq=i+1)}
     for(const [an,A] of Object.entries(arts))for(const P of A.piezas)if(P.integra&&!A.piezas.some(x=>x!==P&&x.pieza===P.integra)){E.push(`${an}: ${P.pieza} se suelda en ${P.integra}, que no está en la lista. Se ignora.`);delete P.integra}
     const ex=S.M.productos?.items||{};const ks=Object.keys(arts);R.ldm={n:l.rows.length,nu:ks.filter(k=>!ex[k]).length,up:ks.filter(k=>ex[k]).length,E,data:arts,arts:ks.length}}
@@ -1638,11 +1687,35 @@ function descargarLote(){const L=LOTE.get();if(!L.length){toast('El lote está v
   const wb=XLSX.utils.book_new();const ws=XLSX.utils.json_to_sheet(L,{header:RH});ws['!cols']=[10,20,11,9,14,20,6,9,7,7,9,7,24,30,7].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Registros taller');
   const dias=[...new Set(L.map(r=>r.Fecha))].sort();guardarArchivo(`Registros taller ${dias[0]}${dias.length>1?' a '+dias[dias.length-1]:''} (${L.length}).xlsx`,new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})]));
   setTimeout(()=>{if(confirm('¿Ya descargaste el archivo? Si lo vaciás, podés empezar un lote nuevo.')){LOTE.set([]);loteBar()}},1500)}
+/* planilla del taller: hojas "Pegar en CARGA" (FECHA, MAQUINA, ARTICULO, PIEZA, PASO, *, HORA INICIO, HORA FIN, CANTIDAD, OPERARIO)
+   y "Pegar en TAREAS" (FECHA, MAQ, TAREA, HORA INICIO, HORA FIN, OPERARIO). Se pasan al formato de "Registros taller". */
+function leerPlanillaTaller(buf){let wb;try{wb=XLSX.read(buf,{type:'array',cellDates:false})}catch(e){return null}
+  const fec=v=>{if(typeof v==='number'&&v>20000&&v<80000)return new Date(Date.UTC(1899,11,30)+Math.round(v)*864e5).toISOString().slice(0,10);const t=String(v??'').trim();let m=t.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];m=t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);if(m)return (m[3].length===2?'20'+m[3]:m[3])+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');return t};
+  const hora=v=>{if(typeof v==='number'){const fr=v%1;const mi=Math.round(fr*1440)%1440;return String(Math.floor(mi/60)).padStart(2,'0')+':'+String(mi%60).padStart(2,'0')}return hhmm(v)};
+  const out=[];let hay=false;
+  for(const sn of wb.SheetNames){const A=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:true});let h=-1;
+    for(let i=0;i<Math.min(10,A.length);i++){const r=(A[i]||[]).map(nrm);if(r.includes('FECHA')&&r.includes('OPERARIO')&&(r.includes('HORAINICIO')||r.includes('INICIO'))){h=i;break}}if(h<0)continue;
+    const H=A[h].map(nrm);const c=(...ks)=>{for(const k of ks){const i=H.indexOf(k);if(i>=0)return i}return -1};
+    const iF=c('FECHA'),iM=c('MAQUINA','MAQ'),iA=c('ARTICULO'),iP=c('PIEZA'),iPa=c('PASO'),iX=H.indexOf(''),iI=c('HORAINICIO','INICIO'),iFi=c('HORAFIN','FIN'),iC=c('CANTIDAD','CANT'),iO=c('OPERARIO'),iT=c('TAREA','MOTIVO'),iS=c('SCRAP'),iOb=c('OBSERVACIONES','OBS');
+    const tareas=iT>=0&&iA<0;hay=true;const star=A[h].findIndex(x=>String(x).trim()==='*');
+    for(const r of A.slice(h+1)){const g=i=>i>=0?r[i]:'';if(!String(g(iO)).trim()&&!String(g(iF)).trim())continue;
+      const ob=[String(g(iOb)||'').trim(),star>=0&&String(r[star]??'').trim()?'*: '+String(r[star]).trim():''].filter(Boolean).join('. ');
+      const base={'Fecha':fec(g(iF)),'Operario':String(g(iO)).trim(),'Máquina':String(g(iM)||'').trim(),'Inicio':hora(g(iI)),'Fin':hora(g(iFi)),'Observaciones':ob,'Origen':''};
+      if(tareas)out.push({...base,'Tipo':'Parada','Motivo':String(g(iT)).trim(),'Artículo':'','Pieza':'','Paso':'','Operación':'','Cantidad':'','Scrap':''});
+      else out.push({...base,'Tipo':'Producción','Motivo':'','Artículo':String(g(iA)).trim(),'Pieza':String(g(iP)).trim(),'Paso':String(g(iPa)??'').trim(),'Operación':'','Cantidad':String(g(iC)??''),'Scrap':String(g(iS)??'')})}}
+  return hay?out:null}
+/* exporta los registros en el mismo formato que lee Importar registros */
+function exportarRegistrosTaller(E,nombre){if(typeof XLSX==='undefined'){toast('No se pudo cargar el generador de Excel. Recargá la página.');return}if(!E.length){toast('No hay registros con estos filtros');return}
+  const P=S.M.personal?.items||[];const leg=id=>P.find(p=>p.id===id)?.legajo||'';const ORG={qr:'Celular (QR)',manual:'Manual',foto:'Foto',importado:'Importado',historial:'Historial'};
+  const R=E.slice().sort((a,b)=>(a.fecha+(a.ini||'')).localeCompare(b.fecha+(b.ini||''))).map(e=>{const ef=e.std_min!=null&&e.min?e.std_min/e.min:null;return {'Fecha':e.fecha,'Operario':persona(e.operario),'Legajo':leg(e.operario),'Tipo':e.tipo==='prod'?'Producción':'Parada','Máquina':e.centro||'','Tipo de máquina':tipoNombre(e.centro_tipo||centroTipo(e.centro)||''),'OP':e.op_numero||'','Artículo':e.articulo||'','Pieza':e.pieza||'','Paso':e.seq??'','Operación':e.paso||'',
+    'Inicio':e.ini||'','Fin':e.fin||'','Minutos':+e.min||0,'Cantidad':e.tipo==='prod'?(+e.qty||0):'','Scrap':e.tipo==='prod'?(+e.scrap||0):'','Min. estándar':e.std_min!=null?+(+e.std_min).toFixed(1):'','Eficiencia':ef!=null?+ef.toFixed(3):'','Motivo':e.tipo==='parada'?(motivo(e.motivo)?.nombre||''):'','Categoría':e.tipo==='parada'?catParada(e):'','Fuera de plan':e.fuera_plan?'SI':'','Origen':e.origen==='historial'?'Historial':(ORG[e.origen||'manual']||e.origen),'Observaciones':e.obs||''}});
+  const wb=XLSX.utils.book_new();const ws=XLSX.utils.json_to_sheet(R);ws['!cols']=Object.keys(R[0]).map(k=>({wch:Math.max(8,Math.min(28,k.length+4))}));XLSX.utils.book_append_sheet(wb,ws,'Registros taller');
+  guardarArchivo(nombre,new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})]))}
 function importarRegistros(){const i=document.createElement('input');i.type='file';i.accept='.xlsx,.xls';i.onchange=()=>{const f=i.files[0];if(f)procesarRegistros(f)};i.click()}
 async function procesarRegistros(f){{
   if(typeof XLSX==='undefined'){toast('No se pudo cargar el lector de Excel. Recargá la página.');return}
-  let rows;try{const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:false});const ws=wb.Sheets['Registros taller']||wb.Sheets[wb.SheetNames[0]];rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false})}catch(e){toast('No se pudo leer el archivo');return}
-  if(!rows.length||!('Fecha' in rows[0])||!('Operario' in rows[0])){toast('El archivo no es un lote de registros del taller');return}
+  let rows,buf;try{buf=await f.arrayBuffer();const wb=XLSX.read(buf,{type:'array',cellDates:false});const ws=wb.Sheets['Registros taller']||wb.Sheets[wb.SheetNames[0]];rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false})}catch(e){toast('No se pudo leer el archivo');return}
+  if(!rows.length||!('Fecha' in rows[0])||!('Operario' in rows[0])){const pl=leerPlanillaTaller(buf);if(pl&&pl.length)rows=pl;else{toast('El archivo no es un lote de registros del taller (ni la planilla con hojas CARGA y TAREAS)');return}}
   const P=S.M.personal?.items||[];const M=S.M.motivos?.items||[];const ex=entries();
   const out=rows.map((r,idx)=>{const fila=idx+2;const E=[];let fecha=String(r['Fecha']).trim();if(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(fecha)){const [d,m,y]=fecha.split('/');fecha=(y.length===2?'20'+y:y)+'-'+m.padStart(2,'0')+'-'+d.padStart(2,'0')}
     if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha))E.push('fecha inválida');
@@ -2048,7 +2121,7 @@ todos(force){const b=$('#tpT');if(!b)return;if(!force&&b.contains(document.activ
   b.innerHTML=`<section class="panel filt"><div class="row"><label class="f" style="flex:0 1 150px">Desde<input type="date" data-tf="d0" value="${esc(F.d0)}"></label><label class="f" style="flex:0 1 150px">Hasta<input type="date" data-tf="d1" value="${esc(F.d1)}"></label>
    ${sel('op','Operario',[['','Todos'],...P.map(p=>[p.id,p.nombre])])}${sel('tipo','Tipo de máquina',[['','Todos'],...Object.entries(T).map(([k,t])=>[k,t.nombre])])}${sel('reg','Registro',[['','Producción y paradas'],['prod','Solo producción'],['parada','Solo paradas']])}
    ${sel('origen','Origen',[['','Todos'],...Object.entries(ORG)])}<label class="f" style="flex:1 1 170px">Buscar<input data-tf="q" value="${esc(F.q)}" placeholder="OP, artículo, pieza…"></label></div>
-   <p class="note" style="margin:8px 0 0">${nf(E.length)} registros: ${nf(r.prod/60,1)} hs productivas, ${nf(r.par/60,1)} hs no productivas, ${nf(r.qty)} piezas, eficiencia ${pct(r.ef)}.</p></section>
+   <div class="row" style="margin:8px 0 0;justify-content:space-between;align-items:center"><p class="note" style="margin:0">${nf(E.length)} registros: ${nf(r.prod/60,1)} hs productivas, ${nf(r.par/60,1)} hs no productivas, ${nf(r.qty)} piezas, eficiencia ${pct(r.ef)}.</p><button class="btn sm" id="tpXls" ${E.length?'':'disabled'}>Descargar Excel</button></div></section>
    <section class="panel">${E.length?`<div class="tw"><table><tr>${S.puedeEditar?bkTH():''}<th>Fecha</th><th>Horario</th><th>Operario</th><th>Legajo</th><th>Máquina</th><th>Registro</th><th>OP</th><th>Artículo</th><th>Pieza</th><th>Operación</th><th class="n">Cantidad</th><th class="n">Scrap</th><th class="n">Min</th><th class="n">Eficiencia</th><th>Origen</th><th>Obs.</th><th></th></tr>
    ${E.slice(0,MAX).map(e=>{const ef=e.std_min!=null&&e.min?e.std_min/e.min:null;return `<tr>${S.puedeEditar?bkTD(e._doc+'|'+e.id):''}<td>${fmtD(e.fecha)}</td><td>${esc(e.ini)}–${esc(e.fin)}</td><td>${esc(persona(e.operario))}</td><td class="note">${esc(legOf(e.operario))}</td><td>${esc(e.centro||'')}</td>
     <td>${e.tipo==='prod'?'Producción':`<span class="pill bad">${esc(motivo(e.motivo)?.nombre||'Parada')}</span>`}</td><td>${e.op_numero?'OP '+esc(e.op_numero):e.tipo==='prod'?'<span class="note">sin orden</span>':''}</td><td>${esc(e.articulo||'')}</td><td>${esc(e.pieza||'')}</td><td>${esc(e.paso||'')}</td>
@@ -2056,6 +2129,7 @@ todos(force){const b=$('#tpT');if(!b)return;if(!force&&b.contains(document.activ
     <td class="n" style="white-space:nowrap">${S.puedeEditar?`<button class="btn link" data-ed="${esc(e._doc)}|${esc(e.id)}">Editar</button><button class="btn link" data-bo="${esc(e._doc)}|${esc(e.id)}">Borrar</button>`:''}</td></tr>`}).join('')}</table></div>
    ${E.length>MAX?`<p class="note">Se muestran los ${MAX} más recientes. Acotá las fechas o usá los filtros para ver el resto.</p>`:''}`:'<p class="note">No hay registros con estos filtros.</p>'}</section>`;
   b.querySelectorAll('[data-tf]').forEach(el=>{const ev=el.tagName==='INPUT'&&el.type!=='date'?'input':'change';el.addEventListener(ev,()=>{F[el.dataset.tf]=el.value;if(el.dataset.tf==='q'){clearTimeout(this._t);this._t=setTimeout(()=>{this.todos(true);const n=$('#tpT [data-tf="q"]');n.focus();n.setSelectionRange(n.value.length,n.value.length)},300)}else this.todos(true)})});
+  {const x=$('#tpXls');if(x)x.onclick=()=>exportarRegistrosTaller(E,`Registros taller ${F.d0} a ${F.d1}.xlsx`)}
   if(S.puedeEditar)bindBulk(b,'registros',ids=>borrarItems(ids,mutarParte));
   b.querySelectorAll('[data-bo]').forEach(x=>x.onclick=async()=>{const [d,i]=x.dataset.bo.split('|');if(!confirm('¿Borrar este registro? No se puede deshacer.'))return;try{await mutarParte(d,a=>{const k=a.findIndex(z=>z.id===i);if(k>=0)a.splice(k,1)});toast('Registro borrado')}catch(e){toast('No se pudo borrar')}});
   b.querySelectorAll('[data-ed]').forEach(x=>x.onclick=()=>{const [d,i]=x.dataset.ed.split('|');const e=entries().find(z=>z._doc===d&&z.id===i);if(e)this.editar(e)})},
@@ -2363,10 +2437,10 @@ function indicadoresPintura(box,d0,d1){const E=entPint().filter(e=>e.fecha>=d0&&
   const porPint={};for(const e of T)for(const p of e.pintores||[]){const x=porPint[persona(p)]=porPint[persona(p)]||{ok:0,re:0,sc:0,min:0,hp:0};const n=Math.max(1,e.pintores.length);x.ok+=(+e.ok||0)/n;x.re+=(+e.repro||0)/n;x.sc+=((+e.scrap||0)+(+e.scraph||0))/n;x.min+=+e.min||0;x.hp+=+e.min||0}
   box.innerHTML=`<div class="kpis kp6"><div class="kpi"><b class="${efP==null?'':efP>=.85?'good':efP<.65?'poor':''}">${pct(efP)}</b><span>eficiencia de pintura</span></div><div class="kpi"><b>${nf(tot.ok)}</b><span>piezas OK</span></div><div class="kpi"><b class="${den(tot)&&tot.re/den(tot)>.05?'poor':''}">${pct1(den(tot)?tot.re/den(tot):null)}</b><span>reproceso</span></div><div class="kpi"><b class="${den(tot)&&tot.sc/den(tot)>.02?'poor':''}">${pct1(den(tot)?tot.sc/den(tot):null)}</b><span>scrap</span></div>
    <div class="kpi"><b>${nf(tot.min/60,1)}</b><span>hs de cadena con piezas</span></div><div class="kpi"><b>${nf(par/60,1)}</b><span>hs de parada de cadena</span></div></div>
-   ${(()=>{const Pa=E.filter(e=>e.tipo==='parada');if(!Pa.length)return '';const g={},mo={};for(const e of Pa){const x=motivo(e.motivo);const gr=x?.categoria==='pausa'?'Pausa':(x?.grupo||'Otros');g[gr]=(g[gr]||0)+(+e.min||0);const n=x?.nombre||e.motivoTxt||'Otro';mo[n]=(mo[n]||0)+(+e.min||0)}const mx=Math.max(1,...Object.values(mo));
-     return `<div class="grid2" style="grid-template-columns:1fr 1fr"><section class="panel"><h2>Paradas de cadena por grupo</h2><div class="tw"><table><tr><th>Grupo</th><th class="n">Minutos</th><th class="n">Horas</th></tr>${Object.entries(g).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="n">${nf(v)}</td><td class="n">${nf(v/60,1)}</td></tr>`).join('')}</table></div></section><section class="panel"><h2>Por motivo</h2><div class="bars">${Object.entries(mo).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([n,v])=>`<div class="b" style="grid-template-columns:minmax(0,200px) 1fr 70px"><span>${esc(n)}</span><div class="t"><i style="width:${v/mx*100}%"></i></div><span style="text-align:right">${nf(v)} min</span></div>`).join('')}</div></section></div>`})()}
+   ${PAR.html(E,{id:'pint',dims:[{lab:'Por grupo de motivo',col:'Grupo',fn:e=>motivo(e.motivo)?.grupo||catParada(e)}],sig:{lab:'Qué se pintó después',col:'Después',fn:n=>(n.color||'')+' · '+(n.pieza||''),mismo:()=>'cadena',prods:T}})}
    ${(()=>{const R=T.filter(e=>+e.repro>0);if(!R.length)return '';const d={};for(const e of R){const k=e.defecto||'Sin especificar';d[k]=(d[k]||0)+(+e.repro||0)}return `<section class="panel"><h2>Reproceso por defecto</h2><div class="tw"><table><tr><th>Defecto</th><th class="n">Piezas</th></tr>${Object.entries(d).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="n">${nf(v)}</td></tr>`).join('')}</table></div></section>`})()}
-   ${tabla('Por color',ag(T,e=>e.color||'SIN COLOR'),'Color')}${tabla('Por pieza',ag(T,e=>e.pieza),'Pieza')}${tabla('Por persona (reparto proporcional de cada tanda)',porPint,'Persona')}`}
+   ${tabla('Por color',ag(T,e=>e.color||'SIN COLOR'),'Color')}${tabla('Por pieza',ag(T,e=>e.pieza),'Pieza')}${tabla('Por persona (reparto proporcional de cada tanda)',porPint,'Persona')}`;
+  PAR.bind(box,'pint',()=>indicadoresPintura(box,d0,d1))}
 
 /* ---------- órdenes de pintura (las define el planificador) ---------- */
 function opintNextNum(){const mx=(S.opint||[]).reduce((a,o)=>Math.max(a,parseInt(String(o.numero).replace(/\D/g,''),10)||0),0);return mx+1}
@@ -2541,13 +2615,14 @@ function hhDe(e){return e.hh!=null?+e.hh:Math.max(1,(e.personas||[]).length||+e.
 function efArm(e){const s=stdArm(e.code);const hh=hhDe(e);return s&&hh?(+e.qty||0)/(s*hh):null}
 /* ---------- plan de armado por línea (importado del Excel de programación) ---------- */
 const PLA={
-data(){return S.P.armado_plan||{lineas:[]}},
+data(){const d=S.P.armado_plan||{lineas:[]};return {...d,lineas:(d.lineas||[]).filter(l=>l.id!=='pintura')}},sel:new Set(),
 iso(d){if(d instanceof Date&&!isNaN(d)){const x=new Date(d.getTime()+12*3600e3);return x.toISOString().slice(0,10)}if(typeof d==='number'&&d>20000&&d<80000){const x=new Date(Date.UTC(1899,11,30)+d*864e5);return x.toISOString().slice(0,10)}const s=String(d||'');return /^\d{4}-\d{2}-\d{2}/.test(s)?s.slice(0,10):null},
 hora(v){if(v instanceof Date&&!isNaN(v))return v.getHours()+v.getMinutes()/60;if(typeof v==='number'){if(v>0&&v<1)return Math.round(v*24*60)/60;if(v>=0&&v<24)return v}return null},
 /* lee el Excel: cada hoja con columnas Artículo y Cantidad es una línea; solo se traen los renglones no realizados */
 leer(wb){const out=[];const cal={feriados:[],sabados:[]};
   for(const sn of wb.SheetNames){const A=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null,raw:true});
     if(nrm(sn)==='CALENDARIO'){const H=(A[0]||[]).map(nrm);const iF=H.indexOf('FERIADOS'),iS=H.indexOf('SABADOS');for(const r of A.slice(1)){if(iF>=0){const d=this.iso(r[iF]);if(d)cal.feriados.push(d)}if(iS>=0){const d=this.iso(r[iS]);if(d)cal.sabados.push(d)}}continue}
+    if(nrm(sn)==='PINTURA')continue;
     let h=-1;for(let i=0;i<Math.min(12,A.length);i++){const r=(A[i]||[]).map(nrm);if(r.includes('ARTICULO')&&r.some(x=>x.startsWith('CANT'))){h=i;break}}if(h<0)continue;
     const H=A[h].map(nrm);const col=f=>H.findIndex(f);const cA=col(x=>x==='ARTICULO'),cC=col(x=>x.startsWith('CANT')),cD=col(x=>x.startsWith('DOT')),cDe=col(x=>x.startsWith('DESCRIPCI')),cR=col(x=>x==='REALIZADO'||x==='OBS'),cV=col(x=>x.startsWith('VELOC'));
     let oee=1,ini=null,hora=null,titulo=null;for(const r of A.slice(0,h)){for(let j=0;j<(r||[]).length;j++){const k=nrm(r[j]);const nx=(r.slice(j+1).find(v=>v!=null&&v!==''));
@@ -2565,7 +2640,7 @@ async importar(f){const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDat
   if(!R.lineas.length){toast('No encontré hojas con columnas Artículo y Cantidad');return}
   const cur=this.data();const msg=R.lineas.map(l=>`${l.nombre}: ${l.items.length} renglones pendientes (${l.hechas} ya realizados, no se traen)`).join('\n');
   if(!confirm(`Se va a cargar el plan de armado:\n\n${msg}\n\n${cur.lineas?.length?'Reemplaza el plan cargado antes para esas líneas. ':''}¿Continuar?`))return;
-  const lin=(cur.lineas||[]).filter(l=>!R.lineas.some(x=>x.id===l.id)).concat(R.lineas.map(l=>{const v=(cur.lineas||[]).find(x=>x.id===l.id);return {...l,hsDia:v?.hsDia||l.hsDia,ini:l.ini||today(),hora:l.hora??6}}));
+  const lin=(cur.lineas||[]).filter(l=>!R.lineas.some(x=>x.id===l.id)&&l.id!=='pintura').concat(R.lineas.map(l=>{const v=(cur.lineas||[]).find(x=>x.id===l.id);return {...l,hsDia:v?.hsDia||l.hsDia,ini:l.ini||today(),hora:l.hora??6}}));
   await this.guardar({...cur,lineas:lin,cal:R.cal.feriados.length||R.cal.sabados.length?R.cal:(cur.cal||{feriados:[],sabados:[]}),importado:new Date().toISOString(),archivo:f.name});toast('Plan de armado cargado')},
 guardar(d){return S.db.doc('planificacion/armado_plan').set(JSON.parse(JSON.stringify(d)))},
 async mut(lid,fn){const d=JSON.parse(JSON.stringify(this.data()));const L=d.lineas.find(l=>l.id===lid);if(!L)return;fn(L,d);try{await this.guardar(d)}catch(e){toast('No se pudo guardar')}},
@@ -2586,27 +2661,30 @@ agenda(L,av,cal){const hd=+L.hsDia||7.5,h0=L.hora??6,oee=+L.oee||1;let f=(L.ini&
   return {R,tot,fin:pos()}},
 render(B){const D=this.data();const ed=S.canPlan;const cal=D.cal||{feriados:[],sabados:[]};const desde=(D.importado||'').slice(0,10)||today();const lid=this.lin=(D.lineas||[]).some(l=>l.id===this.lin)?this.lin:(D.lineas||[])[0]?.id;
   const L=(D.lineas||[]).find(l=>l.id===lid);
-  const cab=`<section class="panel filt"><div class="row" style="justify-content:space-between;align-items:center"><p class="note" style="margin:0">${D.importado?`Cargado el ${fmtD(D.importado.slice(0,10))}/${D.importado.slice(0,4)}${D.archivo?' desde <b>'+esc(D.archivo)+'</b>':''}. El avance se toma de lo que armado registra en el sistema desde esa fecha (por orden de armado o por código); también podés marcar un renglón como hecho.`:'Subí el Excel de programación de armado. Cada hoja con columnas Artículo y Cantidad (Armado 1, Armado 2, Pintura) se carga como una línea, con los renglones que todavía no están realizados.'}</p>
+  const cab=`<section class="panel filt"><div class="row" style="justify-content:space-between;align-items:center"><p class="note" style="margin:0">${D.importado?`Cargado el ${fmtD(D.importado.slice(0,10))}/${D.importado.slice(0,4)}${D.archivo?' desde <b>'+esc(D.archivo)+'</b>':''}. El avance se toma de lo que armado registra en el sistema desde esa fecha (por orden de armado o por código); también podés marcar un renglón como hecho.`:'Subí el Excel de programación de armado. Cada hoja con columnas Artículo y Cantidad (Armado 1, Armado 2) se carga como una línea, con los renglones que todavía no están realizados. La hoja Pintura (armado en pintura) no se toma.'}</p>
     ${ed?`<span class="row" style="gap:6px;flex:0 0 auto"><label class="btn sm" style="cursor:pointer">Subir Excel del plan<input type="file" id="plaF" accept=".xlsx,.xlsm,.xls" style="display:none"></label></span>`:''}</div>
     ${(D.lineas||[]).length?`<div class="tabs" style="margin:12px 0 0;flex-wrap:wrap">${D.lineas.map(l=>{const av=this.avance(l,desde);const ag=this.agenda(l,av,cal);return `<button data-plal="${esc(l.id)}" class="${l.id===lid?'on':''}">${esc(l.nombre)} <small class="note">${nf(ag.tot,1)} hs, fin ${fmtD(ag.fin.f)}</small></button>`}).join('')}</div>`:''}</section>`;
   if(!L){B.innerHTML=cab+'<section class="panel"><p class="note">Todavía no hay un plan de armado cargado.</p></section>';this.bind(B);return}
   const av=this.avance(L,desde);const ag=this.agenda(L,av,cal);const its=L.items||[];const pend=its.filter(i=>!i.hecho&&ag.R[i.id].falta>0);const listos=its.filter(i=>!pend.includes(i));
   const und=pend.reduce((a,i)=>a+ag.R[i.id].falta,0);const vinc=S.M.vinculos?.items||{};const OA=Object.fromEntries((S.oarm||[]).map(o=>[o.id,o]));
-  const fila=(it,k)=>{const r=ag.R[it.id];const h=av[it.id]||0;const s=this.std(it);const o=it.oarm?OA[it.oarm]:null;return `<tr${it.hecho||!r.falta?' class="off"':''}>
-    <td class="n">${k+1}</td><td><b>${esc(it.code)}</b>${it.desc?`<br><span class="note">${esc(it.desc)}</span>`:''}${o?`<br><span class="pill">${esc(o.numero)}</span>`:''}</td>
+  const puedeOrden=it=>!it.oarm&&!it.hecho&&ag.R[it.id].falta>0&&!!vinc[it.code];for(const id of [...this.sel])if(!its.some(i=>i.id===id&&puedeOrden(i)))this.sel.delete(id);
+  const fila=(it,k)=>{const r=ag.R[it.id];const h=av[it.id]||0;const s=this.std(it);const o=it.oarm?OA[it.oarm]:null;const vivo=!it.hecho&&r.falta>0;return `<tr${it.hecho||!r.falta?' class="off"':''}${ed&&vivo?` draggable="true" data-pldr="${esc(it.id)}"`:''}>
+    ${ed?`<td style="white-space:nowrap">${vivo?'<span class="note" title="Arrastrá para mover" style="cursor:grab;user-select:none;font-size:16px;padding:0 4px">⠿</span>':''}${puedeOrden(it)?`<input type="checkbox" data-plsel="${esc(it.id)}" ${this.sel.has(it.id)?'checked':''} style="width:auto" title="Seleccionar para crear la orden de armado">`:''}</td>`:''}<td class="n">${k+1}</td><td><b>${esc(it.code)}</b>${it.desc?`<br><span class="note">${esc(it.desc)}</span>`:''}${o?`<br><span class="pill">${esc(o.numero)}</span>`:''}</td>
     <td class="n">${ed?`<input type="number" min="1" value="${it.cant}" data-plq="${esc(it.id)}" style="width:80px;text-align:right">`:nf(it.cant)}</td>
     <td class="n">${h?`<b class="${h>=it.cant?'good':''}">${nf(h)}</b>`:'<span class="note">0</span>'}</td>
     <td class="n">${ed?`<input type="number" min="1" value="${it.dot??''}" placeholder="1" data-pld="${esc(it.id)}" style="width:58px;text-align:right">`:nf(it.dot)}</td>
     <td class="n" title="${s?nf(s,1)+' u/h por persona':'Sin estándar: cargalo en Maestro'}">${r.falta?(r.sinStd?'<span class="pill bad">s/std</span>':nf(r.hs,2)):''}</td>
     <td>${r.ini?`${fmtD(r.ini.f)} ${r.ini.h}`:''}</td><td>${r.fin?`<b>${fmtD(r.fin.f)}</b> ${r.fin.h}`:(it.hecho?'<span class="pill ok">hecho</span>':'<span class="pill ok">completo</span>')}</td>
     <td>${ed?`<input value="${esc(it.obs||'')}" data-plo="${esc(it.id)}" placeholder="—" style="min-width:120px">`:esc(it.obs||'')}</td>
-    <td class="n" style="white-space:nowrap">${ed?`${it.hecho||!r.falta?'':`<button class="btn link" data-plm="${esc(it.id)}.-1">subir</button><button class="btn link" data-plm="${esc(it.id)}.1">bajar</button>`}${!it.oarm&&!it.hecho&&r.falta&&vinc[it.code]?`<button class="btn link" data-plor="${esc(it.id)}" title="Crear la orden de armado para cargarla en la línea">orden</button>`:''}<button class="btn link" data-plh="${esc(it.id)}">${it.hecho?'reabrir':'hecho'}</button><button class="btn link" data-plx="${esc(it.id)}">quitar</button>`:''}</td></tr>`};
+    <td class="n" style="white-space:nowrap">${ed?`${it.hecho||!r.falta?'':`<button class="btn link" data-plm="${esc(it.id)}.-1">subir</button><button class="btn link" data-plm="${esc(it.id)}.1">bajar</button>`}${puedeOrden(it)?`<button class="btn link" data-plor="${esc(it.id)}" title="Crear la orden de armado para cargarla en la línea">orden</button>`:''}<button class="btn link" data-plh="${esc(it.id)}">${it.hecho?'reabrir':'hecho'}</button><button class="btn link" data-plx="${esc(it.id)}">quitar</button>`:''}</td></tr>`};
   B.innerHTML=cab+`<section class="panel"><div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))"><div class="kpi"><b>${pend.length}</b><span>renglones pendientes</span></div><div class="kpi"><b>${nf(und)}</b><span>unidades por armar</span></div><div class="kpi"><b>${nf(ag.tot,1)}</b><span>horas de línea</span></div><div class="kpi"><b>${fmtD(ag.fin.f)}</b><span>fin estimado, ${ag.fin.h}</span></div></div>
    ${ed?`<div class="row" style="margin:6px 0 12px;align-items:flex-end"><label class="f" style="flex:0 1 150px">Arranca<input type="date" id="plaI" value="${esc(L.ini||today())}"></label><label class="f" style="flex:0 1 90px">Hora inicio<input type="number" min="0" max="23" step="0.5" id="plaH" value="${L.hora??6}"></label><label class="f" style="flex:0 1 90px">Hs por día<input type="number" min="1" max="24" step="0.5" id="plaD" value="${L.hsDia||7.5}"></label><label class="f" style="flex:0 1 90px" title="Rendimiento de la línea: 1 = al estándar; 1,2 = 20% más rápido">OEE<input type="number" min="0.1" step="0.05" id="plaO" value="${L.oee||1}"></label>
      <span class="row" style="gap:6px;flex:1 1 300px;justify-content:flex-end;align-items:flex-end"><label class="f" style="flex:1 1 140px">Agregar código<input id="plaC" list="dlPla" autocomplete="off"></label><datalist id="dlPla">${Object.keys(vinc).map(c=>`<option value="${esc(c)}">`).join('')}</datalist><label class="f" style="flex:0 1 80px">Cant.<input type="number" min="1" id="plaQ"></label><button class="btn sm" id="plaAdd">Agregar al final</button></span></div>`:''}
    <p class="note" style="margin:0 0 8px">Horas = unidades que faltan ÷ (estándar por persona × dotación × OEE). El orden de la tabla es el orden de armado; se calcula desde ahora con ${nf(+L.hsDia||7.5,1)} hs por día hábil${(cal.feriados||[]).length?', sin feriados':''}.</p>
-   ${pend.length?`<div class="tw"><table><tr><th class="n">#</th><th>Código</th><th class="n">Cant.</th><th class="n">Armado</th><th class="n">Dot.</th><th class="n">Hs</th><th>Inicio</th><th>Fin</th><th>Obs.</th><th></th></tr>${pend.map(fila).join('')}</table></div>`:'<p class="note">No quedan renglones pendientes en esta línea.</p>'}
-   ${listos.length?`<details style="margin-top:12px"><summary class="note">${listos.length} renglones terminados</summary><div class="tw"><table>${listos.map(fila).join('')}</table></div></details>`:''}</section>`;
+   ${ed&&pend.some(puedeOrden)?`<div class="row" style="margin:0 0 8px;align-items:center;gap:10px"><label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="plSelAll" style="width:auto" ${pend.filter(puedeOrden).every(i=>this.sel.has(i.id))?'checked':''}> Seleccionar todos los que no tienen orden (${pend.filter(puedeOrden).length})</label><button class="btn sm" id="plOrdSel" ${this.sel.size?'':'disabled'}>Crear órdenes de armado de los seleccionados (${this.sel.size})</button></div>`:''}
+   ${pend.length?`<div class="tw"><table><tr>${ed?'<th></th>':''}<th class="n">#</th><th>Código</th><th class="n">Cant.</th><th class="n">Armado</th><th class="n">Dot.</th><th class="n">Hs</th><th>Inicio</th><th>Fin</th><th>Obs.</th><th></th></tr>${pend.map(fila).join('')}</table></div>`:'<p class="note">No quedan renglones pendientes en esta línea.</p>'}
+   ${listos.length?`<details style="margin-top:12px"><summary class="note">${listos.length} renglones terminados</summary><div class="tw"><table>${listos.map(fila).join('')}</table></div></details>`:''}
+   ${ed&&pend.length>1?'<p class="note" style="margin-top:8px">Para cambiar el orden, agarrá el renglón (⠿) y soltalo donde va, o usá subir y bajar.</p>':''}</section>`;
   this.bind(B,L)},
 bind(B,L){const f=$('#plaF');if(f)f.onchange=async()=>{const x=f.files[0];f.value='';if(!x)return;try{await this.importar(x)}catch(e){console.error(e);toast('No se pudo leer el Excel. Si tiene contraseña, guardalo sin clave.')}};
   B.querySelectorAll('[data-plal]').forEach(b=>b.onclick=()=>{this.lin=b.dataset.plal;this.render(B)});if(!L)return;
@@ -2620,11 +2698,25 @@ bind(B,L){const f=$('#plaF');if(f)f.onchange=async()=>{const x=f.files[0];f.valu
   B.querySelectorAll('[data-plx]').forEach(b=>b.onclick=()=>{if(confirm('¿Quitar este renglón del plan?'))this.mut(L.id,l=>{l.items=l.items.filter(i=>i.id!==b.dataset.plx)})});
   B.querySelectorAll('[data-plm]').forEach(b=>b.onclick=()=>{const [id,d]=b.dataset.plm.split('.');this.mut(L.id,l=>{const i=l.items.findIndex(x=>x.id===id);let j=i+(+d);while(j>=0&&j<l.items.length&&l.items[j].hecho)j+=(+d);if(i<0||j<0||j>=l.items.length)return;const [x]=l.items.splice(i,1);l.items.splice(j,0,x)})});
   const ad=$('#plaAdd');if(ad)ad.onclick=()=>{const c=$('#plaC').value.trim().toUpperCase(),q=parseInt($('#plaQ').value,10);if(!c||!(q>0)){toast('Poné código y cantidad');return}const dot=(L.items||[]).find(i=>i.dot)?.dot||null;this.mut(L.id,l=>l.items.push({id:newId(),code:c,desc:'',cant:q,dot,obs:'',std:null}))};
-  B.querySelectorAll('[data-plor]').forEach(b=>b.onclick=async()=>{const x=(L.items||[]).find(i=>i.id===b.dataset.plor);const fam=S.M.vinculos?.items?.[x.code];if(!fam){toast('El código no está vinculado a una lista de materiales');return}
-    const av=this.avance(L,(this.data().importado||'').slice(0,10)||today());const q=Math.max(1,x.cant-(av[x.id]||0));if(!confirm(`Crear orden de armado de ${x.code} por ${nf(q)} unidades?`))return;
-    let n=(S.oarm||[]).reduce((a,o)=>Math.max(a,parseInt(String(o.numero).replace(/\D/g,''),10)||0),0)+1;const id='arm-'+newId();
-    try{await S.db.collection('oarm').doc(id).set({id,numero:'ARM-'+String(n).padStart(4,'0'),code:x.code,fam,color:colorDeCodigo(x.code,fam)||'SIN PINTAR',cant:q,prioridad:'normal',fecha_req:today(),estado:'abierta',linea:L.nombre,ts:new Date().toISOString(),por:S.uid||null});
-      await this.mut(L.id,l=>{const y=l.items.find(i=>i.id===x.id);y.oarm=id;y.base=av[x.id]||0});toast('Orden de armado creada')}catch(e){toast('No se pudo crear la orden')}})}
+  B.querySelectorAll('[data-plor]').forEach(b=>b.onclick=()=>this.crearOrdenes(L,[b.dataset.plor],B));
+  B.querySelectorAll('[data-plsel]').forEach(c=>c.onchange=()=>{c.checked?this.sel.add(c.dataset.plsel):this.sel.delete(c.dataset.plsel);this.render(B)});
+  {const a=$('#plSelAll');if(a)a.onchange=()=>{B.querySelectorAll('[data-plsel]').forEach(c=>{if(c.closest('details'))return;a.checked?this.sel.add(c.dataset.plsel):this.sel.delete(c.dataset.plsel)});this.render(B)}}
+  {const g=$('#plOrdSel');if(g)g.onclick=()=>this.crearOrdenes(L,[...this.sel],B)}
+  let drg=null;B.querySelectorAll('[data-pldr]').forEach(tr=>{tr.addEventListener('dragstart',e=>{drg=tr.dataset.pldr;tr.style.opacity='.4';try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',drg)}catch(x){}});
+    tr.addEventListener('dragend',()=>{tr.style.opacity='';B.querySelectorAll('[data-pldr]').forEach(t=>t.style.boxShadow='')});
+    tr.addEventListener('dragover',e=>{if(!drg||drg===tr.dataset.pldr)return;e.preventDefault();const r=tr.getBoundingClientRect();const abajo=e.clientY>r.top+r.height/2;B.querySelectorAll('[data-pldr]').forEach(t=>t.style.boxShadow='');tr.style.boxShadow=abajo?'inset 0 -3px 0 var(--lamp)':'inset 0 3px 0 var(--lamp)'});
+    tr.addEventListener('drop',e=>{e.preventDefault();const src=drg;drg=null;const dst=tr.dataset.pldr;if(!src||src===dst)return;const r=tr.getBoundingClientRect();const abajo=e.clientY>r.top+r.height/2;
+      this.mut(L.id,l=>{const i=l.items.findIndex(x=>x.id===src);if(i<0)return;const [x]=l.items.splice(i,1);let j=l.items.findIndex(y=>y.id===dst);if(j<0){l.items.splice(i,0,x);return}l.items.splice(abajo?j+1:j,0,x)})})})},
+async crearOrdenes(L,ids,B){const vinc=S.M.vinculos?.items||{};const av=this.avance(L,(this.data().importado||'').slice(0,10)||today());const ag=this.agenda(L,av,this.data().cal||{feriados:[],sabados:[]});
+  const X=ids.map(id=>(L.items||[]).find(i=>i.id===id)).filter(x=>x&&!x.oarm&&!x.hecho&&vinc[x.code]&&x.cant-(av[x.id]||0)>0);if(!X.length){toast('No hay renglones para crear órdenes');return}
+  const det=X.slice(0,15).map(x=>`${x.code}: ${nf(x.cant-(av[x.id]||0))} u., requerida ${fmtD(ag.R[x.id]?.fin?.f||today())}`).join('\n');
+  if(!confirm(`Crear ${X.length===1?'la orden':X.length+' órdenes'} de armado de ${L.nombre}:\n\n${det}${X.length>15?'\n…':''}\n\nLa fecha requerida de cada una es el fin estimado del renglón en el plan.`))return;
+  let n=(S.oarm||[]).reduce((a,o)=>Math.max(a,parseInt(String(o.numero).replace(/\D/g,''),10)||0),0);const hechas={};
+  try{for(const x of X){n++;const id='arm-'+newId();const fam=vinc[x.code];const q=Math.max(1,x.cant-(av[x.id]||0));
+      await S.db.collection('oarm').doc(id).set({id,numero:'ARM-'+String(n).padStart(4,'0'),code:x.code,fam,color:colorDeCodigo(x.code,fam)||'SIN PINTAR',cant:q,prioridad:'normal',fecha_req:ag.R[x.id]?.fin?.f||today(),estado:'abierta',linea:L.nombre,ts:new Date().toISOString(),por:S.uid||null});hechas[x.id]={id,base:av[x.id]||0}}}
+  catch(e){toast('Falló una orden; se crearon '+Object.keys(hechas).length)}
+  if(Object.keys(hechas).length){await this.mut(L.id,l=>{for(const [iid,h] of Object.entries(hechas)){const y=l.items.find(i=>i.id===iid);if(y){y.oarm=h.id;y.base=h.base}}});for(const k of Object.keys(hechas))this.sel.delete(k);
+    toast(Object.keys(hechas).length===1?'Orden de armado creada':Object.keys(hechas).length+' órdenes de armado creadas');if(B)this.render(B)}}
 };
 V.armado={tab:'linea',
 mount(){$('#main').innerHTML=header('Armado','Lo que llega de pintura y del taller, el plan de armado por juegos completos, la línea del día por mesa con su objetivo y eficiencia, y los registros.')+
@@ -2749,7 +2841,9 @@ function indicadoresArmado(box,d0,d1){const E=entArm().filter(e=>e.fecha>=d0&&e.
   const porP={};for(const e of T){const n=Math.max(1,(e.personas||[]).length);for(const p of e.personas||[]){const x=porP[persona(p)]=porP[persona(p)]||{u:0,d:0,hh:0,s:0,r:0};x.u+=(+e.qty||0)/n;x.hh+=(+e.min||0)/60;const st=stdArm(e.code);if(st){x.s+=(+e.qty||0)/n/st;x.r+=(+e.min||0)/60}}}for(const x of Object.values(porP))x.ef=x.r?x.s/x.r:null;
   box.innerHTML=`<div class="kpis kp6"><div class="kpi"><b class="${cls(tot.ef)}">${pct(tot.ef)}</b><span>OEE</span></div><div class="kpi"><b>${nf(tot.u)}</b><span>unidades armadas</span></div><div class="kpi"><b>${nf(tot.us||0,1)}</b><span>unidades spot</span></div><div class="kpi"><b>${tot.hh?nf((tot.us||0)/tot.hh,2):'–'}</b><span>U.S. por hora hombre</span></div><div class="kpi"><b>${nf(dp+dv+df+da)}</b><span>defectos</span></div><div class="kpi"><b>${nf(par/60,1)}</b><span>hs de parada</span></div></div>
    <section class="panel"><h2>Defectos por origen</h2><div class="opm" style="grid-template-columns:repeat(4,1fr)"><div><b>${nf(dp)}</b><span>pintura</span></div><div><b>${nf(dv)}</b><span>proveedor</span></div><div><b>${nf(df)}</b><span>fábrica</span></div><div><b>${nf(da)}</b><span>armado</span></div></div></section>
-   ${tabla('Por producto',ag(T,e=>e.fam+' '+e.color),'Producto')}<div class="grid2" style="grid-template-columns:1fr 1fr">${tabla('Por mesa',ag(T,e=>e.mesa),'Mesa')}${tabla('Por persona (reparto proporcional)',porP,'Persona')}</div>`}
+   ${tabla('Por producto',ag(T,e=>e.fam+' '+e.color),'Producto')}<div class="grid2" style="grid-template-columns:1fr 1fr">${tabla('Por mesa',ag(T,e=>e.mesa),'Mesa')}${tabla('Por persona (reparto proporcional)',porP,'Persona')}</div>
+   ${PAR.html(E,{id:'arm',dims:[{lab:'Por mesa',col:'Mesa',fn:e=>e.mesa||'Sin mesa'}],sig:{lab:'Qué se armó después (misma mesa y día)',col:'Después',fn:n=>(n.fam||'')+' '+(n.color||''),mismo:e=>e.mesa||'',prods:T}})}`;
+  PAR.bind(box,'arm',()=>indicadoresArmado(box,d0,d1))}
 
 const LINA={raw(){const d=S.lineaA||{};if(d.mesas&&!d.tareas){const t={},p={};for(const [m,v] of Object.entries(d.mesas)){if(v.tipo==='parada')p[m]=v;else{const id='x'+m;t[id]={...v,id,mesa:m}}}return {tareas:t,paradas:p}}return {tareas:d.tareas||{},paradas:d.paradas||{}}},
   tareas(){return Object.values(this.raw().tareas).sort((a,b)=>String(a.ini).localeCompare(String(b.ini)))},paradas(){return this.raw().paradas},
