@@ -211,6 +211,45 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
   .bars .b{grid-template-columns:90px 1fr 76px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* pantalla en vivo (TV) */
+body.tvon .app{display:none}
+#tvK{position:fixed;inset:0;z-index:900;background:#0D0D0D;color:#F2F2EE;display:flex;flex-direction:column;font-size:1.6vh;overflow:hidden}
+#tvK .tvtop{display:flex;align-items:center;justify-content:space-between;gap:2vw;padding:1.6vh 2.4vw;background:#000;border-bottom:.4vh solid #F5C400}
+#tvK .tvlogo{font-size:2.6vh;color:#F5C400;letter-spacing:.02em}#tvK .tvlogo b{color:#F2F2EE;font-weight:600}
+#tvK .tvclk{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1}#tvK .tvclk b{font-size:3.6vh;font-variant-numeric:tabular-nums}#tvK .tvclk small{font-size:1.5vh;color:#A8A8A2}
+#tvK .tvs{flex:1;min-height:0;padding:2.4vh 2.4vw;display:flex;flex-direction:column}#tvK .tvs.in{animation:tvin .5s ease}
+@keyframes tvin{from{opacity:0;transform:translateY(1vh)}to{opacity:1;transform:none}}
+#tvK .tvh{font-size:4.2vh;font-weight:700;margin-bottom:2vh;display:flex;align-items:baseline;gap:2vw;flex-wrap:wrap}#tvK .tvh span{font-size:2.4vh;font-weight:400;color:#A8A8A2}
+#tvK .tvres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2vw;flex:1;min-height:0}
+#tvK .tvcard{background:#1A1A1A;border:1px solid #2C2C2A;border-radius:1.2vh;padding:2.6vh 1.8vw;display:flex;flex-direction:column;gap:1.2vh}
+#tvK .tvct{font-size:3.4vh;font-weight:700;color:#F5C400}
+#tvK .tvbig{font-size:9vh;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}#tvK .tvbig small{font-size:3.4vh;font-weight:500;color:#A8A8A2}
+#tvK .tvu{font-size:2vh;color:#A8A8A2;margin-top:-.6vh}
+#tvK .tvbar{position:relative;height:3.2vh;background:#2C2C2A;border-radius:1.6vh;margin:1.6vh 0 .6vh}#tvK .tvbar.g{height:4.4vh;border-radius:2.2vh}
+#tvK .tvbar i{display:block;height:100%;border-radius:inherit;background:#3FA877}#tvK .tvbar i.atr{background:#F5C400}
+#tvK .tvbar b{position:absolute;top:-1vh;bottom:-1vh;width:.5vh;background:#F2F2EE;border-radius:.3vh}#tvK .tvbar b span{position:absolute;top:-2.6vh;left:50%;transform:translateX(-50%);font-size:1.5vh;font-weight:400;color:#A8A8A2;white-space:nowrap}
+#tvK .tvst{font-size:3.2vh;font-weight:800;letter-spacing:.03em}#tvK .tvst.ok{color:#5DD39E}#tvK .tvst.atr{color:#F5C400}#tvK .tvst.neu{color:#A8A8A2}#tvK .tvst .tvn{display:block;font-size:2vh;font-weight:400;letter-spacing:0;color:#C8C8C2;margin-top:.6vh}
+#tvK .tvmini{display:grid;grid-template-columns:repeat(3,1fr);gap:1vw;margin-top:auto;font-size:1.8vh;color:#A8A8A2}#tvK .tvmini b{font-size:3.4vh;color:#F2F2EE;font-variant-numeric:tabular-nums}
+#tvK .ok{color:#5DD39E}#tvK .bad{color:#FF8A70}#tvK .mid{color:#F5C400}
+#tvK .tvarea{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:2.4vw;flex:1;min-height:0}
+#tvK .tvleft{display:flex;flex-direction:column;gap:1.2vh;min-height:0}#tvK .tvleft .tvbig{font-size:12vh}
+#tvK .tvk{display:grid;grid-template-columns:repeat(4,1fr);gap:1vw;margin-top:1vh}#tvK .tvk div{background:#1A1A1A;border-radius:1vh;padding:1.4vh 1vw}#tvK .tvk b{display:block;font-size:4vh;font-variant-numeric:tabular-nums}#tvK .tvk span{font-size:1.7vh;color:#A8A8A2}
+#tvK .tvevo{flex:1;min-height:12vh;display:flex;gap:.6vw;align-items:stretch;margin-top:1.4vh}
+#tvK .tvevo div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:.4vh}#tvK .tvevo i{display:block;width:100%;background:#F5C400;border-radius:.6vh .6vh 0 0;min-height:2px}
+#tvK .tvevo.sm{min-height:8vh;margin:1vh 0}#tvK .tvevo div.fut i{opacity:.25}#tvK .tvevo div.now small{color:#F5C400;font-weight:700}#tvK .tvevo span{font-size:1.7vh;color:#C8C8C2}#tvK .tvevo small{font-size:1.6vh;color:#A8A8A2}
+#tvK .tvright{background:#141414;border:1px solid #2C2C2A;border-radius:1.2vh;padding:2vh 1.4vw;overflow:hidden}
+#tvK .tvsub{font-size:2.2vh;color:#F5C400;font-weight:700;margin-bottom:1vh;text-transform:uppercase;letter-spacing:.05em}
+#tvK .tvrow{display:grid;grid-template-columns:minmax(0,9vw) 1fr auto;gap:1vw;align-items:center;padding:1vh .8vw;border-radius:.8vh;font-size:2.2vh;margin-bottom:.6vh;background:#1C1C1C}
+#tvK .tvrow b{font-size:2.4vh}#tvK .tvrow small{font-size:1.7vh;color:#A8A8A2}#tvK .tvrow em{font-style:normal;color:#C8C8C2;font-variant-numeric:tabular-nums;white-space:nowrap}#tvK .tvrow em i{font-style:normal;font-weight:700;margin-left:.6vw}
+#tvK .tvrow.live{border-left:.6vh solid #3FA877}#tvK .tvrow.par{border-left:.6vh solid #FF8A70}
+#tvK .tvvac{font-size:2.6vh;color:#A8A8A2;padding:2vh 0}
+#tvK .tvaviso{margin:auto;max-width:80vw;text-align:center;border-left:1vh solid #F5C400;padding:4vh 4vw;background:#1A1A1A;border-radius:1.4vh}#tvK .tvat{font-size:7vh;font-weight:800;margin-bottom:2vh}#tvK .tvax{font-size:3.6vh;line-height:1.35;color:#E6E6E1}#tvK .tvaviso .tvn{margin-top:2vh;font-size:2vh;color:#A8A8A2}
+#tvK .tvfoot{background:#000}#tvK .tvdots{display:flex;gap:.6vw;justify-content:center;padding:.8vh}#tvK .tvdots span{width:1vh;height:1vh;border-radius:50%;background:#3A3A38}#tvK .tvdots span.on{background:#F5C400}
+#tvK .tvtk{overflow:hidden;white-space:nowrap;background:#F5C400;color:#141414;font-size:2.6vh;font-weight:700;padding:1vh 0}#tvK .tvtk>div{display:inline-block;animation:tvtk 40s linear infinite;padding-left:100%}#tvK .tvtk i{font-style:normal;margin:0 2vw;opacity:.6}
+@keyframes tvtk{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+#tvK .tvx{position:fixed;right:1vw;bottom:7vh;opacity:.15;background:#2C2C2A;color:#F2F2EE;border:0;border-radius:.8vh;padding:.8vh 1.2vw;font-size:1.6vh;cursor:pointer}#tvK .tvx:hover{opacity:1}
+@media (max-aspect-ratio:1/1){#tvK .tvres,#tvK .tvarea{grid-template-columns:1fr}#tvK .tvk{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -220,6 +259,7 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
     <div class="brandsub">Producción</div>
     <a href="#general" data-v="general">General</a>
     <a href="#planta" data-v="planta">Planta en vivo</a>
+    <a href="#pantalla" data-v="pantalla">Pantalla en vivo (TV)</a>
     <a href="#plan" data-v="plan">Planificación</a>
     <div class="grp">Áreas</div>
     <a href="#taller" data-v="taller">Taller</a>
@@ -233,7 +273,7 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
     <a href="#auditoria" data-v="auditoria">Registro de cambios</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-19 e</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-19 f</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -736,6 +776,115 @@ html(E,cfg){const st=this.st[cfg.id]=this.st[cfg.id]||{cat:'',mot:''};const P0=E
      <details style="margin-top:10px"><summary class="note">Ver los ${nf(regs.length)} registros</summary><div class="tw"><table><tr><th>Fecha</th><th>Inicio</th><th>Fin</th><th class="n">Min</th><th>Motivo</th>${cfg.dims.map(d=>`<th>${esc(d.col||d.lab)}</th>`).join('')}${sig?`<th>${esc(cfg.sig.col||cfg.sig.lab)}</th>`:''}<th>Obs.</th></tr>
       ${regs.slice(0,300).map(e=>`<tr><td>${fmtD(e.fecha)}</td><td>${esc(e.ini||'')}</td><td>${esc(e.fin||'')}</td><td class="n">${nf(+e.min||0)}</td><td>${esc(nombreParada(e))}</td>${cfg.dims.map(d=>`<td>${esc(d.fn(e)??'')}</td>`).join('')}${sig?`<td>${sig.has(e)?esc(cfg.sig.fn(sig.get(e))):''}</td>`:''}<td class="note">${esc(e.obs||'')}</td></tr>`).join('')}</table></div>${regs.length>300?'<p class="note">Se muestran los 300 más recientes; el Excel trae todos.</p>':''}</details></div></div></section>`},
 bind(root,id,re){const st=this.st[id];if(!st)return;root.querySelectorAll('[data-pcat]').forEach(b=>b.onclick=()=>{st.cat=b.dataset.pcat;st.mot='';re()});root.querySelectorAll('[data-pmot]').forEach(b=>b.onclick=()=>{st.mot=st.mot===b.dataset.pmot?'':b.dataset.pmot;re()})}};
+
+/* ---------- PANTALLA EN VIVO (TV de planta) ----------
+   Rota entre: resumen de la planta, Fábrica, Pintura, Armado y avisos. Se redibuja con cada dato nuevo
+   (la base se lee cada pocos segundos) y además cada "refresco" minutos. Configuración: planificacion/pantalla.
+   Para un TV fijo: crear un usuario con la plantilla "Pantalla de planta (TV)" (solo ve Pantalla en vivo). */
+const TV_SLIDES={resumen:'Resumen de la planta (objetivo del día de cada área)',taller:'Fábrica: objetivo, hora por hora y máquinas trabajando',pintura:'Pintura: objetivo, hora por hora y lo que está en la cadena',armado:'Armado: objetivo, hora por hora y mesas',avisos:'Avisos publicados'};
+const TV_DEF={slides:{resumen:true,taller:true,pintura:true,armado:true,avisos:true},segundos:20,refrescoMin:1,nombres:false,avisos:[],ticker:[]};
+function tvCfg(){const c=S.P.pantalla||{};return {...TV_DEF,...c,slides:{...TV_DEF.slides,...(c.slides||{})},avisos:c.avisos||[],ticker:c.ticker||[]}}
+function tvAvisos(){const h=today();return tvCfg().avisos.filter(a=>a.activo!==false&&(!a.desde||a.desde<=h)&&(!a.hasta||a.hasta>=h))}
+function soloPantalla(p){p=p||perfilActual();return !!(p&&Array.isArray(p.vistas)&&p.vistas.length===1&&p.vistas[0]==='pantalla')}
+function tvFrac(a){const c=cfgA(a);const now=toMin(ahora()),i=toMin(c.ini),f=toMin(c.fin);return now<=i?0:now>=f?1:(now-i)/(f-i)}
+function tvHoras(items,a,valor){const c=cfgA(a);const h0=Math.floor(toMin(c.ini)/60),h1=Math.ceil(toMin(c.fin)/60);const H=[];for(let h=h0;h<h1;h++)H.push({h,v:0});
+  for(const e of items){const i=toMin(e.ini),d=+e.min||0;if(i==null||!d)continue;for(const x of H){const a0=x.h*60,ov=Math.max(0,Math.min(a0+60,i+d)-Math.max(a0,i));if(ov)x.v+=valor(e)*ov/d}}return H}
+/* datos del día de cada área, con las mismas cuentas que la Línea del día de cada pantalla */
+function tvTaller(){const c=cfgA('taller');const f=today();const E=entries().filter(e=>e.fecha===f);const prod=E.filter(e=>e.tipo==='prod');
+  let std=0,stdR=0,qty=0,par=0;for(const e of E){if(e.tipo==='prod'){qty+=+e.qty||0;if(e.std_min!=null){std+=+e.std_min;stdR+=+e.min||0}}else if(motivo(e.motivo)?.categoria!=='pausa')par+=+e.min||0}
+  const turno=Math.max(0,(diffMin(c.ini,c.fin)||0)-(c.pausa||0));const ops=personalDeArea('taller',f).filter(p=>!(S.horas&&estadoHoras(p.id,f)?.aus));const auto=Math.round(ops.length*turno/60*(c.ef||.75)*10)/10;
+  const A=activasVivas();
+  return {a:'taller',nombre:'Fábrica',unid:'horas estándar',dec:1,obj:c.fijo??auto,ok:std/60,ef:stdR?std/stdR:null,kpis:[[nf(qty),'piezas'],[nf(par/60,1),'hs de parada'],[String(A.filter(x=>x.tipo!=='parada').length),'trabajando ahora']],
+    horas:tvHoras(prod,'taller',e=>(+e.std_min||0)/60),
+    ahora:A.map(a=>({t:a.maq||'',s:a.tipo==='parada'?(motivo(a.motivo)?.nombre||'parada'):`${a.articulo||''} ${a.pieza||''}`.trim(),p:persona(a.yo),par:a.tipo==='parada',d:Math.max(0,transcurrido(a)-(a.pausa||0))})),
+    hechas:prod.slice().sort((x,y)=>(toMin(y.fin)||0)-(toMin(x.fin)||0)).slice(0,6).map(e=>({t:e.centro||'',s:`${e.articulo||''} ${e.pieza||''}`.trim(),q:nf(e.qty)+' pz',ef:e.std_min!=null&&e.min?e.std_min/e.min:null}))}}
+function tvPintura(){const O=objetivoPintura();const hoy=entPint().filter(e=>e.fecha===today());let ok=0,stdM=0,minS=0,pm=0;
+  for(const e of hoy){if(e.tipo==='tanda'){ok+=+e.ok||0;const s=stdPint(e.key);if(s){stdM+=(+e.ok||0)/s*60;minS+=+e.min||0}}else if(motivo(e.motivo)?.categoria!=='pausa')pm+=+e.min||0}
+  const T=hoy.filter(e=>e.tipo==='tanda');const par=LIN.parada();const col={};for(const e of T){const k=e.color||'SIN COLOR';col[k]=(col[k]||0)+(+e.ok||0)}
+  return {a:'pintura',nombre:'Pintura',unid:'piezas OK',dec:0,obj:O.obj,ok,ef:minS?stdM/minS:null,kpis:[[nf(T.length),'tandas'],[nf(pm),'min de parada'],[Object.keys(col).length?Object.entries(col).sort((a,b)=>b[1]-a[1])[0][0]:'–','color con más piezas']],
+    horas:tvHoras(T,'pintura',e=>+e.ok||0),
+    ahora:[...(par?[{t:'Cadena',s:'parada: '+(par.motivoTxt||''),par:true,d:minDesde(par.fecha,par.ini)}]:[]),...LIN.list().map(c=>({t:c.color||'',s:c.pieza||'',p:(c.pintores||[]).map(persona).join(', '),d:Math.max(0,minDesde(c.fecha,c.ini)-(c.pausa||0))}))],
+    hechas:Object.entries(col).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>({t:k,s:'',q:nf(v)+' OK'}))}}
+function tvArmado(){const c=cfgA('armado');const hoy=entArm().filter(e=>e.fecha===today());const T=LINA.tareas();const PA=LINA.paradas();const A=oarmAbiertas();
+  let u=0,s1=0,r1=0,par=0;for(const e of hoy){if(e.tipo==='armado'){u+=+e.qty||0;const s=stdArm(e.code);if(s){s1+=(+e.qty||0)/s;r1+=hhDe(e)}}else if(motivo(e.motivo)?.categoria!=='pausa')par+=+e.min||0}
+  const pers=personalArmadoHoy().filter(p=>!(S.horas&&estadoHoras(p.id,today())?.aus)).length;const turno=Math.max(0,(diffMin(c.ini,c.fin)||0)-(c.pausa||0));
+  let hp=pers*turno/60,auto=0;for(const e of hoy)if(e.tipo==='armado'){auto+=+e.qty||0;hp-=Math.max(1,(e.personas||[]).length)*(+e.min||0)/60}for(const o of A){if(hp<=0)break;const s=stdArm(o.code);if(!s)continue;const q=Math.min(o.falta,Math.floor(hp*s));auto+=q;hp-=q/s}auto=Math.round(auto/10)*10;
+  const H=hoy.filter(e=>e.tipo==='armado');const prodc={};for(const e of H){const k=(e.fam||'')+' '+(e.color||'');prodc[k]=(prodc[k]||0)+(+e.qty||0)}
+  return {a:'armado',nombre:'Armado',unid:'unidades armadas',dec:0,obj:c.fijo??auto,ok:u,ef:r1?s1/r1:null,kpis:[[nf(H.reduce((a,e)=>a+(+e.qty||0)*(usArm(e.code)||0),0),1),'unidades spot'],[nf(par),'min de parada'],[`${new Set(T.map(t=>t.mesa)).size} de ${(c.mesas||[]).length}`,'mesas trabajando']],
+    horas:tvHoras(H,'armado',e=>+e.qty||0),
+    ahora:[...Object.entries(PA).map(([m,v])=>({t:m,s:'parada: '+(v.motivoTxt||''),par:true,d:minDesde(v.fecha,v.ini)})),...T.map(v=>({t:v.mesa,s:`${v.fam||''} ${v.color||''}`.trim(),p:(v.personas||[]).map(persona).join(', '),d:Math.max(0,minDesde(v.fecha,v.ini)-(v.pausa||0))}))],
+    hechas:Object.entries(prodc).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>({t:k,s:'',q:nf(v)+' u.'}))}}
+const TVA={taller:tvTaller,pintura:tvPintura,armado:tvArmado};
+function tvEstado(D){const frac=tvFrac(D.a);const esp=D.obj*frac;const r=D.obj?D.ok/D.obj:0;const dif=D.ok-esp;const fm=x=>nf(x,D.dec);
+  return {frac,esp,r,dif,fm,txt:!D.obj?'sin objetivo':frac===0?'todavía no arrancó el turno':dif>=0?'ADELANTADOS':'ATRASADOS'}}
+function tvBarra(D,E,grande){return `<div class="tvbar ${grande?'g':''}"><i class="${E.dif>=0?'ok':'atr'}" style="width:${Math.min(100,E.r*100)}%"></i><b style="left:${E.frac*100}%"><span>ahora</span></b></div>`}
+const tvEf=ef=>ef==null?'':ef>=.85?'ok':ef<.65?'bad':'mid';
+function tvSlideResumen(){const L=['taller','pintura','armado'].map(a=>{try{return TVA[a]()}catch(e){console.error(e);return null}}).filter(Boolean);
+  return `<div class="tvh">Objetivo del día <span>${new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})}</span></div>
+   <div class="tvres">${L.map(D=>{const E=tvEstado(D);return `<div class="tvcard"><div class="tvct">${esc(D.nombre)}</div>
+     <div class="tvbig">${E.fm(D.ok)}<small> de ${E.fm(D.obj)}</small></div><div class="tvu">${esc(D.unid)}</div>${tvBarra(D,E)}
+     <div class="tvst ${!D.obj||!E.frac?'neu':E.dif>=0?'ok':'atr'}">${E.txt}${D.obj&&E.frac>0?` <b>${E.dif>=0?'+':'−'}${E.fm(Math.abs(E.dif))}</b>`:''}</div>
+     ${(()=>{const mx=Math.max(1e-9,...D.horas.map(x=>x.v));const nowH=new Date().getHours();return `<div class="tvevo sm">${D.horas.map(x=>`<div class="${x.h>nowH?'fut':''}${x.h===nowH?' now':''}"><i style="height:${x.v/mx*100}%"></i><small>${x.h}</small></div>`).join('')}</div>`})()}
+     <div class="tvmini"><span>A esta hora<br><b>${E.fm(E.esp)}</b></span><span>Avance<br><b>${pct(E.r)}</b></span><span>Eficiencia<br><b class="${tvEf(D.ef)}">${pct(D.ef)}</b></span></div></div>`}).join('')}</div>`}
+function tvSlideArea(a){const D=TVA[a]();const E=tvEstado(D);const nom=tvCfg().nombres;const mx=Math.max(1e-9,...D.horas.map(x=>x.v));const nowH=new Date().getHours();
+  return `<div class="tvh">${esc(D.nombre)} <span>objetivo del día: ${E.fm(D.obj)} ${esc(D.unid)}</span></div>
+   <div class="tvarea"><div class="tvleft"><div class="tvbig">${E.fm(D.ok)}<small> de ${E.fm(D.obj)}</small></div>${tvBarra(D,E,true)}
+     <div class="tvst ${!D.obj||!E.frac?'neu':E.dif>=0?'ok':'atr'}">${E.txt}${D.obj&&E.frac>0?` <b>${E.dif>=0?'+':'−'}${E.fm(Math.abs(E.dif))}</b>`:''} <span class="tvn">a esta hora deberían ir ${E.fm(E.esp)}, faltan ${E.fm(Math.max(0,D.obj-D.ok))}</span></div>
+     <div class="tvk"><div><b class="${tvEf(D.ef)}">${pct(D.ef)}</b><span>eficiencia del día</span></div>${D.kpis.map(([v,l])=>`<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}</div>
+     <div class="tvevo">${D.horas.map(x=>`<div class="${x.h>nowH?'fut':''}${x.h===nowH?' now':''}"><span>${x.v?nf(x.v,D.dec):''}</span><i style="height:${x.v/mx*100}%"></i><small>${x.h}h</small></div>`).join('')}</div></div>
+    <div class="tvright"><div class="tvsub">Ahora</div>${D.ahora.length?D.ahora.slice(0,8).map(x=>`<div class="tvrow ${x.par?'par':'live'}"><b>${esc(x.t)}</b><span>${esc(x.s)}${nom&&x.p?`<br><small>${esc(x.p)}</small>`:''}</span><em>${durTxt(x.d||0)}</em></div>`).join(''):'<div class="tvvac">Nada en curso en este momento.</div>'}
+     ${D.hechas.length?`<div class="tvsub" style="margin-top:2vh">${a==='taller'?'Últimas terminadas':'Lo hecho hoy'}</div>${D.hechas.map(x=>`<div class="tvrow"><b>${esc(x.t)}</b><span>${esc(x.s)}</span><em>${esc(x.q)}${x.ef!=null?` <i class="${tvEf(x.ef)}">${pct(x.ef)}</i>`:''}</em></div>`).join('')}`:''}</div></div>`}
+function tvSlideAviso(a){return `<div class="tvaviso"><div class="tvat">${esc(a.titulo||'')}</div><div class="tvax">${esc(a.texto||'').replace(/\n/g,'<br>')}</div>${a.hasta?`<div class="tvn">Vigente hasta el ${fmtD(a.hasta)}</div>`:''}</div>`}
+const TV={idx:0,timer:null,ref:null,reloj:null,on:false,
+slides(){const c=tvCfg();const s=[];if(c.slides.resumen)s.push(()=>tvSlideResumen());for(const a of ['taller','pintura','armado'])if(c.slides[a])s.push(()=>tvSlideArea(a));if(c.slides.avisos)tvAvisos().forEach(a=>s.push(()=>tvSlideAviso(a)));
+  if(!s.length)s.push(()=>'<div class="tvvac">No hay nada elegido para mostrar. Configuralo en Pantalla en vivo.</div>');return s},
+abrir(){this.on=true;document.body.classList.add('solo','tvon');let k=$('#tvK');if(!k){k=document.createElement('div');k.id='tvK';document.body.appendChild(k)}
+  k.innerHTML=`<div class="tvtop"><span class="tvlogo">Spotsline <b>Producción</b></span><span id="tvTit"></span><span class="tvclk"><b id="tvHora"></b><small id="tvAct"></small></span></div><div id="tvS" class="tvs"></div><div class="tvfoot"><div id="tvDots" class="tvdots"></div><div id="tvTk" class="tvtk"><div id="tvTkI"></div></div></div>${soloPantalla()?'':'<button class="tvx" id="tvX" title="Salir de la pantalla (Esc)">Salir</button>'}`;
+  const x=$('#tvX');if(x)x.onclick=()=>this.cerrar();k.querySelector('.tvlogo').ondblclick=()=>{if(soloPantalla()&&confirm('¿Cerrar la sesión de esta pantalla? Después hay que volver a entrar con el usuario y la clave del TV.')){try{localStorage.removeItem('spl.sesion')}catch(e){}this.cerrar();route()}};this._esc=e=>{if(e.key==='Escape'&&!soloPantalla())this.cerrar()};document.addEventListener('keydown',this._esc);
+  try{if(!soloPantalla()&&document.documentElement.requestFullscreen&&!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{})}catch(e){}
+  this.idx=0;this.mostrar();this.ticker();this.tick();clearInterval(this.reloj);this.reloj=setInterval(()=>this.tick(),15000);
+  clearInterval(this.ref);this.ref=setInterval(()=>this.refrescar(),Math.max(.5,+tvCfg().refrescoMin||1)*60000)},
+cerrar(){this.on=false;clearTimeout(this.timer);clearInterval(this.ref);clearInterval(this.reloj);document.removeEventListener('keydown',this._esc);$('#tvK')?.remove();document.body.classList.remove('tvon','solo');try{if(document.fullscreenElement)document.exitFullscreen()}catch(e){}if(S.view==='pantalla')V.pantalla.config()},
+tick(){const h=$('#tvHora');if(h)h.textContent=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false})},
+dibujar(anim){const S2=this.slides();if(this.idx>=S2.length)this.idx=0;const el=$('#tvS');if(!el)return;let h;try{h=S2[this.idx]()}catch(e){console.error('pantalla',e);h='<div class="tvvac">No se pudo armar esta pantalla.</div>'}
+  if(anim){el.classList.remove('in');void el.offsetWidth;el.classList.add('in')}el.innerHTML=h;$('#tvDots').innerHTML=S2.map((_,i)=>`<span class="${i===this.idx?'on':''}"></span>`).join('');
+  const a=$('#tvAct');if(a)a.textContent='actualizado '+ahora();this.ultimo=Date.now()},
+mostrar(){this.dibujar(true);clearTimeout(this.timer);const n=this.slides().length;this.timer=setTimeout(()=>{this.idx=(this.idx+1)%Math.max(1,n);this.mostrar()},Math.max(5,+tvCfg().segundos||20)*1000)},
+refrescar(){if(!this.on)return;this.dibujar(false);this.ticker()},
+dato(){if(!this.on)return;if(Date.now()-(this.ultimo||0)<8000)return;this.dibujar(false);this.ticker()},
+ticker(){const c=tvCfg();const it=[...c.ticker.filter(Boolean),...tvAvisos().filter(a=>a.enTicker).map(a=>a.titulo+(a.texto?': '+a.texto.replace(/\n/g,' '):''))];const el=$('#tvTk');if(!el)return;
+  if(!it.length){el.style.display='none';return}el.style.display='';const t=it.map(x=>`<span>${esc(x)}</span>`).join('<i>◆</i>');const inn=$('#tvTkI');if(inn.dataset.t!==t){inn.dataset.t=t;inn.innerHTML=t+'<i>◆</i>'+t+'<i>◆</i>';inn.style.animationDuration=Math.max(25,it.join(' ').length*.28)+'s'}}};
+V.pantalla={mount(sel){if(sel==='tv'||soloPantalla()){TV.abrir();return}this.config()},
+unmount(){if(TV.on)TV.cerrar()},
+update(){if(TV.on){TV.dato();return}if(document.activeElement&&$('#main').contains(document.activeElement)&&['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;this.config()},
+config(){const c=tvCfg();const ed=S.canPlan;const h=today();
+  $('#main').innerHTML=header('Pantalla en vivo','Lo que se ve en el TV de planta: el objetivo del día de cada área y cómo viene, hora por hora, con lo que se está haciendo ahora. Se actualiza solo con lo que se registra.')+
+  `<section class="panel"><div class="pzh" style="align-items:center;flex-wrap:wrap;gap:8px"><span><b>Abrir en esta computadora</b><br><span class="note">Pantalla completa; Esc o "Salir" para volver.</span></span><button class="btn" id="tvGo">Abrir pantalla en vivo</button></div></section>
+   <div class="grid2"><section class="panel"><h2>Qué se muestra</h2><div class="chips" style="flex-direction:column;align-items:stretch">${Object.entries(TV_SLIDES).map(([k,v])=>`<label class="chip"><input type="checkbox" data-tvs="${k}" ${c.slides[k]?'checked':''} ${ed?'':'disabled'} style="width:auto"> ${v}</label>`).join('')}
+     <label class="chip"><input type="checkbox" id="tvNom" ${c.nombres?'checked':''} ${ed?'':'disabled'} style="width:auto"> Mostrar el nombre de quién está en cada máquina o mesa</label></div>
+     <div class="row" style="margin-top:10px"><label class="f">Segundos por pantalla<input type="number" id="tvSeg" min="5" max="300" value="${c.segundos}" ${ed?'':'disabled'}></label><label class="f">Redibujar cada (minutos)<input type="number" id="tvRef" min="0.5" max="60" step="0.5" value="${c.refrescoMin}" ${ed?'':'disabled'}></label></div>
+     <p class="note">Los datos llegan solos cada pocos segundos desde la base; además la pantalla se redibuja cada ${nf(+c.refrescoMin||1,1)} min para mover la marca de "a esta hora". El objetivo de cada área es el mismo de su Línea del día (se cambia ahí con "cambiar").</p>
+     <h3 style="margin-top:14px">Franja de mensajes</h3><textarea id="tvTkx" rows="3" placeholder="Un mensaje por renglón" ${ed?'':'disabled'}>${esc(c.ticker.join('\n'))}</textarea>
+     ${ed?'<div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn" id="tvSave">Guardar</button></div>':''}</section>
+    <section class="panel"><div class="pzh" style="align-items:center"><h2 style="margin:0">Avisos</h2>${ed?'<button class="btn sm" id="tvAvN">Nuevo aviso</button>':''}</div>
+     ${c.avisos.length?c.avisos.slice().reverse().map(a=>{const est=a.activo===false?'pausado':a.hasta&&a.hasta<h?'vencido':a.desde&&a.desde>h?'programado':'en pantalla';return `<div class="pz"><div class="pzh"><span><b>${esc(a.titulo)}</b> <span class="pill ${est==='en pantalla'?'ok':''}">${est}</span>${a.enTicker?' <span class="pill">también en la franja</span>':''}<br><span class="note">${esc(a.texto||'')}</span><br><span class="note">${a.desde?'desde '+fmtD(a.desde):'desde ya'}, ${a.hasta?'hasta '+fmtD(a.hasta):'sin vencimiento'}</span></span>
+       ${ed?`<span style="white-space:nowrap"><button class="btn link" data-tva="ed|${esc(a.id)}">editar</button><button class="btn link" data-tva="pa|${esc(a.id)}">${a.activo===false?'reactivar':'pausar'}</button><button class="btn link" data-tva="bo|${esc(a.id)}">borrar</button></span>`:''}</div></div>`}).join(''):'<p class="note">Todavía no hay avisos.</p>'}</section></div>
+   <section class="panel"><h2>Para el TV de planta</h2><ol class="note" style="line-height:1.7"><li>En <b>Maestro > Usuarios y permisos</b> tocá <b>Nuevo usuario</b>, poné un nombre (ej. "TV Planta") y una clave, y elegí la plantilla <b>Pantalla de planta (TV)</b>. Solo ve esta pantalla y no puede cambiar nada.</li><li>En el TV (o la computadora conectada al TV) abrí el panel, entrá con ese usuario y su clave: arranca directo en pantalla completa y queda así. La sesión queda guardada en ese navegador.</li><li>También podés abrirlo desde cualquier usuario con este botón o con la dirección del panel terminada en <code>#pantalla/tv</code>.</li></ol></section>`;
+  $('#tvGo').onclick=()=>{location.hash='pantalla/tv'};if(!ed)return;
+  const save=async(fn,msg)=>{const d=JSON.parse(JSON.stringify(S.P.pantalla||{}));fn(d);d.actualizado=new Date().toISOString();try{await S.db.doc('planificacion/pantalla').set(d);S.P.pantalla=d;toast(msg||'Guardado');this.config()}catch(e){toast('No se pudo guardar')}};
+  $('#tvSave').onclick=()=>save(d=>{d.slides={};document.querySelectorAll('[data-tvs]').forEach(x=>d.slides[x.dataset.tvs]=x.checked);d.nombres=$('#tvNom').checked;d.segundos=Math.max(5,parseInt($('#tvSeg').value,10)||20);d.refrescoMin=Math.max(.5,parseFloat($('#tvRef').value)||1);d.ticker=$('#tvTkx').value.split('\n').map(x=>x.trim()).filter(Boolean)},'Pantalla actualizada');
+  const modal=a=>{const nu=!a;a=a||{id:'av-'+newId(),titulo:'',texto:'',desde:'',hasta:'',enTicker:false};const m=document.createElement('div');m.className='modal';
+    m.innerHTML=`<div class="dlg" style="width:min(520px,100%)"><div class="pzh" style="align-items:center"><h2 style="margin:0">${nu?'Nuevo aviso':'Editar aviso'}</h2><button class="btn link" data-x>Cerrar</button></div>
+     <label class="f">Título<input id="avT" value="${esc(a.titulo)}" placeholder="ej. Récord de producción"></label><label class="f" style="margin-top:8px">Texto<textarea id="avX" rows="3">${esc(a.texto||'')}</textarea></label>
+     <div class="row" style="margin-top:8px"><label class="f">Desde<input type="date" id="avD" value="${esc(a.desde||'')}"></label><label class="f">Hasta<input type="date" id="avH" value="${esc(a.hasta||'')}"></label></div>
+     <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px"><input type="checkbox" id="avK" ${a.enTicker?'checked':''} style="width:auto"> También en la franja de abajo</label><div class="err" id="avE"></div>
+     <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn sec" data-x>Cancelar</button><button class="btn" id="avGo">Guardar</button></div></div>`;
+    document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.hasAttribute('data-x'))m.remove()};
+    $('#avGo').onclick=()=>{const t=$('#avT').value.trim();if(!t){$('#avE').textContent='Poné un título.';return}const n={...a,titulo:t,texto:$('#avX').value.trim(),desde:$('#avD').value||'',hasta:$('#avH').value||'',enTicker:$('#avK').checked};m.remove();
+      save(d=>{d.avisos=d.avisos||[];const i=d.avisos.findIndex(x=>x.id===n.id);if(i>=0)d.avisos[i]=n;else d.avisos.push({...n,creado:new Date().toISOString()})},nu?'Aviso publicado':'Aviso actualizado')}};
+  $('#tvAvN').onclick=()=>modal(null);
+  document.querySelectorAll('[data-tva]').forEach(b=>b.onclick=()=>{const [k,id]=b.dataset.tva.split('|');const a=c.avisos.find(x=>x.id===id);if(!a)return;
+    if(k==='ed')modal(a);else if(k==='pa')save(d=>{const x=d.avisos.find(z=>z.id===id);x.activo=x.activo===false?true:false});else if(confirm('¿Borrar el aviso '+a.titulo+'?'))save(d=>{d.avisos=d.avisos.filter(z=>z.id!==id)},'Aviso borrado')})}};
 
 /* MAESTRO */
 V.maestro={mount(){$('#main').innerHTML=header('Maestro','Listas de materiales, centros de trabajo y personal. Es la base de todo el sistema y sigue la estructura de Odoo Fabricación: producto, lista de materiales, componentes y operaciones.')+
@@ -2291,12 +2440,13 @@ function derivar(pid){const p=persObj(pid);if(!p)return;const act=(S.derivs||[])
 /* perfiles */
 const PERF_DEF=[{id:'plan',nombre:'Planificación',vistas:'*',area:null,pin:null},{id:'taller',nombre:'Fábrica',vistas:['planta','taller','indicadores','instructivo'],area:'taller',pin:null,editar:true},
  {id:'pintura',nombre:'Pintura',vistas:['planta','pintura','indicadores','instructivo'],area:'pintura',pin:null,editar:true},{id:'armado',nombre:'Armado',vistas:['planta','armado','indicadores','instructivo'],area:'armado',pin:null,editar:true},{id:'expedicion',nombre:'Expedición',vistas:['planta','instructivo'],area:'expedicion',pin:null,editar:true}];
-const VISTAS_PL={auditoria:'Registro de cambios',general:'General',planta:'Planta en vivo',plan:'Planificación',taller:'Fábrica (taller)',pintura:'Pintura',armado:'Armado',indicadores:'Indicadores',maestro:'Maestro',instructivo:'Instructivo'};
+const VISTAS_PL={auditoria:'Registro de cambios',general:'General',planta:'Planta en vivo',pantalla:'Pantalla en vivo (TV)',plan:'Planificación',taller:'Fábrica (taller)',pintura:'Pintura',armado:'Armado',indicadores:'Indicadores',maestro:'Maestro',instructivo:'Instructivo'};
 async function hashPin(pin){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('spl|'+pin));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){let h=0;for(const c of 'spl|'+pin)h=(h*31+c.charCodeAt(0))|0;return 'x'+h}}
 const PERMISOS={plan:['Planificar','Lanzar y ajustar órdenes, órdenes de pintura y armado, ordenar líneas, estándares y objetivos'],maestro:['Editar maestros','Listas de materiales, máquinas, personal, motivos y planilla de maestros'],
   cargar:['Cargar producción','Empezar y terminar en las líneas de pintura y armado, carga manual del taller'],editar:['Editar y borrar registros','Corregir o borrar registros y movimientos'],derivar:['Derivar personal','Mandar personal a otro sector y asignar pintores y mesas'],usuarios:['Usuarios y permisos','Crear usuarios, claves y permisos; poner los datos en cero']};
 const PLANTILLAS={planificador:{nombre:'Planificador',vistas:'*',area:null,permisos:{plan:true,maestro:true,cargar:true,editar:true,derivar:true,usuarios:true}},
-  supervisor:{nombre:'Supervisor de sector',vistas:null,area:'taller',permisos:{cargar:true,editar:true,derivar:true}},gerencia:{nombre:'Gerencia (solo ver)',vistas:['general','planta','indicadores','instructivo'],area:null,permisos:{}}};
+  supervisor:{nombre:'Supervisor de sector',vistas:null,area:'taller',permisos:{cargar:true,editar:true,derivar:true}},gerencia:{nombre:'Gerencia (solo ver)',vistas:['general','planta','pantalla','indicadores','instructivo'],area:null,permisos:{}},
+  pantalla:{nombre:'Pantalla de planta (TV)',vistas:['pantalla'],area:null,permisos:{}}};
 const vistasSector=a=>['planta',a==='taller'||a==='matriceria'||a==='mantenimiento'?'taller':a,'indicadores','instructivo'].filter(v=>VISTAS_PL[v]);
 function permisosDe(p){if(!p)return {};if(p.permisos)return p.permisos;if(p.vistas==='*')return {plan:true,maestro:true,cargar:true,editar:true,derivar:true,usuarios:true};return {cargar:true,editar:!!p.editar,derivar:true}}
 function perfiles(){const it=S.M.perfiles?.items;const del=S.M.perfiles?.borrados||[];if(!it||!it.length)return PERF_DEF;return [...it,...PERF_DEF.filter(d=>!it.some(x=>x.id===d.id)&&!del.includes(d.id))]}
@@ -3244,7 +3394,7 @@ route();
   S.db=auditar(db);S.live=true;route();
   for(const k of ['productos','centros','personal','motivos','vinculos','ventas','perfiles','colores','pintura_std','motivos_pintura','motivos_armado','armado_std','operarios_cfg']){
     db.doc('maestro/'+k).onSnapshot(s=>{const prev=JSON.stringify(S.M[k]);S.M[k]=s.exists?s.data():null;S.loaded[k]=true;if(k==='perfiles'&&prev!==JSON.stringify(S.M[k])){route();return}changed('maestro')},()=>{})}
-  for(const k of ['pendiente','parametros','stock','ajustes','objetivos','armado_plan'])db.doc('planificacion/'+k).onSnapshot(s=>{S.P[k]=s.exists?s.data():null;changed('plan')},()=>{});
+  for(const k of ['pendiente','parametros','stock','ajustes','objetivos','armado_plan','pantalla'])db.doc('planificacion/'+k).onSnapshot(s=>{S.P[k]=s.exists?s.data():null;changed('plan')},()=>{});
   S.derivs=[];db.collection('derivaciones').onSnapshot(q=>{S.derivs=q.docs.map(d=>({id:d.id,...d.data()}));changed('datos')},()=>{});
   S.arm=[];db.collection('armado').onSnapshot(q=>{S.arm=q.docs.map(d=>({id:d.id,...d.data()}));changed('datos')},()=>{});
   S.oarm=[];db.collection('oarm').onSnapshot(q=>{S.oarm=q.docs.map(d=>({id:d.id,...d.data()}));changed('datos')},()=>{});
