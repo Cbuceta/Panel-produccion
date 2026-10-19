@@ -233,7 +233,7 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
     <a href="#auditoria" data-v="auditoria">Registro de cambios</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-19 a</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-19 b</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -416,14 +416,22 @@ mountForm(){const n=$('#nuevo');
   <div id="nPrev" style="margin-top:14px"></div><div class="err" id="nErr"></div>
   <div class="row" style="justify-content:flex-end"><button class="btn" id="nGo">Lanzar orden</button></div>`;
   ['nArt','nCant'].forEach(i=>$('#'+i).addEventListener('input',()=>{$('#nErr').textContent='';this.preview()}));
-  $('#nGo').onclick=()=>this.lanzar();this.preview()},
+  $('#nGo').onclick=()=>this.lanzar();
+  const F=this._form;this._form=null;if(F){if(!BOM.dirty)BOM.volverForm=null;$('#nArt').value=F.art;$('#nCant').value=F.cant;if(F.fecha)$('#nFecha').value=F.fecha;if(F.pri)$('#nPri').value=F.pri;$('#nNum').value=F.num;$('#nNotas').value=F.notas}
+  this.preview();
+  if(F){const f=S.M.productos?.items?.[F.art];if(f)document.querySelectorAll('#nPrev input[type=checkbox]').forEach(x=>{if(F.off.includes(f.piezas[+x.dataset.i]?.pieza))x.checked=false})}},
 preview(){const art=$('#nArt')?.value.trim();const c=+$('#nCant')?.value||0;const f=S.M.productos?.items?.[art];const box=$('#nPrev');if(!box)return;
   if(!f){box.innerHTML=art?'<p class="note">Ese artículo no está en el maestro.</p>':'';return}
   let sin=0;const porTipo={};
   const rows=f.piezas.map((p,i)=>{const q=c*p.cant;const hs=p.ops.reduce((a,w)=>{if(!w.seg){sin++;return a}const h=q*w.seg/3600;porTipo[w.tipo]=(porTipo[w.tipo]||0)+h;return a+h},0);
     return `<tr><td><input type="checkbox" data-i="${i}" checked style="width:auto"></td><td>${esc(p.pieza)}</td><td class="n">${p.cant}</td><td class="n">${nf(q)}</td><td>${p.ops.map(w=>esc(w.op)).join(' › ')}</td><td class="n">${nf(hs,1)}</td></tr>`}).join('');
-  box.innerHTML=`<h3>Piezas que se van a fabricar</h3><div class="tw"><table><tr><th></th><th>Pieza</th><th class="n">x art.</th><th class="n">Total</th><th>Ruta</th><th class="n">Hs std</th></tr>${rows}</table></div>
-  <p class="note">${Object.entries(porTipo).map(([t,h])=>`${esc(tipoNombre(t))} ${nf(h,1)} h`).join(', ')}${sin?`. <span class="poor">${sin} pasos sin tiempo estándar: no suman carga.</span>`:''}</p>`},
+  box.innerHTML=`<div class="pzh" style="align-items:center;flex-wrap:wrap;gap:8px"><h3 style="margin:0">Piezas que se van a fabricar</h3>${S.puedeMaestro?`<button class="btn sec sm" id="nEdBom">Editar lista de materiales de ${esc(art)}</button>`:''}</div><div class="tw"><table><tr><th></th><th>Pieza</th><th class="n">x art.</th><th class="n">Total</th><th>Ruta</th><th class="n">Hs std</th></tr>${rows}</table></div>
+  <p class="note">${Object.entries(porTipo).map(([t,h])=>`${esc(tipoNombre(t))} ${nf(h,1)} h`).join(', ')}${sin?`. <span class="poor">${sin} pasos sin tiempo estándar: no suman carga.</span>`:''}</p>`;
+  const eb=$('#nEdBom');if(eb)eb.onclick=()=>this.irBom(art)},
+irBom(art){if(BOM.dirty&&!confirm('Hay cambios sin guardar en otra lista de materiales. ¿Descartarlos?'))return;
+  const v=id=>$('#'+id)?.value??'';const off=[...document.querySelectorAll('#nPrev input[type=checkbox]')].filter(x=>!x.checked).map(x=>S.M.productos.items[art].piezas[+x.dataset.i]?.pieza).filter(Boolean);
+  this._form={art,cant:v('nCant'),fecha:v('nFecha'),pri:v('nPri'),num:v('nNum'),notas:v('nNotas'),off};
+  BOM.dirty=false;BOM.draft=null;BOM.sel=art;BOM.q='';BOM.volverOP=null;BOM.volverForm={art};V.maestro.tab='prod';location.hash='maestro'},
 async lanzar(){const err=$('#nErr');const art=$('#nArt').value.trim();const c=parseInt($('#nCant').value,10);const fecha=$('#nFecha').value;
   const f=S.M.productos?.items?.[art];
   if(!f){err.textContent='Elegí un artículo del maestro.';return}
@@ -1124,13 +1132,13 @@ editor(){const d=this.draft;
      <label class="f" style="flex:0 1 110px">Unidad<select data-p="${pi}.uom" ${dis}>${UNIDADES.map(x=>`<option ${x===(p.uom||'Unidades')?'selected':''}>${x}</option>`).join('')}</select></label>
      <label class="f" style="flex:1 1 150px" title="Si esta pieza se suelda a otra de la lista, no va a pintura: la consume el paso de soldadura de la otra, y la otra pasa sola a pintura al terminar">Destino<select data-p="${pi}.integra" ${dis}><option value="">Va a pintura o armado</option>${d.piezas.filter((q,qi)=>qi!==pi&&q.pieza).map(q=>`<option value="${esc(q.pieza)}" ${q.pieza===p.integra?'selected':''}>Se suelda en ${esc(q.pieza)}</option>`).join('')}</select></label>
      ${ed?`<span class="row" style="gap:2px;flex:0 0 auto"><button class="btn link" data-mvp="${pi}.-1">subir</button><button class="btn link" data-mvp="${pi}.1">bajar</button><button class="btn link" data-dp="${pi}">quitar pieza</button></span>`:''}</div>
-    ${u.length?`<p class="note" style="margin:6px 0 0">También la usan: ${u.map(esc).join(', ')}. Al guardar, te va a ofrecer aplicar los mismos cambios en todas.</p>`:''}
+    ${u.length?`<p class="note" style="margin:6px 0 0">También la usan: ${u.map(esc).join(', ')}. Al guardar, los cambios de esta pieza (nombre, ruta, tiempos, unidad y materia prima) se aplican también en esas listas; la cantidad por artículo de cada una no se toca.</p>`:''}
     <div class="row" style="margin-top:8px"><label class="f" style="flex:1 1 140px">Materia prima (opcional)<input value="${esc(p.mp?.codigo||'')}" data-p="${pi}.mp.codigo" placeholder="ej. Chapa AL 0,8" ${dis}></label>
      <label class="f" style="flex:0 1 110px">Consumo por pieza<input type="number" min="0" step="any" value="${p.mp?.cant??''}" data-p="${pi}.mp.cant" ${dis}></label>
      <label class="f" style="flex:0 1 110px">Unidad<select data-p="${pi}.mp.uom" ${dis}>${UNIDADES.map(x=>`<option ${x===(p.mp?.uom||'kg')?'selected':''}>${x}</option>`).join('')}</select></label></div>
     <h3 style="margin:12px 0 6px">Ruta de la pieza</h3>${opsT(p,pi)}</div>`}).join('');
   const vs=d._vinc||[];const codes=(S.P.pendiente?.items||[]).map(r=>r.code);
-  return `${this.volverOP?`<div class="lote" style="margin:0 0 12px"><span>Viniste desde la <b>OP ${esc(this.volverOP.numero)}</b>. Los cambios valen para las próximas órdenes; para aplicarlos a esta OP, al volver tocá <b>Actualizar ruta</b>.</span><button class="btn sm" id="bVolOP">Volver a la OP ${esc(this.volverOP.numero)}</button></div>`:''}<div class="pzh" style="align-items:center;flex-wrap:wrap;gap:8px"><h2 style="margin:0">${esc(this.sel)}${d._nuevo?' <span class="pill lamp">nueva</span>':''}</h2>
+  return `${this.volverForm?`<div class="lote" style="margin:0 0 12px"><span>Viniste desde la <b>orden manual de ${esc(this.volverForm.art)}</b>. Guardá los cambios y volvé: la orden toma la lista de materiales actualizada, con lo que ya habías cargado.</span><button class="btn sm" id="bVolForm">Volver a la orden</button></div>`:''}${this.volverOP?`<div class="lote" style="margin:0 0 12px"><span>Viniste desde la <b>OP ${esc(this.volverOP.numero)}</b>. Los cambios valen para las próximas órdenes; para aplicarlos a esta OP, al volver tocá <b>Actualizar ruta</b>.</span><button class="btn sm" id="bVolOP">Volver a la OP ${esc(this.volverOP.numero)}</button></div>`:''}<div class="pzh" style="align-items:center;flex-wrap:wrap;gap:8px"><h2 style="margin:0">${esc(this.sel)}${d._nuevo?' <span class="pill lamp">nueva</span>':''}</h2>
     ${ed?`<span class="row" style="gap:6px"><span class="note poor" id="bDirty">${this.dirty?'Cambios sin guardar':''}</span><button class="btn sec sm" id="bDup">Duplicar</button><button class="btn sec sm" id="bDel">Eliminar</button></span>`:''}</div>
    <div class="row" style="margin:12px 0"><label class="f" style="flex:0 1 200px">Cantidad que produce la lista<input type="number" min="1" value="${d.qty||1}" data-h="qty" ${dis}></label>
     <label class="f">Tipo de lista (Odoo)<select data-h="bomtipo" ${dis}><option value="normal" ${d.bomtipo!=='phantom'?'selected':''}>Fabricar este producto</option><option value="phantom" ${d.bomtipo==='phantom'?'selected':''}>Kit</option></select></label></div>
@@ -1145,7 +1153,7 @@ set(path,val){const d=this.draft;const k=path.split('.');let o=d;
   if(k[0]==='h'){d[k[1]]=val;return}
   const p=d.piezas[+k[0]];
   if(k.length===2){p[k[1]]=val}else if(k[1]==='mp'){p.mp=p.mp||{};p.mp[k[2]]=val}},
-bind(){{const vo=$('#bVolOP');if(vo)vo.onclick=()=>{if(this.dirty&&!confirm('Hay cambios sin guardar. ¿Volver igual y descartarlos?'))return;const id=this.volverOP.id;this.volverOP=null;this.dirty=false;this.draft=null;ir('plan',{tab:'curso',flt:'todas',tipo:'',sel:id})}}if(!this.draft||!S.puedeMaestro)return;const E=$('#bEd');
+bind(){{const vf=$('#bVolForm');if(vf)vf.onclick=()=>{if(this.dirty&&!confirm('Hay cambios sin guardar. ¿Volver igual y descartarlos?'))return;this.volverForm=null;this.dirty=false;this.draft=null;ir('plan',{tab:'manual'})}}{const vo=$('#bVolOP');if(vo)vo.onclick=()=>{if(this.dirty&&!confirm('Hay cambios sin guardar. ¿Volver igual y descartarlos?'))return;const id=this.volverOP.id;this.volverOP=null;this.dirty=false;this.draft=null;ir('plan',{tab:'curso',flt:'todas',tipo:'',sel:id})}}if(!this.draft||!S.puedeMaestro)return;const E=$('#bEd');
   E.querySelectorAll('[data-h]').forEach(i=>i.oninput=i.onchange=()=>{this.draft[i.dataset.h]=i.dataset.h==='qty'?Math.max(1,+i.value||1):i.value;this.touch()});
   E.querySelectorAll('[data-p]').forEach(i=>i.oninput=i.onchange=()=>{const k=i.dataset.p.split('.');const p=this.draft.piezas[+k[0]];let v=i.value;
     if(k[1]==='cant')v=+v||0;if(k[1]==='codigo')v=v.trim()||null;if(k[1]==='integra')v=v||null;
@@ -1192,7 +1200,7 @@ async guardar(){const err=$('#bErr');err.textContent='';const d=this.draft;
   for(const p of d.piezas){if(!p.integra){delete p.integra;continue}p.integra=String(p.integra).toUpperCase();const t=d.piezas.find(q=>q!==p&&q.pieza===p.integra);if(!t){err.textContent=`${p.pieza} se suelda en ${p.integra}, que no está en la lista.`;return}if(t.integra===p.pieza){err.textContent=`${p.pieza} y ${t.pieza} no pueden soldarse una en la otra.`;return}}
   const all0=S.M.productos?.items||{};const firma=p=>JSON.stringify({ops:(p.ops||[]).map(w=>[w.op,w.tipo,w.seg??null]),mp:p.mp||null,uom:p.uom||'Unidades',pieza:p.pieza});const prop=[];
   for(const p of d.piezas){if(!p.codigo)continue;for(const [f,v] of Object.entries(all0)){if(f===this.sel)continue;v.piezas.forEach((q,qi)=>{if(q.codigo===p.codigo&&firma(q)!==firma(p))prop.push({f,qi,codigo:p.codigo,pieza:q.pieza})})}}
-  let aplicar=false;if(prop.length){const cods=[...new Set(prop.map(x=>x.codigo))];aplicar=confirm(`Las referencias ${cods.join(', ')} también están en otras listas de materiales:\n\n${[...new Set(prop.map(x=>x.f))].slice(0,20).join(', ')}${prop.length>20?'…':''}\n\n¿Aplicar los mismos cambios (nombre, ruta, tiempos, unidad y materia prima) en todas? La cantidad por artículo de cada una no se toca.\n\nAceptar: cambiar en todas. Cancelar: solo en ${this.sel}.`)}
+  const aplicar=prop.length>0;
   if(busy('#bSave'))return;
   try{const all=JSON.parse(JSON.stringify(S.M.productos||{items:{}}));const clean=JSON.parse(JSON.stringify(d));const vinc=clean._vinc||[];delete clean._vinc;delete clean._nuevo;
     clean.actualizado=new Date().toISOString();all.items[this.sel]=clean;
@@ -2998,7 +3006,7 @@ function modalBorrarOPs(){const L=S.ordenes.slice().sort((a,b)=>String(b.numero)
 /* ---------- de la OP a su lista de materiales y de vuelta ---------- */
 function famDeOP(o){const it=S.M.productos?.items||{};if(o.tipo!=='lote'&&it[o.articulo])return o.articulo;const c=o.lineas?.[0]?.codigo;if(c){for(const [f,v] of Object.entries(it))if(v.piezas.some(p=>p.codigo===c))return f}return it[o.articulo]?o.articulo:null}
 function irAProducto(o){const f=famDeOP(o);if(!f){toast('No encuentro la lista de materiales de '+o.articulo);return}if(BOM.dirty&&!confirm('Hay cambios sin guardar en otra lista de materiales. ¿Descartarlos?'))return;
-  BOM.dirty=false;BOM.draft=null;BOM.sel=f;BOM.q='';BOM.volverOP={id:o.id,numero:o.numero};V.maestro.tab='prod';location.hash='maestro'}
+  BOM.dirty=false;BOM.draft=null;BOM.sel=f;BOM.q='';BOM.volverOP={id:o.id,numero:o.numero};BOM.volverForm=null;V.maestro.tab='prod';location.hash='maestro'}
 function piezaMaestro(o,l){const it=S.M.productos?.items||{};const f=famDeOP(o);let p=f?it[f].piezas.find(x=>(l.codigo&&x.codigo===l.codigo)||x.pieza===l.pieza):null;
   if(!p&&l.codigo){for(const v of Object.values(it)){p=v.piezas.find(x=>x.codigo===l.codigo);if(p)break}}return p}
 async function actualizarRutaOP(o){const cambios=[];const lineas=JSON.parse(JSON.stringify(o.lineas));let conAvance=false;
