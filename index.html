@@ -273,7 +273,7 @@ body.tvon .app{display:none}
     <a href="#auditoria" data-v="auditoria">Registro de cambios</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-19 g</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-21 a</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -1630,9 +1630,17 @@ armar(r){const filas=Array.isArray(r?.filas)?r.filas:[];this.fecha=/^\d{4}-\d{2}
     if(par){x.motivo=matchMotivo(x.motivoTxt+' '+(f.observaciones||''),maq)}else{const A=matchArtX(f.producto);x.art=A.k;x.alts=A.alts;FOTO.resolver(x)}
     return x});
   this.render()},
-estado(x){if(!x.inc)return ['','no se carga'];const m=diffMin(x.ini,x.fin);
-  if(x.tipo==='parada'){if(!x.motivo)return ['bad','elegí el motivo'];if(!m)return ['bad','revisá las horas'];return ['ok','parada']}
-  if(!x.maq)return ['bad','elegí la máquina'];if(!x.art)return ['bad',x.alts?.length?'¿'+x.alts.join(', ')+'?':(x.prodTxt?'"'+x.prodTxt+'" no está en el maestro':'elegí el artículo')];if(!x.pz)return ['bad',x.pmsg||'elegí pieza y paso'];{const [pz0,sq0]=x.pz.split('|');const w0=S.M.productos?.items?.[x.art]?.piezas.find(p=>p.pieza===pz0)?.ops.find(o=>o.seq==sq0);if(w0&&x.maq&&w0.tipo!==centroTipo(x.maq))return ['bad','ese paso es de '+tipoNombre(w0.tipo)]}if(!m)return ['bad','revisá las horas'];if(x.qty===''||isNaN(x.qty))return ['bad','falta la cantidad'];
+enLote(){return !S.supa&&!S.local},
+resuelto(x){return x.tipo==='parada'?!!x.motivo:!!(x.maq&&x.art&&x.pz)},
+estado(x){if(!x.inc)return ['','no se carga'];const m=diffMin(x.ini,x.fin);const L=this.enLote();
+  if(x.tipo==='parada'){if(!x.motivo&&!(L&&x.motivoTxt))return ['bad','elegí el motivo'];if(!m)return ['bad','revisá las horas'];return x.motivo?['ok','parada']:['lamp','motivo: se revisa al importar']}
+  const av=[];
+  if(!x.maq){if(L&&x.maqTxt)av.push('máquina');else return ['bad','elegí la máquina']}
+  if(!x.art){if(L&&x.prodTxt)av.push('artículo');else return ['bad',x.alts?.length?'¿'+x.alts.join(', ')+'?':(x.prodTxt?'"'+x.prodTxt+'" no está en el maestro':'elegí el artículo')]}
+  else if(!x.pz){if(L&&(x.piezaTxt||x.paso!=null&&x.paso!==''))av.push('pieza y paso');else return ['bad',x.pmsg||'elegí pieza y paso']}
+  else{const [pz0,sq0]=x.pz.split('|');const w0=S.M.productos?.items?.[x.art]?.piezas.find(p=>p.pieza===pz0)?.ops.find(o=>o.seq==sq0);if(w0&&x.maq&&w0.tipo!==centroTipo(x.maq))return ['bad','ese paso es de '+tipoNombre(w0.tipo)]}
+  if(!m)return ['bad','revisá las horas'];if(x.qty===''||isNaN(x.qty))return ['bad','falta la cantidad'];
+  if(av.length)return ['lamp',av.join(', ')+': se revisa al importar'];
   const [pz,seq]=x.pz.split('|');if(!S.supa&&!S.local&&!S.ordenes.some(abierta))return ['ok','listo'];const ot=matchOT(x.art,pz,+seq);return ot?['ok','OP '+ot.o.numero]:['lamp','fuera de plan']},
 render(){const R=$('#fRes');if(!R)return;const P=S.M.personal?.items||[];const C=S.M.centros?.items||[];const fl=Object.keys(S.M.productos?.items||{}).sort((a,b)=>a.localeCompare(b,'es',{numeric:true}));const M=S.M.motivos?.items||[];
   const ya=entries().filter(e=>e.fecha===this.fecha&&e.operario===this.op).length;
@@ -1640,7 +1648,7 @@ render(){const R=$('#fRes');if(!R)return;const P=S.M.personal?.items||[];const C
   R.innerHTML=`<div class="row" style="margin-bottom:8px"><label class="f" style="flex:0 1 160px">Fecha<input type="date" id="fxF" value="${esc(this.fecha)}"></label>
     <label class="f">Operario${this.resp?` <span class="note">(leído: ${esc(this.resp)})</span>`:''}<select id="fxO"><option value="">Elegí</option>${P.map(p=>`<option value="${esc(p.id)}" ${p.id===this.op?'selected':''}>${esc(p.nombre)}</option>`).join('')}</select></label></div>
    ${ya?`<p class="note poor" style="margin:0 0 8px">Este operario ya tiene ${ya} registros ese día. Revisá que no sea la misma planilla.</p>`:''}
-   <p class="note" style="margin:0 0 8px">Revisá cada renglón contra la foto antes de guardar. Lo que está en rojo necesita tu corrección.</p>
+   <p class="note" style="margin:0 0 8px">Revisá cada renglón contra la foto antes de guardar. Lo que está en rojo necesita tu corrección.${this.enLote()?' Lo amarillo (artículo, pieza, máquina u operario que esta copia no conoce) va al lote tal como se leyó y se revisa al importar en la versión compartida.':''}</p>
    <datalist id="dlFx">${fl.map(f=>`<option value="${esc(f)}">`).join('')}</datalist>
    <div class="tw" style="max-height:52vh;overflow:auto"><table class="bt fx"><tr><th></th><th>Tipo</th><th>Máquina</th><th>Artículo / motivo</th><th>Pieza y paso</th><th>Inicio</th><th>Fin</th><th class="n">Cant.</th><th class="n">Scrap</th><th>Obs.</th><th>Estado</th></tr>
    ${this.rows.map((x,i)=>{const [c,t]=this.estado(x);return `<tr class="${x.inc?'':'off'}"><td><input type="checkbox" data-r="${i}.inc" ${x.inc?'checked':''} style="width:auto" aria-label="Cargar renglón ${i+1}"></td>
@@ -1663,15 +1671,16 @@ render(){const R=$('#fRes');if(!R)return;const P=S.M.personal?.items||[];const C
   $('#fxAdd').onclick=()=>{this.rows.push({inc:true,tipo:'prod',maqTxt:'',maq:'',prodTxt:'',piezaTxt:'',paso:null,ini:'',fin:'',qty:'',scrap:0,obs:'',motivoTxt:''});this.render()};
   $('#fxOtra').onclick=()=>{if(this.rows.length&&!confirm('Lo leído de esta foto no se guardó. ¿Leer otra igual?'))return;this.rows=[];$('#fBody').innerHTML=''};
   $('#fxGo').onclick=()=>this.guardar();{const flb=$('#fxLote');if(flb)flb.onclick=()=>this.agregarLote()}},
-validar(){const err=$('#fxErr');err.textContent='';if(!this.op){err.textContent='Elegí el operario.';return null}if(!this.fecha){err.textContent='Elegí la fecha.';return null}
+validar(){const err=$('#fxErr');err.textContent='';if(!this.op&&!this.resp){err.textContent='Elegí el operario.';return null}if(!this.fecha){err.textContent='Elegí la fecha.';return null}
   const inc=this.rows.filter(x=>x.inc);if(!inc.length){err.textContent='No hay renglones marcados para cargar.';return null}
   const mal=inc.filter(x=>this.estado(x)[0]==='bad');if(mal.length){err.textContent=`Hay ${mal.length} renglones para corregir (en rojo) o desmarcar.`;return null}return inc},
-agregarLote(){const inc=this.validar();if(!inc)return;const L=LOTE.get();const regs=inc.map(x=>filaARegistro(x,this.fecha,this.op));
-  const ya=L.some(r=>r.Fecha===this.fecha&&r.Operario===persona(this.op));if(ya&&!confirm(`El lote ya tiene registros de ${persona(this.op)} del ${fmtD(this.fecha)}. ¿Agregar igual?`))return;
+agregarLote(){const inc=this.validar();if(!inc)return;const L=LOTE.get();const nom=this.op?persona(this.op):this.resp;const regs=inc.map(x=>filaARegistro(x,this.fecha,this.op,nom));
+  const ya=L.some(r=>r.Fecha===this.fecha&&r.Operario===nom);if(ya&&!confirm(`El lote ya tiene registros de ${nom} del ${fmtD(this.fecha)}. ¿Agregar igual?`))return;
   LOTE.set([...L,...regs]);toast(regs.length+' registros agregados al lote');this.rows=[];loteBar();
-  $('#fBody').innerHTML=`<p class="good">Agregados al lote: ${regs.length} registros de ${esc(persona(this.op))} del ${fmtD(this.fecha)}. En total hay ${LOTE.get().length}.</p><p class="note">Elegí la próxima foto arriba. Cuando termines, cerrá y tocá <b>Descargar lote</b>.</p>`},
+  $('#fBody').innerHTML=`<p class="good">Agregados al lote: ${regs.length} registros de ${esc(nom)} del ${fmtD(this.fecha)}. En total hay ${LOTE.get().length}.</p><p class="note">Elegí la próxima foto arriba. Cuando termines, cerrá y tocá <b>Descargar lote</b>.</p>`},
 async guardar(){const err=$('#fxErr');err.textContent='';if(!this.op){err.textContent='Elegí el operario.';return}if(!this.fecha){err.textContent='Elegí la fecha.';return}
   const inc=this.rows.filter(x=>x.inc);if(!inc.length){err.textContent='No hay renglones marcados para cargar.';return}
+  if(inc.some(x=>!this.resuelto(x))){err.textContent='Hay renglones en amarillo que esta copia no reconoce: agregalos al lote y se revisan al importar en la versión compartida, o corregilos acá.';return}
   const mal=inc.map((x,i)=>[i,this.estado(x)]).filter(([,e])=>e[0]==='bad');if(mal.length){err.textContent=`Hay ${mal.length} renglones para corregir (en rojo) o desmarcar.`;return}
   if(busy('#fxGo'))return;
   try{const items=inc.map(x=>{const m=diffMin(x.ini,x.fin);const base={id:newId(),operario:this.op,ini:x.ini,fin:x.fin,min:m,obs:x.obs||'',origen:'foto',ts:new Date().toISOString()};
@@ -1823,8 +1832,9 @@ function subirMaestros(){if(!S.puedeMaestro){toast('No tenés permiso para edita
 /* ---------- lote de registros: se lee en claude.ai, se importa en la versión compartida ---------- */
 const RH=['Fecha','Operario','Tipo','Máquina','Artículo','Pieza','Paso','Operación','Inicio','Fin','Cantidad','Scrap','Motivo','Observaciones','Origen'];
 const LOTE={get(){try{return JSON.parse(localStorage.getItem('spl.lote')||'[]')}catch(e){return []}},set(a){try{localStorage.setItem('spl.lote',JSON.stringify(a))}catch(e){toast('No se pudo guardar el lote en este navegador')}}};
-function filaARegistro(x,fecha,op){const base={Fecha:fecha,Operario:persona(op),Tipo:x.tipo==='parada'?'Parada':'Producción',Máquina:x.maq||'',Inicio:x.ini,Fin:x.fin,Observaciones:x.obs||'',Origen:'foto'};
-  if(x.tipo==='parada')return {...base,Artículo:'',Pieza:'',Paso:'',Operación:'',Cantidad:'',Scrap:'',Motivo:motivo(x.motivo)?.nombre||''};
+function filaARegistro(x,fecha,op,nom){const base={Fecha:fecha,Operario:op?persona(op):(nom||''),Tipo:x.tipo==='parada'?'Parada':'Producción',Máquina:x.maq||x.maqTxt||'',Inicio:x.ini,Fin:x.fin,Observaciones:x.obs||'',Origen:'foto'};
+  if(x.tipo==='parada')return {...base,Artículo:'',Pieza:'',Paso:'',Operación:'',Cantidad:'',Scrap:'',Motivo:motivo(x.motivo)?.nombre||x.motivoTxt||''};
+  if(!x.art||!x.pz)return {...base,Artículo:x.art||String(x.prodTxt||'').trim(),Pieza:x.pz?x.pz.split('|')[0]:String(x.piezaTxt||'').trim(),Paso:x.pz?+x.pz.split('|')[1]:(x.paso??''),Operación:'',Cantidad:+x.qty||0,Scrap:+x.scrap||0,Motivo:''};
   const [pz,seq]=x.pz.split('|');const w=S.M.productos.items[x.art].piezas.find(p=>p.pieza===pz).ops.find(o=>o.seq==seq);
   return {...base,Artículo:x.art,Pieza:pz,Paso:+seq,Operación:w.op,Cantidad:+x.qty||0,Scrap:+x.scrap||0,Motivo:''}}
 function loteBar(){const el=$('#tLote');if(!el)return;const L=LOTE.get();const enClaude=!S.supa&&!S.local;
