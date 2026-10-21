@@ -273,7 +273,7 @@ body.tvon .app{display:none}
     <a href="#auditoria" data-v="auditoria">Registro de cambios</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-21 a</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-21 b</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -552,7 +552,7 @@ V.taller={mount(){
   $('#pAddX').onclick=()=>{const v=$('#pWO').value;if(!v||v==='__fuera'){toast('Elegí primero la orden principal');return}this.extras=(this.extras||[]).concat([{v:'',q:'',s:0}]);this.fillExtra()};
   $('#fArt').oninput=()=>{this.fillFuera();this.calc()};$('#fPz').onchange=()=>this.calc();
   ['pIni','pFin','pQty'].forEach(i=>$('#'+i).oninput=()=>{$('#pErr').textContent='';this.calc()});
-  if(S.supa||S.local){$('#tFoto').classList.add('hide')}$('#tFoto').onclick=()=>FOTO.open();$('#tImp').onclick=()=>importarRegistros();loteBar();$('#pGo').onclick=()=>this.guardarProd();$('#sGo').onclick=()=>this.guardarParada();
+  $('#tFoto').onclick=()=>FOTO.open();$('#tImp').onclick=()=>importarRegistros();loteBar();$('#pGo').onclick=()=>this.guardarProd();$('#sGo').onclick=()=>this.guardarParada();
   this.autoTimes(true);TT.init();this.update()},
 dayEntries(){const f=$('#tFecha')?.value,op=$('#tOp')?.value;return entries().filter(e=>e.fecha===f&&e.operario===op).sort((a,b)=>(toMin(a.ini)??0)-(toMin(b.ini)??0))},
 autoTimes(force){const es=this.dayEntries();const lastFin=es.length?es.reduce((a,e)=>(toMin(e.fin)>toMin(a)?e.fin:a),es[0].fin):'06:00';
@@ -1557,6 +1557,7 @@ function matchMotivo(txt,maq){const M=S.M.motivos?.items||[];const s=nrm(txt);co
 const hhmm=t=>{if(t==null)return '';const m=String(t).match(/(\d{1,2})\D*(\d{2})?/);if(!m)return '';const h=+m[1],mi=+(m[2]||0);return h<24&&mi<60?String(h).padStart(2,'0')+':'+String(mi).padStart(2,'0'):''};
 
 const API_MODEL='claude-sonnet-5';
+const COPIA_CLAUDE='https://claude.ai/artifact/A4L2f4FzZnWkipM9VwkHKx';
 async function imgB64(file){let w,h,src;
   try{src=await createImageBitmap(file,{imageOrientation:'from-image'});w=src.width;h=src.height}
   catch(e){src=await new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>ko({code:'image_rejected'});i.src=URL.createObjectURL(file)});w=src.naturalWidth;h=src.naturalHeight}
@@ -1582,15 +1583,21 @@ async open(){
   document.body.appendChild(m);const close=()=>{if(this.ctl)this.ctl.abort();if(this.url)URL.revokeObjectURL(this.url);m.remove()};
   m.onclick=e=>{if(e.target===m||e.target.hasAttribute('data-x')){if(this.rows.length&&!confirm('¿Cerrar sin guardar lo leído?'))return;close()}};this.close=close;
   const kc=$('#fKeyChg');if(kc)kc.onclick=()=>this.pedirClave(true);
-  if(this.modo==='api'&&!lsGet('apikey'))this.pedirClave();else this.zona()},
+  if(this.modo==='api'&&!lsGet('apikey'))this.elegir();else this.zona()},
+elegir(){const st=$('#fStep');
+  st.innerHTML=`<div style="max-width:640px"><h3>¿Cómo querés leer la foto?</h3>
+   <p class="note">En esta versión no hay una clave de API cargada en esta computadora. La forma sin costo extra es leer la foto en la copia del panel en claude.ai (usa tu plan de Claude) y traer los registros con un Excel.</p>
+   <ol class="note" style="padding-left:20px;margin:8px 0"><li>Abrí la copia de claude.ai con el botón de abajo (tenés que estar con tu cuenta de Claude).</li><li>Ahí: Taller &gt; Carga manual &gt; <b>Cargar desde foto</b>. Revisá los renglones y tocá <b>Agregar al lote</b> (podés leer varias fotos).</li><li>Tocá <b>Descargar lote</b>.</li><li>Volvé acá y tocá <b>Importar registros</b> (al lado de "Cargar desde foto") con ese Excel.</li></ol>
+   <div class="row" style="margin-top:10px;gap:8px"><a class="btn" href="${COPIA_CLAUDE}" target="_blank" rel="noopener" style="text-decoration:none">Abrir la copia de claude.ai</a><button class="btn sec" id="fUsarKey">Tengo una clave de API</button></div></div>`;
+  $('#fUsarKey').onclick=()=>this.pedirClave()},
 pedirClave(cambiar){const st=$('#fStep');const k=lsGet('apikey');
   st.innerHTML=`<div style="max-width:620px"><h3>Clave de API de Claude para esta computadora</h3>
    <p class="note">Fuera de claude.ai (por ejemplo, desde GitHub), la lectura de fotos usa la API de Claude. Pedí una clave en <b>console.anthropic.com</b>, en API Keys, y pegala acá. Se guarda <b>solo en este navegador</b>: no queda escrita en el archivo ni en GitHub. Cada foto leída tiene un costo de uso en esa cuenta.</p>
    <label class="f">Clave (empieza con sk-ant-)<input id="fKey" type="password" autocomplete="off" placeholder="sk-ant-..." value=""></label>
-   <div class="row" style="margin-top:10px;gap:8px"><button class="btn" id="fKeyOk">Guardar clave</button>${k?'<button class="btn sec" id="fKeyDel">Borrar la clave guardada</button>':''}${cambiar&&k?'<button class="btn sec" id="fKeyBack">Volver</button>':''}</div><div class="err" id="fKeyErr"></div></div>`;
+   <div class="row" style="margin-top:10px;gap:8px"><button class="btn" id="fKeyOk">Guardar clave</button>${k?'<button class="btn sec" id="fKeyDel">Borrar la clave guardada</button>':''}${cambiar&&k?'<button class="btn sec" id="fKeyBack">Volver</button>':''}${!k?'<button class="btn sec" id="fKeyEl">Volver</button>':''}</div><div class="err" id="fKeyErr"></div></div>`;
   $('#fKeyOk').onclick=()=>{const v=$('#fKey').value.trim();if(!/^sk-ant-/.test(v)){$('#fKeyErr').textContent='La clave tiene que empezar con sk-ant-.';return}lsSet('apikey',v);toast('Clave guardada en esta computadora');this.zona()};
   const d=$('#fKeyDel');if(d)d.onclick=()=>{try{localStorage.removeItem('spl.apikey')}catch(e){}toast('Clave borrada');this.pedirClave()};
-  const bk=$('#fKeyBack');if(bk)bk.onclick=()=>this.zona()},
+  const bk=$('#fKeyBack');if(bk)bk.onclick=()=>this.zona();const be=$('#fKeyEl');if(be)be.onclick=()=>this.elegir()},
 zona(){const st=$('#fStep');const types=this.modo==='claude'?'image/jpeg,image/png,image/webp,image/gif':'image/*';
   st.innerHTML=`<div class="drop" id="fDZ" tabindex="0" role="button"><b>Elegí o arrastrá la foto de la planilla</b><span class="note">Una planilla por foto. Mejor de frente, con buena luz y la hoja entera.${this.modo==='api'?' Lectura con la API de Claude.':''}</span><input type="file" id="fIn" accept="${types}" class="hide"></div><div id="fBody" style="margin-top:12px"></div>`;
   const dz=$('#fDZ'),inp=$('#fIn');
