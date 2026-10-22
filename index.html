@@ -279,7 +279,7 @@ body.tvon .app{display:none}
     <a href="#auditoria" data-v="auditoria">Registro de cambios</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-22 b</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-22 c</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -2109,7 +2109,7 @@ volver(){return cfgOp().volverPanel||!accesoActivo()&&!cfgOp().pedirClave?`<div 
 bindHead(){const n=$('#oNo');if(n)n.onclick=()=>{try{localStorage.removeItem('spl.yo');localStorage.removeItem('spl.yoh')}catch(e){}this.render()};const h=$('#oHoy');if(h)h.onclick=()=>this.hoy()},
 diag(){const u=appURL();const gh=/github\.io/.test(location.host);
   if(S.supaErr)return `<div class="opcard warn" style="border-color:var(--bad)"><h2>No hay conexión con la base compartida</h2><p class="note">${esc(S.supaDet||'')}</p><p>${S.supaErr==='tabla'?'Falta crear la tabla <b>'+SUPA.tabla+'</b> en Supabase (una sola vez, con el script SQL).':'No se pudo conectar con Supabase. Revisá que el celular tenga internet (datos o wifi) y recargá.'}</p><p class="note">Mientras tanto no se puede cargar la producción desde este celular.</p></div>`;
-  if(S.local)return `<div class="opcard warn" style="border-color:var(--bad)"><h2>Esta página no está conectada a la base compartida</h2><p class="note">Se abrió desde <b>${esc(u)}</b>. El QR tiene que abrir la dirección de GitHub: reimprimí la orden desde https://cbuceta.github.io/Panel-produccion/</p></div>`;
+  if(S.local)return `<div class="opcard warn" style="border-color:var(--bad)"><h2>Esta página no está conectada a la base compartida</h2><p class="note">Se abrió desde <b>${esc(u)}</b>. El QR tiene que abrir la dirección de GitHub: reimprimí la orden desde https://spotsline.github.io/Panel-produccion/</p></div>`;
   if(!gh&&!/claude/.test(location.host))return '';return ''},
 hoy(){const yo=this.yo();const es=entries().filter(e=>e.fecha===today()&&e.operario===yo).sort((a,b)=>(toMin(a.ini)||0)-(toMin(b.ini)||0));const box=document.createElement('div');box.className='modal';
   box.innerHTML=`<div class="dlg"><div class="pzh" style="align-items:center"><h2 style="margin:0">Mis registros de hoy</h2><button class="btn link" data-x>Cerrar</button></div><div class="dlgb" style="margin-top:10px">${es.length?es.map(e=>`<div class="oprow" style="cursor:default"><b>${esc(e.ini)}–${esc(e.fin)}</b> ${e.tipo==='prod'?`${esc(e.centro)} ${esc(e.pieza)} ${esc(e.paso)}<br><span>${nf(e.qty)} piezas${e.scrap?`, ${nf(e.scrap)} scrap`:''}</span>`:`<br><span>${esc(motivo(e.motivo)?.nombre||'Parada')}</span>`}</div>`).join(''):'<p class="note">Todavía no cargaste nada hoy.</p>'}</div></div>`;
