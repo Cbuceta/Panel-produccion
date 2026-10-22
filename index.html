@@ -211,6 +211,12 @@ th.s-asc::after{content:' ▲';font-size:9px}th.s-desc::after{content:' ▼';fon
   .bars .b{grid-template-columns:90px 1fr 76px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+#prt{display:none}
+@media print{body.imprimiendo .app,body.imprimiendo .toast,body.imprimiendo .modal{display:none!important}body.imprimiendo #prt{display:block}body.imprimiendo{background:#fff;color:#000}
+ #prt{font-family:Archivo,system-ui,sans-serif;font-size:13pt;color:#000}#prt h1{font-size:20pt;margin:0 0 2px}#prt .sub{font-size:11pt;margin:0 0 12px;color:#333}
+ #prt table{width:100%;border-collapse:collapse}#prt th,#prt td{border:1px solid #000;padding:6px 8px;text-align:left;vertical-align:top}#prt th{background:#eee;font-size:11pt}#prt td.m{font-weight:700;font-size:14pt}#prt h2{font-size:13pt;margin:16px 0 6px}
+ @page{size:A4;margin:12mm}}
+.asg td{vertical-align:middle}.asg select{min-width:96px}.asg tr.aus td{opacity:.55}.asg .chipm{display:inline-flex;gap:4px;flex-wrap:wrap}
 
 /* pantalla en vivo (TV) */
 body.tvon .app{display:none}
@@ -273,7 +279,7 @@ body.tvon .app{display:none}
     <a href="#auditoria" data-v="auditoria">Registro de cambios</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-21 b</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-22 b</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -1573,6 +1579,14 @@ async function leerConAPI(prompt,file,signal){const key=lsGet('apikey');if(!key)
   try{return JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1))}catch(e){throw {code:'invalid_json'}}}
 const FOTO={rows:[],file:null,url:null,ctl:null,
 resolver(x){const r=x.art?matchPiezaX(x.art,x.piezaTxt,x.paso,x.maq):{pz:null};x.pz=r.pz&&r.pz.seq!=null?r.pz.pieza+'|'+r.pz.seq:'';x.pmsg=x.pz?'':(r.msg||'');x.pzHint=r.pz?.pieza||''},
+revisar(x){if(!x)return;this.modo='pend';this.pend=x;this.rows=[];
+  const m=document.createElement('div');m.className='modal';m.id='fotoM';
+  m.innerHTML=`<div class="dlg" style="width:min(1180px,100%)" role="dialog" aria-modal="true" aria-label="Validar planilla leída de foto">
+   <div class="pzh" style="align-items:center"><h2 style="margin:0">Validar planilla leída de foto</h2><button class="btn link" data-x>Cerrar</button></div>
+   <div id="fStep" class="dlgb" style="padding:12px;border:0"><div id="fBody"><div class="grid2" style="grid-template-columns:minmax(0,4fr) minmax(0,8fr)"><div>${x.img?`<img src="${x.img}" alt="Foto de la planilla" class="fimg">`:'<p class="note">La foto no vino adjunta: buscala en la carpeta de fotos ('+esc(x.archivo||'')+').</p>'}</div><div id="fRes"></div></div></div></div></div>`;
+  document.body.appendChild(m);const close=()=>{this.pend=null;m.remove()};this.close=close;
+  m.onclick=e=>{if(e.target===m||e.target.hasAttribute('data-x'))close()};
+  this.armar({fecha:x.fecha,responsable:x.operario||x.responsable,filas:x.filas||[]});if(!this.op&&x.responsable)this.op=matchOperario(x.responsable)||'';this.render()},
 async open(){
   const sample=await window.claude?.use?.('sample');const caps=sample?await sample.limits().catch(()=>null):null;
   this.modo=caps?.images?'claude':'api';this.sample=sample;this.rows=[];
@@ -1666,7 +1680,7 @@ render(){const R=$('#fRes');if(!R)return;const P=S.M.personal?.items||[];const C
     <td><input type="time" value="${esc(x.ini)}" data-r="${i}.ini"></td><td><input type="time" value="${esc(x.fin)}" data-r="${i}.fin"></td>
     <td class="n">${x.tipo==='parada'?'':`<input type="number" min="0" value="${x.qty}" data-r="${i}.qty" style="width:78px;text-align:right">`}</td><td class="n">${x.tipo==='parada'?'':`<input type="number" min="0" value="${x.scrap}" data-r="${i}.scrap" style="width:60px;text-align:right">`}</td>
     <td><input value="${esc(x.obs)}" data-r="${i}.obs" style="min-width:120px"></td><td><span class="pill ${c}">${esc(t)}</span></td></tr>`}).join('')||'<tr><td colspan="11" class="note">No se leyó ningún renglón.</td></tr>'}</table></div>
-   <div class="row" style="justify-content:space-between;margin-top:10px"><span class="row" style="gap:6px"><button class="btn sec sm" id="fxAdd">Agregar renglón</button><button class="btn sec sm" id="fxOtra">Leer otra foto</button></span>${!S.supa&&!S.local?`<span class="row" style="gap:6px"><button class="btn sec" id="fxGo">Guardar acá</button><button class="btn" id="fxLote">Agregar ${this.rows.filter(x=>x.inc).length} al lote</button></span>`:`<button class="btn" id="fxGo">Guardar ${this.rows.filter(x=>x.inc).length} registros</button>`}</div><div class="err" id="fxErr"></div>`;
+   <div class="row" style="justify-content:space-between;margin-top:10px"><span class="row" style="gap:6px"><button class="btn sec sm" id="fxAdd">Agregar renglón</button>${this.pend?'':'<button class="btn sec sm" id="fxOtra">Leer otra foto</button>'}</span>${!S.supa&&!S.local?`<span class="row" style="gap:6px"><button class="btn sec" id="fxGo">Guardar acá</button><button class="btn" id="fxLote">Agregar ${this.rows.filter(x=>x.inc).length} al lote</button></span>`:`<button class="btn" id="fxGo">Guardar ${this.rows.filter(x=>x.inc).length} registros</button>`}</div><div class="err" id="fxErr"></div>`;
   $('#fxF').onchange=()=>{this.fecha=$('#fxF').value;this.render()};$('#fxO').onchange=()=>{this.op=$('#fxO').value;this.render()};
   R.querySelectorAll('[data-r]').forEach(el=>{const [i,k]=el.dataset.r.split('.');const x=this.rows[+i];
     const ev=['ini','fin','qty','scrap','obs'].includes(k)?'input':'change';
@@ -1676,7 +1690,7 @@ render(){const R=$('#fRes');if(!R)return;const P=S.M.personal?.items||[];const C
       if(k==='tipo'&&v==='parada'&&!x.motivo)x.motivo=matchMotivo(x.motivoTxt,x.maq);
       if(['inc','tipo','art','maq','pz','motivo'].includes(k))this.render();else{const tr=el.closest('tr');const [c,t]=this.estado(x);const p=tr.querySelector('.pill');p.className='pill '+c;p.textContent=t}})});
   $('#fxAdd').onclick=()=>{this.rows.push({inc:true,tipo:'prod',maqTxt:'',maq:'',prodTxt:'',piezaTxt:'',paso:null,ini:'',fin:'',qty:'',scrap:0,obs:'',motivoTxt:''});this.render()};
-  $('#fxOtra').onclick=()=>{if(this.rows.length&&!confirm('Lo leído de esta foto no se guardó. ¿Leer otra igual?'))return;this.rows=[];$('#fBody').innerHTML=''};
+  if($('#fxOtra'))$('#fxOtra').onclick=()=>{if(this.rows.length&&!confirm('Lo leído de esta foto no se guardó. ¿Leer otra igual?'))return;this.rows=[];$('#fBody').innerHTML=''};
   $('#fxGo').onclick=()=>this.guardar();{const flb=$('#fxLote');if(flb)flb.onclick=()=>this.agregarLote()}},
 validar(){const err=$('#fxErr');err.textContent='';if(!this.op&&!this.resp){err.textContent='Elegí el operario.';return null}if(!this.fecha){err.textContent='Elegí la fecha.';return null}
   const inc=this.rows.filter(x=>x.inc);if(!inc.length){err.textContent='No hay renglones marcados para cargar.';return null}
@@ -1695,6 +1709,7 @@ async guardar(){const err=$('#fxErr');err.textContent='';if(!this.op){err.textCo
       const [pz,seq]=x.pz.split('|');const w=S.M.productos.items[x.art].piezas.find(p=>p.pieza===pz).ops.find(o=>o.seq==seq);const ot=matchOT(x.art,pz,+seq);
       return {...base,tipo:'prod',centro:x.maq,centro_tipo:centroTipo(x.maq),op_id:ot?ot.o.id:null,op_numero:ot?ot.o.numero:null,articulo:ot?ot.o.articulo:x.art,pieza:ot?ot.l.pieza:pz,seq:+seq,paso:w.op,qty:+x.qty||0,scrap:+x.scrap||0,seg_std:w.seg||null,std_min:w.seg?(+x.qty||0)*w.seg/60:null,fuera_plan:!ot}});
     await writeParte(this.fecha,a=>a.push(...items));toast(items.length+' registros cargados desde la foto');
+    if(this.pend){const pid=this.pend.id;this.pend=null;try{await S.db.doc('fotopend/'+pid).delete()}catch(e){}if(this.close)setTimeout(()=>this.close(),1200)}
     this.rows=[];const tf=$('#tFecha'),to=$('#tOp');if(tf)tf.value=this.fecha;if(to){to.value=this.op;lsSet('op',this.op)}
     $('#fBody').innerHTML=`<p class="good">Listo: ${items.length} registros de ${esc(persona(this.op))} del ${fmtD(this.fecha)}.</p><p class="note">Podés elegir otra foto arriba o cerrar para ver el día.</p>`;V.taller.update?.()}
   catch(e){err.textContent='No se pudo guardar. Probá de nuevo.'}finally{done('#fxGo')}}
@@ -1844,6 +1859,71 @@ function filaARegistro(x,fecha,op,nom){const base={Fecha:fecha,Operario:op?perso
   if(!x.art||!x.pz)return {...base,Artículo:x.art||String(x.prodTxt||'').trim(),Pieza:x.pz?x.pz.split('|')[0]:String(x.piezaTxt||'').trim(),Paso:x.pz?+x.pz.split('|')[1]:(x.paso??''),Operación:'',Cantidad:+x.qty||0,Scrap:+x.scrap||0,Motivo:''};
   const [pz,seq]=x.pz.split('|');const w=S.M.productos.items[x.art].piezas.find(p=>p.pieza===pz).ops.find(o=>o.seq==seq);
   return {...base,Artículo:x.art,Pieza:pz,Paso:+seq,Operación:w.op,Cantidad:+x.qty||0,Scrap:+x.scrap||0,Motivo:''}}
+/* ---------- asignación diaria de máquinas (la arma el planificador el día anterior) ---------- */
+const ASG={f:null,d:null,cargado:null,
+proxHabil(f){let d=addDays(f,1);while([0,6].includes(new Date(d+'T12:00:00').getDay()))d=addDays(d,1);return d},
+gente(f){return (S.M.personal?.items||[]).filter(p=>p.activo!==false&&areaDe(p.id,f)==='taller').sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))},
+async leer(f){try{const s=await S.db.doc('asignacion/'+f).get();return s.exists?s.data():null}catch(e){return null}},
+async abrir(){if(!this.f)this.f=this.proxHabil(today());if(this.cargado!==this.f){this.cargado=this.f;const d=await this.leer(this.f);this.d=d?JSON.parse(JSON.stringify(d)):{fecha:this.f,items:{}};this.sucio=false}this.render()},
+it(pid){return this.d.items[pid]||(this.d.items[pid]={maq:[],obs:'',aus:false})},
+dia(f){return new Date(f+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})},
+render(){const el=$('#tpA');if(!el||!this.d)return;const f=this.f;const P=this.gente(f);const C=(S.M.centros?.items||[]);const ed=!!S.canPlan;
+  const uso={};for(const p of P){const x=this.d.items[p.id];if(!x||x.aus)continue;for(const m of x.maq||[])if(m)(uso[m]=uso[m]||[]).push(p.id)}
+  const libres=C.filter(c=>!uso[c.codigo]).map(c=>c.codigo);const sinAsig=P.filter(p=>{const x=this.d.items[p.id];return !x||(!x.aus&&!(x.maq||[]).some(Boolean))});
+  const opt=(v)=>'<option value="">–</option>'+C.map(c=>`<option ${c.codigo===v?'selected':''}>${esc(c.codigo)}</option>`).join('');
+  const hs=p=>{const h=S.horas?estadoHoras(p.id,f):null;return h&&h.k!=='sin'?`<span class="pill ${h.aus?'bad':''}">${esc(h.label||'')}</span>`:''};
+  el.innerHTML=`<div class="panel"><div class="row" style="justify-content:space-between;align-items:flex-end">
+     <div class="row"><label class="f" style="flex:0 0 170px">Día<input type="date" id="asF" value="${esc(f)}"></label><span class="note" style="padding-bottom:9px">${esc(this.dia(f))}${this.d.actualizado?` · guardado ${esc(new Date(this.d.actualizado).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))}${this.d.por?' por '+esc(this.d.por):''}`:' · sin guardar'}</span></div>
+     <div class="row" style="gap:6px">${ed?'<button class="btn sec sm" id="asCopy">Copiar del día anterior</button>':''}<button class="btn sec sm" id="asPrint">Imprimir</button><button class="btn sec sm" id="asPdf">Descargar PDF</button>${ed?'<button class="btn" id="asSave">Guardar</button>':''}</div></div>
+    ${ed?'':'<p class="note">Solo el planificador puede cambiar la asignación.</p>'}
+    <p class="note" style="margin:10px 0 6px">${P.length} personas del taller · ${sinAsig.length?`<b class="poor">${sinAsig.length} sin máquina</b>`:'todas con máquina'} · máquinas libres: ${libres.length?esc(libres.join(', ')):'ninguna'}${this.sucio?' · <b class="poor">hay cambios sin guardar</b>':''}</p>
+    <div class="tw"><table class="asg"><tr><th>Persona</th><th>Asistencia</th><th>No viene</th><th>Máquina</th><th>2.ª máquina</th><th>Tarea / observaciones</th><th></th></tr>
+    ${P.map(p=>{const x=this.d.items[p.id]||{maq:[],obs:'',aus:false};const m=x.maq||[];const rep=m.filter(Boolean).filter(c=>uso[c]&&uso[c].length>1);
+      return `<tr class="${x.aus?'aus':''}"><td><b>${esc(p.nombre)}</b></td><td>${hs(p)}</td><td><input type="checkbox" data-aa="${esc(p.id)}" ${x.aus?'checked':''} ${ed?'':'disabled'} style="width:auto" aria-label="${esc(p.nombre)} no viene"></td>
+      <td><select data-am="${esc(p.id)}|0" ${ed&&!x.aus?'':'disabled'}>${opt(m[0])}</select></td><td><select data-am="${esc(p.id)}|1" ${ed&&!x.aus?'':'disabled'}>${opt(m[1])}</select></td>
+      <td><input data-ao="${esc(p.id)}" value="${esc(x.obs||'')}" placeholder="ej. OP 874, cambio de formato" ${ed?'':'disabled'} style="min-width:180px"></td>
+      <td>${rep.length?`<span class="pill lamp">${esc(rep.join(', '))} compartida con ${esc(rep.flatMap(c=>uso[c].filter(i=>i!==p.id).map(persona)).join(', '))}</span>`:''}</td></tr>`}).join('')}</table></div></div>`;
+  $('#asF').onchange=async()=>{const v=fechaOk($('#asF').value,this.f);if(this.sucio&&!confirm('Hay cambios sin guardar. ¿Cambiar de día igual?')){$('#asF').value=this.f;return}this.f=v;this.cargado=null;await this.abrir()};
+  el.querySelectorAll('[data-aa]').forEach(i=>i.onchange=()=>{this.it(i.dataset.aa).aus=i.checked;this.sucio=true;this.render()});
+  el.querySelectorAll('[data-am]').forEach(s=>s.onchange=()=>{const [pid,k]=s.dataset.am.split('|');const x=this.it(pid);x.maq=x.maq||[];x.maq[+k]=s.value;x.maq=[x.maq[0]||'',x.maq[1]||''];this.sucio=true;this.render()});
+  el.querySelectorAll('[data-ao]').forEach(i=>i.oninput=()=>{this.it(i.dataset.ao).obs=i.value;this.sucio=true});
+  const sv=$('#asSave');if(sv)sv.onclick=()=>this.guardar();const cp=$('#asCopy');if(cp)cp.onclick=()=>this.copiar();
+  $('#asPrint').onclick=()=>this.imprimir();$('#asPdf').onclick=()=>this.pdf()},
+async guardar(){if(busy('#asSave'))return;try{const items={};for(const [k,v] of Object.entries(this.d.items))if(v.aus||(v.maq||[]).some(Boolean)||v.obs)items[k]={maq:(v.maq||[]).filter(Boolean),obs:v.obs||'',aus:!!v.aus};
+    const doc={fecha:this.f,items,actualizado:new Date().toISOString(),por:(typeof quienSoy==='function'?(quienSoy()?.quien||''):'')};await S.db.doc('asignacion/'+this.f).set(doc);this.d=JSON.parse(JSON.stringify(doc));this.sucio=false;toast('Asignación guardada');this.render()}
+  catch(e){toast('No se pudo guardar')}finally{done('#asSave')}},
+async copiar(){let f=this.f,d=null;for(let i=0;i<10&&!d;i++){f=addDays(f,-1);d=await this.leer(f)}if(!d){toast('No hay asignaciones en los 10 días anteriores');return}
+  if(Object.keys(this.d.items||{}).length&&!confirm(`Se reemplaza lo cargado por la asignación del ${fmtD(f)}. ¿Seguir?`))return;
+  this.d.items={};for(const [k,v] of Object.entries(d.items||{}))this.d.items[k]={maq:[...(v.maq||[])],obs:v.obs||'',aus:false};this.sucio=true;toast('Copiado del '+fmtD(f)+'. Revisá y guardá.');this.render()},
+filas(){const P=this.gente(this.f);return P.map(p=>{const x=this.d.items[p.id]||{};return {nombre:p.nombre,maq:(x.maq||[]).filter(Boolean),obs:x.obs||'',aus:!!x.aus}})},
+imprimir(){const F=this.filas();const C=(S.M.centros?.items||[]).map(c=>c.codigo);const usadas=new Set(F.filter(r=>!r.aus).flatMap(r=>r.maq));
+  let pr=$('#prt');if(!pr){pr=document.createElement('div');pr.id='prt';document.body.appendChild(pr)}
+  const act=F.filter(r=>!r.aus);const aus=F.filter(r=>r.aus);
+  pr.innerHTML=`<h1>Asignación de máquinas · Taller</h1><p class="sub">${esc(this.dia(this.f))}${this.sucio?' (borrador sin guardar)':''}</p>
+   <table><tr><th style="width:34%">Persona</th><th style="width:22%">Máquina</th><th>Tarea / observaciones</th></tr>${act.map(r=>`<tr><td>${esc(r.nombre)}</td><td class="m">${esc(r.maq.join(' + ')||'—')}</td><td>${esc(r.obs)}</td></tr>`).join('')}</table>
+   ${aus.length?`<h2>No vienen</h2><p>${esc(aus.map(r=>r.nombre).join(', '))}</p>`:''}
+   <h2>Máquinas sin asignar</h2><p>${esc(C.filter(c=>!usadas.has(c)).join(', ')||'ninguna')}</p>`;
+  document.body.classList.add('imprimiendo');const fin=()=>{document.body.classList.remove('imprimiendo');window.removeEventListener('afterprint',fin)};window.addEventListener('afterprint',fin);
+  try{window.print()}catch(e){toast('No se pudo abrir la impresión: usá Descargar PDF')}setTimeout(fin,60000)},
+pdf(){const J=window.jspdf?.jsPDF;if(!J){toast('No se pudo cargar el generador de PDF. Recargá la página.');return}
+  const doc=new J({unit:'mm',format:'a4'});const F=this.filas();const act=F.filter(r=>!r.aus);const aus=F.filter(r=>r.aus);const C=(S.M.centros?.items||[]).map(c=>c.codigo);const usadas=new Set(act.flatMap(r=>r.maq));
+  let y=16;doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('Asignación de máquinas · Taller',14,y);y+=7;doc.setFont('helvetica','normal');doc.setFontSize(11);doc.text(this.dia(this.f)+(this.sucio?' (borrador sin guardar)':''),14,y);y+=8;
+  const X=[14,80,124],W=[66,44,72];const head=()=>{doc.setFillColor(235,235,235);doc.rect(14,y-5,182,8,'F');doc.setFont('helvetica','bold');doc.setFontSize(11);['Persona','Máquina','Tarea / observaciones'].forEach((h,i)=>doc.text(h,X[i]+2,y));y+=6;doc.setFont('helvetica','normal')};head();
+  for(const r of act){const ob=doc.splitTextToSize(r.obs||'',W[2]-4);const h=Math.max(9,ob.length*5+4);if(y+h>285){doc.addPage();y=16;head()}
+    doc.rect(14,y-3,182,h);doc.line(X[1],y-3,X[1],y-3+h);doc.line(X[2],y-3,X[2],y-3+h);doc.setFontSize(11);doc.text(r.nombre,X[0]+2,y+3);doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(r.maq.join(' + ')||'—',X[1]+2,y+3);doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text(ob,X[2]+2,y+3);y+=h}
+  y+=6;doc.setFontSize(11);if(aus.length){doc.setFont('helvetica','bold');doc.text('No vienen:',14,y);doc.setFont('helvetica','normal');const t=doc.splitTextToSize(aus.map(r=>r.nombre).join(', '),150);doc.text(t,40,y);y+=t.length*5+3}
+  doc.setFont('helvetica','bold');doc.text('Máquinas sin asignar:',14,y);doc.setFont('helvetica','normal');const t2=doc.splitTextToSize(C.filter(c=>!usadas.has(c)).join(', ')||'ninguna',140);doc.text(t2,58,y);
+  guardarArchivo('Asignacion maquinas '+this.f+'.pdf',doc.output('blob'))}
+};
+/* fotos que Claude leyó solo (tarea programada) y quedan para validar: colección fotopend */
+function pendBar(){const el=$('#tPend');if(!el)return;const L=(S.fotopend||[]).filter(x=>x.estado!=='cargada').sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||(a.responsable||'').localeCompare(b.responsable||''));
+  if(!L.length){el.innerHTML='';return}
+  el.innerHTML=`<div class="banner" style="margin-bottom:14px"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px"><b>Planillas leídas de fotos para validar: ${L.length}</b><span class="note">Revisá cada una contra la foto y tocá Guardar. Hasta que no las guardes, no cuentan.</span></div>
+   <div class="tw"><table><tr><th>Fecha</th><th>Responsable</th><th class="n">Renglones</th><th>Dudas</th><th>Foto</th><th></th></tr>
+   ${L.map(x=>{const d=(x.filas||[]).filter(f=>f.dudas).length;return `<tr><td>${x.fecha?fmtD(x.fecha):'–'}</td><td>${esc(x.responsable||'')}</td><td class="n">${(x.filas||[]).length}</td><td>${d?`<span class="pill lamp">${d}</span>`:'<span class="pill ok">0</span>'}</td><td class="note">${esc(x.archivo||'')}</td>
+    <td><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm" data-pv="${esc(x.id)}">Revisar</button><button class="btn link" data-pd="${esc(x.id)}">Descartar</button></span></td></tr>`}).join('')}</table></div></div>`;
+  el.querySelectorAll('[data-pv]').forEach(b=>b.onclick=()=>FOTO.revisar(L.find(x=>x.id===b.dataset.pv)));
+  el.querySelectorAll('[data-pd]').forEach(b=>b.onclick=async()=>{const x=L.find(y=>y.id===b.dataset.pd);if(!confirm(`¿Descartar la planilla de ${x.responsable||'?'} del ${x.fecha?fmtD(x.fecha):'?'}? No se carga ningún registro.`))return;try{await S.db.doc('fotopend/'+x.id).delete();toast('Planilla descartada')}catch(e){toast('No se pudo descartar')}})}
 function loteBar(){const el=$('#tLote');if(!el)return;const L=LOTE.get();const enClaude=!S.supa&&!S.local;
   if(!L.length){el.innerHTML=enClaude?`<p class="note" style="margin:8px 0 0">Si trabajan con la versión compartida de GitHub, leé las fotos acá y agregalas al lote: después lo descargás y lo importás allá.</p>`:'';return}
   const dias=[...new Set(L.map(r=>r.Fecha))].sort();const ops=[...new Set(L.map(r=>r.Operario))];
@@ -2259,11 +2339,11 @@ function resumenDia(es){let prod=0,std=0,stdM=0,par=0,qty=0,scrap=0,gap=0,prev=n
   return {prod,std,par,qty,scrap,gap,ef:stdM?std/stdM:null,ini:ord[0]?.ini,fin:ord.length?ord.reduce((m,e)=>toMin(e.fin)>toMin(m)?e.fin:m,ord[0].fin):null,n:es.length}}
 const TT={tab:'linea',f:today(),F:{d0:today(),d1:today(),op:'',tipo:'',reg:'',origen:'',q:''},
 init(){const main=$('#main');const nodes=[...main.children].filter(n=>!(n.tagName==='H1'||n.classList.contains('lead')||n.classList.contains('banner')));const wrap=document.createElement('div');wrap.id='tpM';nodes.forEach(n=>wrap.appendChild(n));
-  main.insertAdjacentHTML('beforeend','<div class="tabs ptabs" id="tTabs"><button data-tt="linea">Línea del día</button><button data-tt="manual">Carga manual</button><button data-tt="ops">Operarios</button><button data-tt="todos">Todos los registros</button></div>');
-  main.appendChild(wrap);main.insertAdjacentHTML('beforeend','<div id="tpL" class="hide"></div><div id="tpO" class="hide"></div><div id="tpT" class="hide"></div>');
+  main.insertAdjacentHTML('beforeend','<div id="tPend"></div><div class="tabs ptabs" id="tTabs"><button data-tt="linea">Línea del día</button><button data-tt="manual">Carga manual</button><button data-tt="ops">Operarios</button><button data-tt="todos">Todos los registros</button><button data-tt="asig">Asignación de máquinas</button></div>');
+  main.appendChild(wrap);main.insertAdjacentHTML('beforeend','<div id="tpL" class="hide"></div><div id="tpO" class="hide"></div><div id="tpT" class="hide"></div><div id="tpA" class="hide"></div>');
   main.querySelectorAll('[data-tt]').forEach(b=>b.onclick=()=>{this.tab=b.dataset.tt;this.show()});this.show()},
-show(){document.querySelectorAll('[data-tt]').forEach(b=>b.classList.toggle('on',b.dataset.tt===this.tab));$('#tpM').classList.toggle('hide',this.tab!=='manual');$('#tpL').classList.toggle('hide',this.tab!=='linea');$('#tpO').classList.toggle('hide',this.tab!=='ops');$('#tpT').classList.toggle('hide',this.tab!=='todos');this.update(true)},
-update(force){if(this.tab==='linea'){const L=$('#tpL');if(L&&(force||!L.contains(document.activeElement))){L.innerHTML=htmlLineaTaller();bindObjetivoGen(L);bindPlanta(L)}}if(this.tab==='ops')this.ops(force);if(this.tab==='todos')this.todos(force)},
+show(){document.querySelectorAll('[data-tt]').forEach(b=>b.classList.toggle('on',b.dataset.tt===this.tab));$('#tpM').classList.toggle('hide',this.tab!=='manual');$('#tpL').classList.toggle('hide',this.tab!=='linea');$('#tpO').classList.toggle('hide',this.tab!=='ops');$('#tpT').classList.toggle('hide',this.tab!=='todos');$('#tpA').classList.toggle('hide',this.tab!=='asig');if(this.tab==='asig')ASG.abrir();this.update(true)},
+update(force){pendBar();if(this.tab==='linea'){const L=$('#tpL');if(L&&(force||!L.contains(document.activeElement))){L.innerHTML=htmlLineaTaller();bindObjetivoGen(L);bindPlanta(L)}}if(this.tab==='ops')this.ops(force);if(this.tab==='todos')this.todos(force)},
 ops(force){const b=$('#tpO');if(!b)return;if(!force&&b.contains(document.activeElement)&&document.activeElement.tagName==='INPUT')return;const f=this.f;const E=entries().filter(e=>e.fecha===f);const A=activasVivas();
   const P=(S.M.personal?.items||[]).filter(p=>(p.activo!==false&&areaDe(p.id,f)==='taller')||E.some(e=>e.operario===p.id));
   const cards=P.map(p=>{const es=E.filter(e=>e.operario===p.id);const r=resumenDia(es);const a=A.find(x=>x.yo===p.id);const h=S.horas?estadoHoras(p.id,f):null;return {p,r,a,es,h}}).sort((x,y)=>(y.a?4:0)+(y.r.n?2:0)-(y.h?.aus?1:0)-((x.a?4:0)+(x.r.n?2:0)-(x.h?.aus?1:0))||x.p.nombre.localeCompare(y.p.nombre));
@@ -3427,6 +3507,7 @@ route();
     db.doc('maestro/'+k).onSnapshot(s=>{const prev=JSON.stringify(S.M[k]);S.M[k]=s.exists?s.data():null;S.loaded[k]=true;if(k==='perfiles'&&prev!==JSON.stringify(S.M[k])){route();return}changed('maestro')},()=>{})}
   for(const k of ['pendiente','parametros','stock','ajustes','objetivos','armado_plan','pantalla'])db.doc('planificacion/'+k).onSnapshot(s=>{S.P[k]=s.exists?s.data():null;changed('plan')},()=>{});
   S.derivs=[];db.collection('derivaciones').onSnapshot(q=>{S.derivs=q.docs.map(d=>({id:d.id,...d.data()}));changed('datos')},()=>{});
+  S.fotopend=[];db.collection('fotopend').onSnapshot(q=>{S.fotopend=q.docs.map(d=>({id:d.id,...d.data()}));if(S.view==='taller')pendBar()},()=>{});
   S.arm=[];db.collection('armado').onSnapshot(q=>{S.arm=q.docs.map(d=>({id:d.id,...d.data()}));changed('datos')},()=>{});
   S.oarm=[];db.collection('oarm').onSnapshot(q=>{S.oarm=q.docs.map(d=>({id:d.id,...d.data()}));changed('datos')},()=>{});
   S.lineaA=null;db.doc('linea/armado').onSnapshot(x=>{S.lineaA=x.exists?x.data():null;changed('datos')},()=>{});
