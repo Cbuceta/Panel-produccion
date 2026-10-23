@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<script src="/Paneldepaneles/candado.js" data-panel="produccion" data-sin-login="ot,pantalla"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Spotsline Producción</title>
@@ -280,7 +279,7 @@ body.tvon .app{display:none}
     <a href="#auditoria" data-v="auditoria">Registro de cambios</a>
     <a href="#" id="bzBtn" class="hide">Pedidos de mejora</a>
     <div class="foot" id="perfilFoot"></div>
-    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-22 c</div>
+    <div class="foot" style="margin-top:0;padding-top:0;font-size:11px;opacity:.45">Versión 2026-10-23 a</div>
   </nav>
   <main id="main"><p class="note">Cargando…</p></main>
 </div>
@@ -896,7 +895,7 @@ config(){const c=tvCfg();const ed=S.canPlan;const h=today();
 /* MAESTRO */
 V.maestro={mount(){$('#main').innerHTML=header('Maestro','Listas de materiales, centros de trabajo y personal. Es la base de todo el sistema y sigue la estructura de Odoo Fabricación: producto, lista de materiales, componentes y operaciones.')+
   `<div class="panel row" style="align-items:center;justify-content:space-between;padding:12px 16px"><span class="note" style="flex:1 1 300px">Podés editar los maestros acá o en Excel: descargá la planilla con los datos actuales, modificala y subila.</span><span class="row" style="gap:8px"><button class="btn sec sm" id="mDesc">Descargar planilla de maestros</button><button class="btn sm" id="mSub">Subir planilla de maestros</button></span></div>
-  <div class="tabs"><button class="on" data-mt="prod">Listas de materiales</button><button data-mt="cen">Máquinas</button><button data-mt="per">Personal</button><button data-mt="mot">Motivos de parada</button></div><div id="mm"></div>`;
+  <div class="tabs"><button class="on" data-mt="prod">Listas de materiales</button><button data-mt="cen">Máquinas</button><button data-mt="per">Personal</button><button data-mt="mot">Motivos de parada</button><button data-mt="acc">Usuarios y permisos</button></div><div id="mm"></div>`;
   document.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{if(this.tab==='prod'&&b.dataset.mt!=='prod'&&BOM.dirty&&!confirm('Hay cambios sin guardar en la lista de materiales. ¿Salir igual?'))return;document.querySelectorAll('[data-mt]').forEach(x=>x.classList.toggle('on',x===b));this.tab=b.dataset.mt;this.update()});
   $('#mDesc').onclick=()=>planillaMaestros();$('#mSub').onclick=()=>{if(BOM.dirty){toast('Guardá o descartá los cambios de la lista de materiales antes de subir la planilla');return}subirMaestros()};
   this.tab=this.tab||'prod';document.querySelectorAll('[data-mt]').forEach(x=>x.classList.toggle('on',x.dataset.mt===this.tab));this.update()},
@@ -1863,28 +1862,31 @@ function filaARegistro(x,fecha,op,nom){const base={Fecha:fecha,Operario:op?perso
 /* ---------- asignación diaria de máquinas (la arma el planificador el día anterior) ---------- */
 const ASG={f:null,d:null,cargado:null,
 proxHabil(f){let d=addDays(f,1);while([0,6].includes(new Date(d+'T12:00:00').getDay()))d=addDays(d,1);return d},
-gente(f){return (S.M.personal?.items||[]).filter(p=>p.activo!==false&&areaDe(p.id,f)==='taller').sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'))},
+gente(f){const it=this.d?.items||{};return (S.M.personal?.items||[]).filter(p=>p.activo!==false&&(this.todos||areaDe(p.id,f)==='taller'||(it[p.id]&&((it[p.id].maq||[]).some(Boolean)||it[p.id].aus||it[p.id].obs)))).sort((a,b)=>(areaDe(a.id,f)==='taller'?0:1)-(areaDe(b.id,f)==='taller'?0:1)||a.nombre.localeCompare(b.nombre,'es'))},
+esSec(v){return String(v||'').startsWith('@')},
+lbl(v){return this.esSec(v)?(AREAS_PL[v.slice(1)]||v.slice(1)):v},
 async leer(f){try{const s=await S.db.doc('asignacion/'+f).get();return s.exists?s.data():null}catch(e){return null}},
 async abrir(){if(!this.f)this.f=this.proxHabil(today());if(this.cargado!==this.f){this.cargado=this.f;const d=await this.leer(this.f);this.d=d?JSON.parse(JSON.stringify(d)):{fecha:this.f,items:{}};this.sucio=false}this.render()},
 it(pid){return this.d.items[pid]||(this.d.items[pid]={maq:[],obs:'',aus:false})},
 dia(f){return new Date(f+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})},
 render(){const el=$('#tpA');if(!el||!this.d)return;const f=this.f;const P=this.gente(f);const C=(S.M.centros?.items||[]);const ed=!!S.canPlan;
-  const uso={};for(const p of P){const x=this.d.items[p.id];if(!x||x.aus)continue;for(const m of x.maq||[])if(m)(uso[m]=uso[m]||[]).push(p.id)}
+  const uso={};for(const p of P){const x=this.d.items[p.id];if(!x||x.aus)continue;for(const m of x.maq||[])if(m&&!this.esSec(m))(uso[m]=uso[m]||[]).push(p.id)}
   const libres=C.filter(c=>!uso[c.codigo]).map(c=>c.codigo);const sinAsig=P.filter(p=>{const x=this.d.items[p.id];return !x||(!x.aus&&!(x.maq||[]).some(Boolean))});
-  const opt=(v)=>'<option value="">–</option>'+C.map(c=>`<option ${c.codigo===v?'selected':''}>${esc(c.codigo)}</option>`).join('');
+  const opt=(v)=>'<option value="">–</option><optgroup label="Máquinas del taller">'+C.map(c=>`<option ${c.codigo===v?'selected':''}>${esc(c.codigo)}</option>`).join('')+'</optgroup><optgroup label="Otro sector">'+Object.entries(AREAS_PL).filter(([k])=>k!=='taller').map(([k,n])=>`<option value="@${k}" ${v==='@'+k?'selected':''}>${esc(n)}</option>`).join('')+'</optgroup>';
   const hs=p=>{const h=S.horas?estadoHoras(p.id,f):null;return h&&h.k!=='sin'?`<span class="pill ${h.aus?'bad':''}">${esc(h.label||'')}</span>`:''};
   el.innerHTML=`<div class="panel"><div class="row" style="justify-content:space-between;align-items:flex-end">
      <div class="row"><label class="f" style="flex:0 0 170px">Día<input type="date" id="asF" value="${esc(f)}"></label><span class="note" style="padding-bottom:9px">${esc(this.dia(f))}${this.d.actualizado?` · guardado ${esc(new Date(this.d.actualizado).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))}${this.d.por?' por '+esc(this.d.por):''}`:' · sin guardar'}</span></div>
      <div class="row" style="gap:6px">${ed?'<button class="btn sec sm" id="asCopy">Copiar del día anterior</button>':''}<button class="btn sec sm" id="asPrint">Imprimir</button><button class="btn sec sm" id="asPdf">Descargar PDF</button>${ed?'<button class="btn" id="asSave">Guardar</button>':''}</div></div>
-    ${ed?'':'<p class="note">Solo el planificador puede cambiar la asignación.</p>'}
+    ${ed?'':'<p class="note">Solo el planificador puede cambiar la asignación.</p>'}<label class="note" style="display:inline-flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="asTodos" ${this.todos?'checked':''} style="width:auto"> Mostrar el personal de todos los sectores</label>
     <p class="note" style="margin:10px 0 6px">${P.length} personas del taller · ${sinAsig.length?`<b class="poor">${sinAsig.length} sin máquina</b>`:'todas con máquina'} · máquinas libres: ${libres.length?esc(libres.join(', ')):'ninguna'}${this.sucio?' · <b class="poor">hay cambios sin guardar</b>':''}</p>
-    <div class="tw"><table class="asg"><tr><th>Persona</th><th>Asistencia</th><th>No viene</th><th>Máquina</th><th>2.ª máquina</th><th>Tarea / observaciones</th><th></th></tr>
-    ${P.map(p=>{const x=this.d.items[p.id]||{maq:[],obs:'',aus:false};const m=x.maq||[];const rep=m.filter(Boolean).filter(c=>uso[c]&&uso[c].length>1);
-      return `<tr class="${x.aus?'aus':''}"><td><b>${esc(p.nombre)}</b></td><td>${hs(p)}</td><td><input type="checkbox" data-aa="${esc(p.id)}" ${x.aus?'checked':''} ${ed?'':'disabled'} style="width:auto" aria-label="${esc(p.nombre)} no viene"></td>
+    <div class="tw"><table class="asg"><tr><th>Persona</th><th>Sector habitual</th><th>Asistencia</th><th>No viene</th><th>Máquina / sector</th><th>2.ª máquina / sector</th><th>Tarea / observaciones</th><th></th></tr>
+    ${P.map(p=>{const x=this.d.items[p.id]||{maq:[],obs:'',aus:false};const m=x.maq||[];const rep=m.filter(Boolean).filter(c=>uso[c]&&uso[c].length>1);const ar=areaDe(p.id,f);const otro=m.find(v=>this.esSec(v));
+      return `<tr class="${x.aus?'aus':''}"><td><b>${esc(p.nombre)}</b></td><td class="note">${esc(AREAS_PL[ar]||ar)}</td><td>${hs(p)}</td><td><input type="checkbox" data-aa="${esc(p.id)}" ${x.aus?'checked':''} ${ed?'':'disabled'} style="width:auto" aria-label="${esc(p.nombre)} no viene"></td>
       <td><select data-am="${esc(p.id)}|0" ${ed&&!x.aus?'':'disabled'}>${opt(m[0])}</select></td><td><select data-am="${esc(p.id)}|1" ${ed&&!x.aus?'':'disabled'}>${opt(m[1])}</select></td>
       <td><input data-ao="${esc(p.id)}" value="${esc(x.obs||'')}" placeholder="ej. OP 874, cambio de formato" ${ed?'':'disabled'} style="min-width:180px"></td>
-      <td>${rep.length?`<span class="pill lamp">${esc(rep.join(', '))} compartida con ${esc(rep.flatMap(c=>uso[c].filter(i=>i!==p.id).map(persona)).join(', '))}</span>`:''}</td></tr>`}).join('')}</table></div></div>`;
+      <td>${otro&&otro!=='@'+ar?`<span class="pill">va a ${esc(this.lbl(otro))}</span> `:''}${rep.length?`<span class="pill lamp">${esc(rep.join(', '))} compartida con ${esc(rep.flatMap(c=>uso[c].filter(i=>i!==p.id).map(persona)).join(', '))}</span>`:''}</td></tr>`}).join('')}</table></div></div>`;
   $('#asF').onchange=async()=>{const v=fechaOk($('#asF').value,this.f);if(this.sucio&&!confirm('Hay cambios sin guardar. ¿Cambiar de día igual?')){$('#asF').value=this.f;return}this.f=v;this.cargado=null;await this.abrir()};
+  $('#asTodos').onchange=e=>{this.todos=e.target.checked;this.render()};
   el.querySelectorAll('[data-aa]').forEach(i=>i.onchange=()=>{this.it(i.dataset.aa).aus=i.checked;this.sucio=true;this.render()});
   el.querySelectorAll('[data-am]').forEach(s=>s.onchange=()=>{const [pid,k]=s.dataset.am.split('|');const x=this.it(pid);x.maq=x.maq||[];x.maq[+k]=s.value;x.maq=[x.maq[0]||'',x.maq[1]||''];this.sucio=true;this.render()});
   el.querySelectorAll('[data-ao]').forEach(i=>i.oninput=()=>{this.it(i.dataset.ao).obs=i.value;this.sucio=true});
@@ -1896,20 +1898,20 @@ async guardar(){if(busy('#asSave'))return;try{const items={};for(const [k,v] of 
 async copiar(){let f=this.f,d=null;for(let i=0;i<10&&!d;i++){f=addDays(f,-1);d=await this.leer(f)}if(!d){toast('No hay asignaciones en los 10 días anteriores');return}
   if(Object.keys(this.d.items||{}).length&&!confirm(`Se reemplaza lo cargado por la asignación del ${fmtD(f)}. ¿Seguir?`))return;
   this.d.items={};for(const [k,v] of Object.entries(d.items||{}))this.d.items[k]={maq:[...(v.maq||[])],obs:v.obs||'',aus:false};this.sucio=true;toast('Copiado del '+fmtD(f)+'. Revisá y guardá.');this.render()},
-filas(){const P=this.gente(this.f);return P.map(p=>{const x=this.d.items[p.id]||{};return {nombre:p.nombre,maq:(x.maq||[]).filter(Boolean),obs:x.obs||'',aus:!!x.aus}})},
+filas(){const P=this.gente(this.f);return P.map(p=>{const x=this.d.items[p.id]||{};return {nombre:p.nombre,maq:(x.maq||[]).filter(Boolean).map(v=>this.lbl(v)),obs:x.obs||'',aus:!!x.aus,sec:areaDe(p.id,this.f)}}).filter(r=>r.sec==='taller'||r.maq.length||r.aus||r.obs)},
 imprimir(){const F=this.filas();const C=(S.M.centros?.items||[]).map(c=>c.codigo);const usadas=new Set(F.filter(r=>!r.aus).flatMap(r=>r.maq));
   let pr=$('#prt');if(!pr){pr=document.createElement('div');pr.id='prt';document.body.appendChild(pr)}
   const act=F.filter(r=>!r.aus);const aus=F.filter(r=>r.aus);
-  pr.innerHTML=`<h1>Asignación de máquinas · Taller</h1><p class="sub">${esc(this.dia(this.f))}${this.sucio?' (borrador sin guardar)':''}</p>
-   <table><tr><th style="width:34%">Persona</th><th style="width:22%">Máquina</th><th>Tarea / observaciones</th></tr>${act.map(r=>`<tr><td>${esc(r.nombre)}</td><td class="m">${esc(r.maq.join(' + ')||'—')}</td><td>${esc(r.obs)}</td></tr>`).join('')}</table>
+  pr.innerHTML=`<h1>Asignación de máquinas y sectores</h1><p class="sub">${esc(this.dia(this.f))}${this.sucio?' (borrador sin guardar)':''}</p>
+   <table><tr><th style="width:34%">Persona</th><th style="width:22%">Máquina / sector</th><th>Tarea / observaciones</th></tr>${act.map(r=>`<tr><td>${esc(r.nombre)}</td><td class="m">${esc(r.maq.join(' + ')||'—')}</td><td>${esc(r.obs)}</td></tr>`).join('')}</table>
    ${aus.length?`<h2>No vienen</h2><p>${esc(aus.map(r=>r.nombre).join(', '))}</p>`:''}
    <h2>Máquinas sin asignar</h2><p>${esc(C.filter(c=>!usadas.has(c)).join(', ')||'ninguna')}</p>`;
   document.body.classList.add('imprimiendo');const fin=()=>{document.body.classList.remove('imprimiendo');window.removeEventListener('afterprint',fin)};window.addEventListener('afterprint',fin);
   try{window.print()}catch(e){toast('No se pudo abrir la impresión: usá Descargar PDF')}setTimeout(fin,60000)},
 pdf(){const J=window.jspdf?.jsPDF;if(!J){toast('No se pudo cargar el generador de PDF. Recargá la página.');return}
   const doc=new J({unit:'mm',format:'a4'});const F=this.filas();const act=F.filter(r=>!r.aus);const aus=F.filter(r=>r.aus);const C=(S.M.centros?.items||[]).map(c=>c.codigo);const usadas=new Set(act.flatMap(r=>r.maq));
-  let y=16;doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('Asignación de máquinas · Taller',14,y);y+=7;doc.setFont('helvetica','normal');doc.setFontSize(11);doc.text(this.dia(this.f)+(this.sucio?' (borrador sin guardar)':''),14,y);y+=8;
-  const X=[14,80,124],W=[66,44,72];const head=()=>{doc.setFillColor(235,235,235);doc.rect(14,y-5,182,8,'F');doc.setFont('helvetica','bold');doc.setFontSize(11);['Persona','Máquina','Tarea / observaciones'].forEach((h,i)=>doc.text(h,X[i]+2,y));y+=6;doc.setFont('helvetica','normal')};head();
+  let y=16;doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('Asignación de máquinas y sectores',14,y);y+=7;doc.setFont('helvetica','normal');doc.setFontSize(11);doc.text(this.dia(this.f)+(this.sucio?' (borrador sin guardar)':''),14,y);y+=8;
+  const X=[14,80,124],W=[66,44,72];const head=()=>{doc.setFillColor(235,235,235);doc.rect(14,y-5,182,8,'F');doc.setFont('helvetica','bold');doc.setFontSize(11);['Persona','Máquina / sector','Tarea / observaciones'].forEach((h,i)=>doc.text(h,X[i]+2,y));y+=6;doc.setFont('helvetica','normal')};head();
   for(const r of act){const ob=doc.splitTextToSize(r.obs||'',W[2]-4);const h=Math.max(9,ob.length*5+4);if(y+h>285){doc.addPage();y=16;head()}
     doc.rect(14,y-3,182,h);doc.line(X[1],y-3,X[1],y-3+h);doc.line(X[2],y-3,X[2],y-3+h);doc.setFontSize(11);doc.text(r.nombre,X[0]+2,y+3);doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(r.maq.join(' + ')||'—',X[1]+2,y+3);doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text(ob,X[2]+2,y+3);y+=h}
   y+=6;doc.setFontSize(11);if(aus.length){doc.setFont('helvetica','bold');doc.text('No vienen:',14,y);doc.setFont('helvetica','normal');const t=doc.splitTextToSize(aus.map(r=>r.nombre).join(', '),150);doc.text(t,40,y);y+=t.length*5+3}
@@ -2548,23 +2550,16 @@ const PLANTILLAS={planificador:{nombre:'Planificador',vistas:'*',area:null,permi
 const vistasSector=a=>['planta',a==='taller'||a==='matriceria'||a==='mantenimiento'?'taller':a,'indicadores','instructivo'].filter(v=>VISTAS_PL[v]);
 function permisosDe(p){if(!p)return {};if(p.permisos)return p.permisos;if(p.vistas==='*')return {plan:true,maestro:true,cargar:true,editar:true,derivar:true,usuarios:true};return {cargar:true,editar:!!p.editar,derivar:true}}
 function perfiles(){const it=S.M.perfiles?.items;const del=S.M.perfiles?.borrados||[];if(!it||!it.length)return PERF_DEF;return [...it,...PERF_DEF.filter(d=>!it.some(x=>x.id===d.id)&&!del.includes(d.id))]}
-function accesoActivo(){return true} /* login único: el acceso lo controla el Panel de Paneles */
-/* Perfil armado con los permisos que se asignan en Usuarios del Panel de Paneles */
-function perfilDesdePortal(a){if(a&&a.planta)return {id:'planta',nombre:'Planta',vistas:['pantalla'],area:null,pin:'portal',permisos:{}}; /* celulares de operarios y TV: sin usuario */
-  const c=(a&&a.config)||{};const nombre=(a&&(a.nombre||a.email))||'Usuario';const id='portal-'+((a&&a.user_id)||'');
-  if(a&&a.es_admin)return {id,nombre,vistas:'*',area:null,pin:'portal',permisos:{plan:true,maestro:true,cargar:true,editar:true,derivar:true,usuarios:false}};
-  const pl=PLANTILLAS[c.plantilla]||PLANTILLAS.gerencia;const area=c.area!==undefined?c.area:pl.area;
-  const vistas=c.vistas!==undefined&&c.vistas!==null?c.vistas:(pl.vistas===null?vistasSector(area||'taller'):pl.vistas);
-  const permisos=Object.assign({},c.permisos||pl.permisos||{});permisos.usuarios=false;
-  return {id,nombre,vistas,area:area||null,pin:'portal',permisos}}
-function perfilActual(){return window.__PERFIL_PORTAL||null}
+function accesoActivo(){return perfiles().some(p=>p.pin&&permisosDe(p).usuarios)}
+function perfilActual(){if(!accesoActivo())return perfiles().find(p=>p.id==='plan')||PERF_DEF[0];let s=null;try{s=JSON.parse(localStorage.getItem('spl.sesion')||'null')}catch(e){}
+  const p=s&&perfiles().find(x=>x.id===s.id);return p&&p.pin&&p.pin===s.h?p:null}
 function vistaPermitida(v,p){p=p||perfilActual();if(v==='ot')return true;if(!p)return false;return p.vistas==='*'||(p.vistas||[]).includes(v)}
 function aplicarPerfil(){const p=perfilActual();S.perfil=p;const pm=permisosDe(p);S.canPlan=!!pm.plan;S.puedeMaestro=!!pm.maestro;S.puedeUsuarios=!!pm.usuarios;S.puedeEditar=!!pm.editar;S.puedeCargar=!!pm.cargar;S.puedeDerivar=!!pm.derivar;S.canWrite=!!(pm.cargar||pm.editar);
   S.areaFija=p&&p.area&&p.vistas!=='*'?p.area:null;
   document.querySelectorAll('.rail a[data-v]').forEach(a=>a.classList.toggle('hide',a.dataset.v==='ot'?!(p&&(p.vistas==='*'||(p.vistas||[]).includes('taller'))):!vistaPermitida(a.dataset.v,p)));
   document.querySelectorAll('.rail .grp').forEach(g=>{let n=g.nextElementSibling,vis=false;while(n&&!n.classList.contains('grp')&&n.tagName==='A'){if(!n.classList.contains('hide'))vis=true;n=n.nextElementSibling}g.classList.toggle('hide',!vis)});
   {const bz=$('#bzBtn');if(bz){bz.classList.toggle('hide',!(S.canPlan||S.puedeUsuarios));bz.onclick=e=>{e.preventDefault();modalBuzon()}}}
-  const f=$('#perfilFoot');if(f)f.innerHTML=accesoActivo()&&p?`${esc(p.nombre)} <button class="btn link" id="pfOut" style="color:inherit">salir</button>`:'';const o=$('#pfOut');if(o)o.onclick=()=>{try{localStorage.removeItem('spl.sesion')}catch(e){}window.PORTAL.salir()}}
+  const f=$('#perfilFoot');if(f)f.innerHTML=accesoActivo()&&p?`${esc(p.nombre)} <button class="btn link" id="pfOut" style="color:inherit">salir</button>`:'';const o=$('#pfOut');if(o)o.onclick=()=>{try{localStorage.removeItem('spl.sesion')}catch(e){}route()}}
 function pantallaLogin(){document.body.classList.add('solo');const P=perfiles().filter(p=>p.pin).sort((a,b)=>a.nombre.localeCompare(b.nombre));
   $('#main').innerHTML=`<div class="op1" style="max-width:420px"><h1>Spotsline Producción</h1><p class="lead">Elegí tu usuario e ingresá la clave.</p>
    <div class="opcard"><label class="f">Usuario<select id="lgP" class="opin">${P.map(p=>`<option value="${esc(p.id)}" ${lsGet('ultPerfil')===p.id?'selected':''}>${esc(p.nombre)}</option>`).join('')}</select></label>
@@ -3436,7 +3431,6 @@ update(){const F=this.F;const B=$('#auB');if(!B)return;const all=[];for(const d 
       if(k){const n=document.querySelector(k);if(n&&n!==document.activeElement)try{n.focus()}catch(x){}}},0)},true)})();
 const fechaOk=(f,def)=>/^(20\d\d|2100)-\d\d-\d\d$/.test(String(f||''))?f:def;
 function route(){const h=(location.hash||'#general').slice(1);let [v,sel,...rest]=h.split('/');if(v==='desvios'){v='indicadores'}else if(v==='fabrica'){v='plan'}else if(v==='planificacion'){v='plan';V.plan.tab='curso'}else if(v==='plan'&&!sel){}let name=V[v]&&!['fabrica','planificacion'].includes(v)?v:'general';
-  if(window.PORTAL&&window.PORTAL.planta&&name!=='ot'&&name!=='pantalla'){window.PORTAL.irAlPortal();return} /* modo planta: el resto pide ingresar */
   if(name!=='ot'&&accesoActivo()&&!perfilActual()){if(S.view&&S.view!=='login')V[S.view]?.unmount?.();S.view='login';pantallaLogin();return}
   document.body.classList.toggle('solo',name==='ot');aplicarPerfil();if(!vistaPermitida(name)){const p=perfilActual();const prim=p&&p.vistas!=='*'?(p.vistas||[])[0]:'general';if(prim&&prim!==name){location.hash=prim;return}}
   document.querySelectorAll('.rail a[data-v]').forEach(a=>a.classList.toggle('on',a.dataset.v===name));
@@ -3501,10 +3495,8 @@ async function publicarResumenGeneral(){
 }
 
 /* ---------- arranque ---------- */
-/* Login único: primero se espera el usuario del Panel de Paneles y recién ahí se arma la pantalla */
-window.PORTAL_ACCESO.then(a=>{window.__PERFIL_PORTAL=perfilDesdePortal(a);route()});
+route();
 (async()=>{
-  await window.PORTAL_ACCESO;
   let db=null,user=null;if(window.claude&&window.claude.use){[db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')])}
   if(!S.uid){let d=lsGet('dev');if(!d){d='dev-'+newId();lsSet('dev',d)}S.uid=d}
   if(!db&&SUPA.url&&SUPA.key){try{db=await supaDB();S.supa=true}catch(e){const msg=String(e&&e.message||e||'');S.supaErr=e&&e.status===404||/42P01|PGRST205|does not exist|Could not find the table/i.test(msg)?'tabla':/updated_at|42703|column/i.test(msg)?'columna':'conexion';S.supaDet=(e&&e.status?'Error '+e.status+': ':'Sin respuesta: ')+msg.slice(0,220);console.error('Supabase',e)}}
